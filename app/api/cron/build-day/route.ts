@@ -65,7 +65,9 @@ export async function GET(req: Request) {
   if (toVoice.length) {
     day.degraded = [...(day.degraded ?? []), ...toVoice.map((item) => `voice:${item.id}`)];
   }
-  await putDay(day);
+  // sweep: false — the final putDay() below runs the same day-file sweep again a few
+  // seconds later; running it here too finds nothing that call won't also find.
+  await putDay(day, undefined, false);
 
   await pool(toVoice, READ_CONCURRENCY, async (item) => {
     try {

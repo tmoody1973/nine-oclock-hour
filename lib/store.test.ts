@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isStale, isOldRead, sweepReads, type StoreBlobDeps } from './store';
+import { isStale, isOldRead, sweepReads, putDay, type StoreBlobDeps } from './store';
 import type { DayFile, WireItem } from './types';
 
 test('the file just written is never stale', () => {
@@ -216,4 +216,46 @@ test('a read passed via alsoReferenced survives even though no stored day file m
   const result = await sweepReads(NOW, blob, [readUrl]);
   assert.deepEqual(result, []);
   assert.deepEqual(deleted, []);
+});
+
+// A put() double that mirrors the real service's actual behavior: refuses a second write to
+// a pathname already written, unless allowOverwrite is set. Every earlier test in this file
+// used a double that accepted repeated writes happily — more permissive than reality, which
+// is exactly how the missing allowOverwrite survived three reviews and 93 tests.
+function fakePutDayBlob() {
+  const written = new Map<string, string>();
+  return {
+    written,
+    put: async (pathname: string, body: string, opts: { allowOverwrite: boolean }) => {
+      if (written.has(pathname) && !opts.allowOverwrite) {
+        throw new Error(`blob already exists: ${pathname}`);
+      }
+      written.set(pathname, body);
+      return { url: `https://blob.example/${pathname}` };
+    },
+    list: async () => ({ blobs: [] as { url: string; uploadedAt: Date }[] }),
+    del: async () => {},
+  };
+}
+
+// CRITICAL: the cron calls putDay twice per run, same date both times — once pessimistically
+// before voicing, once after. Without allowOverwrite, the second call throws "blob already
+// exists" every single morning: the day gets built, ~26 reads get voiced and paid for, and
+// the run ends in a failed write with nothing but orphaned reads/ objects to show for it.
+test('putDay can be called twice for the same date without throwing', async () => {
+  const blob = fakePutDayBlob();
+  const day = dayFile();
+  await putDay(day, blob);
+  await assert.doesNotReject(() => putDay(day, blob));
+});
+
+test('putDay skips its own day-file sweep when told to', async () => {
+  let listCalls = 0;
+  const blob = fakePutDayBlob();
+  const originalList = blob.list;
+  blob.list = async (...args: Parameters<typeof originalList>) => { listCalls++; return originalList(...args); };
+  await putDay(dayFile(), blob, false);
+  assert.equal(listCalls, 0);
+  await putDay(dayFile(), blob, true);
+  assert.equal(listCalls, 1);
 });

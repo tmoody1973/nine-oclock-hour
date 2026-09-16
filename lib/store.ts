@@ -11,15 +11,38 @@ const key = (date: string) => `days/${date}.json`;
 // KEPT, never deleted: fail-safe, and easy to invert by accident, so it is pinned by a test.
 export const isStale = (uploadedAt: Date, now = Date.now()) => uploadedAt.getTime() < now - 7 * 864e5;
 
-export async function putDay(day: DayFile): Promise<string> {
-  const { url } = await put(key(day.date), JSON.stringify(day), { access: 'public', contentType: 'application/json', addRandomSuffix: false });
-  // The day file is not an archive: a week is enough to compare yesterday with today.
-  // `list` returns at most 1000 per page and we ignore its cursor — safe here because one
-  // write a day against a 7-day window keeps this prefix at ~8 blobs, three orders of
-  // magnitude under the page size. If retention ever lengthens or this prefix is shared,
-  // paginate, or older files will strand past page one and never be reached.
-  const old = await list({ prefix: 'days/' });
-  await Promise.all(old.blobs.filter((b) => isStale(b.uploadedAt)).map((b) => del(b.url)));
+// Narrower than @vercel/blob's own types — only what putDay reads or calls. Same seam
+// pattern as voiceRead's `blob` parameter and sweepReads' `StoreBlobDeps`: real callers
+// never pass this and get the real @vercel/blob functions via the default. Kept separate
+// from StoreBlobDeps rather than widened into it — put/list/del here have different option
+// shapes than sweepReads' list/del, and two small honest types beat one loose one.
+type PutDayBlobDeps = {
+  put: (pathname: string, body: string, opts: { access: 'public'; contentType: string; addRandomSuffix: boolean; allowOverwrite: boolean }) => Promise<{ url: string }>;
+  list: (options: { prefix: string }) => Promise<{ blobs: { url: string; uploadedAt: Date }[] }>;
+  del: (urls: string[]) => Promise<void>;
+};
+const defaultPutDayBlobDeps: PutDayBlobDeps = { put, list, del };
+
+// The cron calls putDay twice per run — once pessimistically before voicing, once after —
+// both times for the SAME date. Without `allowOverwrite: true`, @vercel/blob refuses the
+// second write outright ("blob already exists"), so the final write throws every single
+// morning: the day gets built, ~26 reads get voiced and paid for, and the run ends in a 500
+// with nothing but orphaned reads/ objects to show for it. `sweep` defaults true and is only
+// set false by the cron's own first call — the day-file sweep below can't find anything on
+// that call that the second one won't also find, so running it twice is pure waste, not a
+// correctness question.
+export async function putDay(day: DayFile, blob: PutDayBlobDeps = defaultPutDayBlobDeps, sweep = true): Promise<string> {
+  const { url } = await blob.put(key(day.date), JSON.stringify(day), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true });
+  if (sweep) {
+    // The day file is not an archive: a week is enough to compare yesterday with today.
+    // `list` returns at most 1000 per page and we ignore its cursor — safe here because one
+    // write a day against a 7-day window keeps this prefix at ~8 blobs, three orders of
+    // magnitude under the page size. If retention ever lengthens or this prefix is shared,
+    // paginate, or older files will strand past page one and never be reached.
+    const old = await blob.list({ prefix: 'days/' });
+    const stale = old.blobs.filter((b) => isStale(b.uploadedAt)).map((b) => b.url);
+    if (stale.length) await blob.del(stale);
+  }
   return url;
 }
 
