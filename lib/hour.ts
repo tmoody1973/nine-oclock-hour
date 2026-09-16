@@ -110,7 +110,7 @@ export function score(hour: Block[], opts: ScoreOpts): ScoreResult {
     fresh -= 3;
     notes.push(['warn', 'You held the bulletin for the next break.', 'The clock survived; the news was second-hand by the time it aired.']);
   } else {
-    notes.push(['ok', 'You took the bulletin live at 9:34.', '']);
+    notes.push(['ok', 'You took the bulletin live at 9:34.', 'Everything after it shifted, which is what a bulletin does.']);
   }
 
   let drift = 0;
