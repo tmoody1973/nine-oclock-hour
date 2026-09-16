@@ -155,11 +155,11 @@ git add -A && git commit -m "feat: next.js skeleton with a test runner and share
 ### Task 2: Read CDS from the server
 
 **Files:**
-- Create: `lib/cds.ts`, `lib/cds.test.ts`, `lib/fixtures/me.json`
+- Create: `lib/cds.ts`, `lib/cds.test.ts`, `lib/topics.ts`, `lib/topics.test.ts`, `lib/fixtures/me.json`
 - Modify: `.env.example`
 
 **Interfaces:**
-- Produces: `cdsQuery(params: Record<string, string>): Promise<CdsDoc[]>`, `toWireItem(doc: CdsDoc, how: How, src: string): WireItem`, and the id table below.
+- Produces: `cdsQuery(params: Record<string, string>): Promise<CdsDoc[]>`, `toWireItem(doc: CdsDoc, how: How, src: string): WireItem`, `classify(collectionIds: string[], text: string, how: How): Topic`, and the id table below.
 
 **Known CDS ids** (confirmed live on 2026-09-16 through `npr-cds-mcp`): All Things Considered = collection `2`; Morning Edition = collection `3`; the NPR News Now hourly newscast = podcast channel `500005`; member-station local pieces carry collection `319418027` ("MPX Local Stories"). Station owner ids: 88Nine `s921`, KCRW `s55`, WBEZ `s308`, WNYC `s552`, WABE `s295`, KQED `s150`.
 
@@ -198,6 +198,7 @@ test('a Morning Edition document becomes a satellite wire item with its runtime'
   assert.ok(item.url.startsWith('https://'));
   assert.ok(item.len > 0, 'runtime comes from the audio asset duration');
   assert.ok(!item.teaser.includes('<'), 'html is stripped from the teaser');
+  assert.notEqual(item.topic, 'news', 'the desk comes from the story\'s NPR topic collection, not the default');
 });
 ```
 
@@ -206,11 +207,109 @@ test('a Morning Edition document becomes a satellite wire item with its runtime'
 Run: `pnpm test`
 Expected: FAIL — `toWireItem` is not exported.
 
+- [ ] **Step 3b: Write the desk classifier** in `lib/topics.ts`
+
+**Verified on 2026-09-16 against live CDS, and this is why the naive version fails.** A CDS document's `collections` array comes back as `[{ id: "1014" }, { id: "3" }]` — **there is no `name` field on it**. Any classifier that reads `c.name` assigns nothing and every story falls into `news`, which would leave the Mix score (15 points) scoring noise and the taste meter (Task 7) with nothing to grip. Those numeric ids are NPR's own topic collections — the sections of the paper — and they were resolved by fetching each id:
+
+| id | NPR topic | our desk | | id | NPR topic | our desk |
+|---|---|---|---|---|---|---|
+| 1014 | Politics | politics | | 1008 | Culture | culture |
+| 1057 | Opinion | politics | | 1032 | Books | culture |
+| 1059 | Analysis | politics | | 1045 | Movies | culture |
+| 1070 | Law | politics | | 1046 | Performing Arts | culture |
+| 1004 | World | world | | 1047 | Art & Design | culture |
+| 1126 | Africa | world | | 1048 | Pop Culture | culture |
+| 1017 | Economy | economy | | 1051 | Diversions | culture |
+| 1006 | Business | economy | | 1053 | Food | culture |
+| 1095 | Business Story of the Day | economy | | 1141 | Fine Art | culture |
+| 1128 | Health | health | | 1020 | Media | culture |
+| 1027 | Healthcare | health | | 1013 | Education | culture |
+| 1019 | Technology | tech | | 1025 | Environment | climate |
+| 1007 | Science | tech | | 1039 | Music | music |
+| 1024 | Research News | tech | | 1103 | Studio Sessions | music |
+| 1026 | Space | tech | | 1105 | Music Interviews | music |
+| 1003 | National | news | | 1001 | News | news |
+
+Ids `2` and `3` are programmes (All Things Considered, Morning Edition), `1002` is Home Page Top Stories, and `319418027` is MPX Local Stories — none of them is a desk, so they must not be in the table.
+
+**Also verified:** a member station's local story carries **only** `319418027` and nothing else. Four WBEZ stories were checked and not one had a topic collection. So station copy has no topic metadata at all and the desk has to come from the words. That is what the keyword pass is for, and it is not a nicety — without it every station story is one undifferentiated blob.
+
+**The desk is the subject, not the place.** A WBEZ story about the mayor's reelection belongs on the Politics desk; that it came from Chicago is already carried by `how` and `src`, which the UI shows anyway. `local` is the fall-back for a station story whose subject matches no desk — a neighbourhood festival, a station anniversary — and `news` is the fall-back for network copy in the same position.
+
+```ts
+import type { How, Topic } from './types';
+
+// NPR's own topic collections are the sections of the paper. Confirmed live 2026-09-16.
+const BY_ID: Record<string, Topic> = {
+  1014: 'politics', 1057: 'politics', 1059: 'politics', 1070: 'politics',
+  1004: 'world', 1126: 'world',
+  1017: 'economy', 1006: 'economy', 1095: 'economy',
+  1128: 'health', 1027: 'health',
+  1019: 'tech', 1007: 'tech', 1024: 'tech', 1026: 'tech',
+  1008: 'culture', 1032: 'culture', 1045: 'culture', 1046: 'culture', 1047: 'culture',
+  1048: 'culture', 1051: 'culture', 1053: 'culture', 1141: 'culture', 1020: 'culture', 1013: 'culture',
+  1025: 'climate',
+  1039: 'music', 1103: 'music', 1105: 'music',
+  1003: 'news', 1001: 'news',
+};
+
+// Station copy carries no topic collection, so the desk comes from the headline and the
+// teaser. First match wins, so the most specific pattern goes first.
+const BY_WORD: [Topic, RegExp][] = [
+  ['music',    /\b(album|band|musician|song|concert|jazz|hip.?hop|orchestra|record label|singer)/i],
+  ['climate',  /\b(climate|emissions|drought|wildfire|flooding|heat wave|solar|coal|pipeline|carbon)/i],
+  ['health',   /\b(hospital|patient|doctor|vaccine|medicaid|medicare|mental health|opioid|clinic|disease|birth control)/i],
+  ['tech',     /\b(\bai\b|artificial intelligence|software|chip|startup|semiconductor|algorithm|data centre|data center|nasa|researchers)/i],
+  ['economy',  /\b(econom|inflation|tariff|unemploy|wages?|rent|housing market|budget|tax(es|payer)?|layoff|the fed\b|interest rate)/i],
+  ['politics', /\b(mayor|alderman|city council|governor|senat|congress|legislat|election|campaign|reelection|ballot|impeach|court|lawsuit|immigration|ice\b)/i],
+  ['world',    /\b(ukraine|gaza|israel|china|russia|nato|the eu\b|migrants?|border|foreign minister|united nations)/i],
+  ['culture',  /\b(museum|festival|artist|theatre|theater|film|novel|exhibit|restaurant|chef|arts spending|mural)/i],
+];
+
+export function classify(collectionIds: string[], text: string, how: How): Topic {
+  for (const id of collectionIds) { const desk = BY_ID[id]; if (desk) return desk; }
+  for (const [desk, re] of BY_WORD) if (re.test(text)) return desk;
+  return how === 'ours' || how === 'station' ? 'local' : 'news';
+}
+```
+
+Write `lib/topics.test.ts` alongside it, and run `pnpm test` after:
+
+```ts
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { classify } from './topics.ts';
+
+test('an NPR topic collection id sets the desk', () => {
+  assert.equal(classify(['1014', '3'], 'Rep. Massie moves to impeach', 'satellite'), 'politics');
+  assert.equal(classify(['1017', '3'], 'The Fed is expected to raise rates', 'satellite'), 'economy');
+  assert.equal(classify(['1019', '3'], "'Machine Gods' explores AI", 'satellite'), 'tech');
+});
+
+test('a programme id is not a desk', () => {
+  assert.notEqual(classify(['3'], 'Morning Edition for September 16', 'satellite'), 'news' as never === true ? 'x' : classify(['1014'], 'x', 'satellite'));
+  assert.equal(classify(['3'], 'Morning Edition for September 16', 'satellite'), 'news');
+  assert.equal(classify(['319418027'], 'A station anniversary', 'ours'), 'local');
+});
+
+test('station copy with no topic collection is classified from its words', () => {
+  assert.equal(classify(['319418027'], 'Chicago Mayor Brandon Johnson launches reelection campaign', 'ours'), 'politics');
+  assert.equal(classify(['319418027'], "How does Chicago's arts spending stack up with other major cities", 'ours'), 'culture');
+});
+
+test('a station story about nothing on the list falls back to local', () => {
+  assert.equal(classify(['319418027'], 'El Grito returns to the neighbourhood', 'ours'), 'local');
+});
+```
+
+Expected after implementing: PASS.
+
 - [ ] **Step 4: Implement `lib/cds.ts`**
 
 ```ts
 import 'server-only';
-import type { How, Topic, WireItem } from './types';
+import type { How, WireItem } from './types';
+import { classify } from './topics';
 
 const CDS = 'https://content.api.npr.org/v1/documents';
 const strip = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -235,15 +334,11 @@ const primaryAudio = (doc: CdsDoc) => {
   return { seconds: asset?.duration ?? 0, href: mp3?.href as string | undefined };
 };
 
-const TOPIC_BY_NAME: Record<string, Topic> = {
-  News: 'news', Politics: 'politics', World: 'world', Economy: 'economy', Business: 'economy',
-  Health: 'health', Technology: 'tech', Culture: 'culture', Television: 'culture', Climate: 'climate', Music: 'music',
-};
-
 export function toWireItem(doc: CdsDoc, how: How, src: string): WireItem {
   const audio = primaryAudio(doc);
-  const names: string[] = (doc.collections ?? []).map((c: any) => c.name).filter(Boolean);
-  const topic = names.map((n) => TOPIC_BY_NAME[n]).find(Boolean) ?? (how === 'ours' || how === 'station' ? 'local' : 'news');
+  // collections come back as { id } with no name — see Step 3b.
+  const ids: string[] = (doc.collections ?? []).map((c: any) => c.id ?? String(c.href ?? '').split('/').pop()).filter(Boolean);
+  const topic = classify(ids, `${doc.title ?? ''} ${strip(doc.teaser ?? '')}`, how);
   const day = String(doc.publishDateTime ?? '').slice(0, 10);
   return {
     id: doc.id,
@@ -280,8 +375,8 @@ CRON_SECRET=
 - [ ] **Step 7: Commit**
 
 ```bash
-git add lib/cds.ts lib/cds.test.ts lib/fixtures/me.json .env.example
-git commit -m "feat: server-side CDS reads with a recorded fixture test"
+git add lib/cds.ts lib/cds.test.ts lib/topics.ts lib/topics.test.ts lib/fixtures/me.json .env.example
+git commit -m "feat: server-side CDS reads and a desk classifier over NPR topic ids"
 ```
 
 ---
@@ -754,7 +849,7 @@ git commit -m "feat: the retention meter follows the listener's own three subjec
 **Interfaces:**
 - Consumes: everything above.
 
-- [ ] **Step 1: Wire the page** — `app/page.tsx` reads today's file with `getDay(new Date().toISOString().slice(0,10))`, falls back to the most recent day in Blob when the cron has not run, and renders the station picker, wire, rail, player and aircheck.
+- [ ] **Step 1: Wire the page** — `app/page.tsx` reads today's file with `getDay(new Date().toISOString().slice(0,10))`, falls back to the most recent day in Blob when the cron has not run, and renders the station picker, wire, rail, player and aircheck. The wire is a flat list at this point; Task 10 replaces it with the desk view, so do not build section grouping here.
 
 - [ ] **Step 2: Local check**
 
@@ -951,6 +1046,145 @@ git add lib/reads.ts lib/reads.test.ts app/api/cron/build-day/route.ts lib/playl
 git commit -m "feat: voice the reads with gemini tts, in our own words"
 ```
 
+
+---
+
+### Task 10: The front page — desks, and the mix bar
+
+**Files:**
+- Create: `lib/desks.ts`, `lib/desks.test.ts`, `components/Desks.tsx`
+- Modify: `app/page.tsx`
+
+**Interfaces:**
+- Consumes: `classify` and `Topic` (Task 2), `WireItem` (Task 1), `Block` (Task 5).
+- Produces: `byDesk(items: WireItem[]): Desk[]` and `mixOf(hour: Block[]): Mix`.
+
+**Why this exists.** A producer filling an hour is doing what a front-page editor does: not just "is this good" but "do I already have three of these". The plan already scores Mix at 15 of 100 points and already lets a listener pick three subjects (Task 7) — but neither is visible while you build. This task makes the desk the organising idea on screen: the wire arrives sorted into sections in a fixed newspaper order, and the rail carries a bar showing what the hour currently is, so a politics-heavy hour is obvious before you press air rather than in the aircheck afterwards.
+
+**Desk order is fixed, not alphabetical and not by count**, because a front page has a shape a reader learns: `news, politics, world, economy, health, tech, climate, culture, music, local`. Empty desks do not render.
+
+- [ ] **Step 1: Write the failing test** in `lib/desks.test.ts`
+
+```ts
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { byDesk, mixOf, DESK_ORDER } from './desks.ts';
+import type { Block, WireItem } from './types.ts';
+
+const item = (id: string, topic: WireItem['topic']): WireItem =>
+  ({ id, src: 'NPR', how: 'satellite', kind: 'seg', title: id, teaser: '', url: 'https://npr.org/' + id, topic, when: '2026-09-16', len: 120 });
+
+const block = (id: string, topic: Block['topic'], len = 120): Block =>
+  ({ id, label: id, len, how: 'satellite', kind: 'seg', mode: 'tape', topic });
+
+test('the wire arrives in newspaper order, and empty desks do not render', () => {
+  const desks = byDesk([item('a', 'music'), item('b', 'politics'), item('c', 'politics')]);
+  assert.deepEqual(desks.map((d) => d.topic), ['politics', 'music']);
+  assert.equal(desks[0].items.length, 2);
+  assert.ok(!desks.some((d) => d.items.length === 0));
+});
+
+test('desk order follows DESK_ORDER, not the order stories arrived', () => {
+  const desks = byDesk([item('a', 'local'), item('b', 'news')]);
+  assert.deepEqual(desks.map((d) => d.topic), ['news', 'local']);
+  assert.equal(DESK_ORDER[0], 'news');
+});
+
+test('the mix reports each desk as a share of programming seconds', () => {
+  const mix = mixOf([block('a', 'politics', 300), block('b', 'world', 100)]);
+  assert.equal(mix.total, 400);
+  assert.equal(mix.shares.find((s) => s.topic === 'politics')?.seconds, 300);
+  assert.ok(mix.shares[0].topic === 'politics', 'the heaviest desk is first');
+});
+
+test('an hour that is mostly one desk says so, and an even one does not', () => {
+  assert.equal(mixOf([block('a', 'politics', 300), block('b', 'world', 100)]).lopsided, 'politics');
+  assert.equal(mixOf([block('a', 'politics', 200), block('b', 'world', 200)]).lopsided, null);
+});
+
+test('fixed furniture is not part of the mix', () => {
+  const mix = mixOf([block('a', 'politics', 300), { ...block('id', 'news', 60), fixed: true }]);
+  assert.equal(mix.total, 300);
+});
+```
+
+- [ ] **Step 2: Run it**
+
+Run: `pnpm test`
+Expected: FAIL — `./desks.ts` does not exist.
+
+- [ ] **Step 3: Implement `lib/desks.ts`**
+
+```ts
+import type { Block, Topic, WireItem } from './types';
+
+// A front page has a shape a reader learns. This order is deliberate: not alphabetical,
+// not by how many stories happen to have landed.
+export const DESK_ORDER: Topic[] = ['news', 'politics', 'world', 'economy', 'health', 'tech', 'climate', 'culture', 'music', 'local'];
+
+export const DESK_NAME: Record<Topic, string> = {
+  news: 'News', politics: 'Politics', world: 'World', economy: 'Business', health: 'Health',
+  tech: 'Science & Tech', climate: 'Climate', culture: 'Arts & Culture', music: 'Music', local: 'Around town',
+};
+
+export type Desk = { topic: Topic; name: string; items: WireItem[] };
+export type Mix = { total: number; shares: { topic: Topic; name: string; seconds: number; share: number }[]; lopsided: Topic | null };
+
+export const byDesk = (items: WireItem[]): Desk[] =>
+  DESK_ORDER
+    .map((topic) => ({ topic, name: DESK_NAME[topic], items: items.filter((i) => i.topic === topic) }))
+    .filter((d) => d.items.length > 0);
+
+// What the producer actually built, by seconds rather than by story count: one 12-minute
+// documentary is a bigger share of the hour than four 90-second spots.
+export function mixOf(hour: Block[]): Mix {
+  const real = hour.filter((b) => !b.fixed && !b.window && !b.credit && !b.music);
+  const total = real.reduce((n, b) => n + (b.realLen ?? b.len), 0);
+  const shares = DESK_ORDER
+    .map((topic) => {
+      const seconds = real.filter((b) => b.topic === topic).reduce((n, b) => n + (b.realLen ?? b.len), 0);
+      return { topic, name: DESK_NAME[topic], seconds, share: total ? seconds / total : 0 };
+    })
+    .filter((s) => s.seconds > 0)
+    .sort((a, b) => b.seconds - a.seconds);
+  // Half the hour on one desk is the point at which a listener notices.
+  const lopsided = shares[0] && shares[0].share > 0.5 ? shares[0].topic : null;
+  return { total, shares, lopsided };
+}
+```
+
+- [ ] **Step 4: Run the tests**
+
+Run: `pnpm test`
+Expected: PASS, all five.
+
+- [ ] **Step 5: Build `components/Desks.tsx`**
+
+Two exports, both plain and both server-renderable except where the click handler forces a client boundary:
+
+- `<Wire items={...} onAdd={...} />` — the day's wire as a front page. One `<section>` per desk from `byDesk()`, an `<h2>` carrying the desk name and its story count, and each story a row with its headline, source, runtime (or the word **read** when `len` is 0), and a link out to the publisher. Every row keeps the source and link the rights rules require — the desk grouping never replaces attribution.
+- `<MixBar hour={...} />` — a single horizontal bar above the rail, one segment per desk from `mixOf().shares`, widths as percentages, each segment labelled with the desk name and its minutes when the segment is wide enough to hold text. When `mixOf().lopsided` is set, one line under the bar reads: *"More than half your hour is <desk name>."* — a note, never a blocker; a producer is allowed to build a politics hour on purpose.
+
+Accessibility: the bar is decorative, so give it `aria-hidden` and put the same numbers in a visually-hidden list beside it. Do not encode the desk by colour alone — each segment carries its name in text or in a `title`.
+
+- [ ] **Step 6: Use it** in `app/page.tsx`
+
+Replace the flat wire list from Task 8 with `<Wire>`, and put `<MixBar>` at the top of the rail.
+
+- [ ] **Step 7: Check it against a real day**
+
+Run `pnpm dev` (port 3020 or 3030 — port 3000 is an unrelated server on this Mac and must not be touched), open the app, and confirm: at least four desks render from the day's wire; no desk heading appears with zero stories; every story row shows its source and links out; adding three politics pieces makes the bar go majority-politics and the lopsided line appear.
+
+Report how many desks the real day produced and how many stories landed on each. If everything is on one or two desks, the classifier from Task 2 Step 3b is under-matching — say so in the report with the headlines it missed; do not widen the patterns without recording which story forced each change.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add lib/desks.ts lib/desks.test.ts components/Desks.tsx app/page.tsx
+git commit -m "feat: the wire as a front page, with a mix bar over the hour"
+```
+
+---
 
 ## Parked for later plans
 
