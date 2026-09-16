@@ -14,8 +14,9 @@ export const scriptPrompt = (item: WireItem) => [
   `What the newsroom says it is about: ${item.teaser}`,
 ].join('\n');
 
-// The model has already changed once mid-build (2.5 → 3.1) and will again — one named
-// constant makes the next swap a one-line change instead of a grep.
+// Both models have already changed once mid-build (the TTS one, 2.5 → 3.1) and will again —
+// one named constant each makes the next swap a one-line change instead of a grep.
+export const SCRIPT_MODEL = 'gemini-2.5-flash';
 export const TTS_MODEL = 'gemini-3.1-flash-tts-preview';
 export const DEFAULT_VOICE = 'Kore';
 
@@ -24,21 +25,6 @@ export const DEFAULT_VOICE = 'Kore';
 // as two objects, not one silently overwriting the other.
 export const readKey = (item: WireItem, script: string, voice: string = DEFAULT_VOICE) =>
   `reads/${item.id}-${createHash('sha256').update(`${voice}:${script}`).digest('hex').slice(0, 12)}.wav`;
-
-type Voice = 'elevenlabs' | 'gemini';
-export const backend = (): Voice => (process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'gemini');
-
-const ELEVEN_VOICE = 'onwK4e9ZLuTAKqWW03F9'; // Daniel — Steady Broadcaster
-
-async function elevenSpeak(script: string): Promise<{ audio: Buffer; type: string }> {
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`, {
-    method: 'POST',
-    headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY!, 'content-type': 'application/json' },
-    body: JSON.stringify({ text: script, model_id: 'eleven_turbo_v2_5' }),
-  });
-  if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${await res.text()}`);
-  return { audio: Buffer.from(await res.arrayBuffer()), type: 'audio/mpeg' };
-}
 
 async function gemini(model: string, body: unknown) {
   const res = await fetch(`${API}/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
@@ -54,7 +40,7 @@ async function gemini(model: string, body: unknown) {
 const MAX_TTS_BYTES = 4000;
 
 export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE): Promise<string> {
-  const written = await gemini('gemini-2.5-flash', { contents: [{ parts: [{ text: scriptPrompt(item) }] }] });
+  const written = await gemini(SCRIPT_MODEL, { contents: [{ parts: [{ text: scriptPrompt(item) }] }] });
   const script: string = written.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
   if (!script) throw new Error(`no script for ${item.id}`);
   if (Buffer.byteLength(script, 'utf8') > MAX_TTS_BYTES) {
