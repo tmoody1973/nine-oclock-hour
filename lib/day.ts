@@ -102,14 +102,29 @@ function airable(items: WireItem[]): WireItem[] {
   });
 }
 
+// This runs at 5 a.m. with nobody watching, and `cdsQuery` throws on any non-200. Without
+// isolation, one flaky feed takes down the whole day: no day file, so every listener who
+// opens the app that morning gets nothing. The parsing itself is resilient — verified
+// against seven malformed document shapes — so the fragility was never there; it was in
+// the orchestration. Each query is isolated: a failed arm contributes nothing, says so in
+// the logs, and the rest of the wire still ships.
+async function safe<T>(label: string, run: () => Promise<T[]>): Promise<T[]> {
+  try {
+    return await run();
+  } catch (e) {
+    console.error(`day build: ${label} failed, continuing without it — ${(e as Error).message}`);
+    return [];
+  }
+}
+
 export async function buildDay(now = new Date()): Promise<DayFile> {
   const date = now.toISOString().slice(0, 10);
   const q = (params: Record<string, string>) => cdsQuery({ sort: 'publishDateTime:desc', ...params });
 
   const [me, atc, casts] = await Promise.all([
-    q({ collectionIds: '3', limit: '8' }),
-    q({ collectionIds: '2', limit: '8' }),
-    q({ collectionIds: '500005', limit: '2' }),
+    safe('Morning Edition', () => q({ collectionIds: '3', limit: '8' })),
+    safe('All Things Considered', () => q({ collectionIds: '2', limit: '8' })),
+    safe('NPR News Now', () => q({ collectionIds: '500005', limit: '2' })),
   ]);
 
   const network: WireItem[] = airable([
@@ -121,7 +136,7 @@ export async function buildDay(now = new Date()): Promise<DayFile> {
 
   const stations: DayFile['stations'] = {} as DayFile['stations'];
   for (const [id, s] of Object.entries(STATIONS)) {
-    const docs = await q({ collectionIds: '319418027', ownerHrefs: `https://organization.api.npr.org/v4/services/${id}`, limit: '6' });
+    const docs = await safe(s.name, () => q({ collectionIds: '319418027', ownerHrefs: `https://organization.api.npr.org/v4/services/${id}`, limit: '6' }));
     stations[id] = { ...s, local: airable(docs.map((d) => {
       const item = toWireItem(d, 'ours', s.name);
       return item.url ? item : { ...item, url: SITE[id] };   // new object, never mutated
