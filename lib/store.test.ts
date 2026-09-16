@@ -166,7 +166,11 @@ test('a day file that fails to fetch aborts the whole sweep — nothing gets del
   // checked: `.then(r => r.json())` alone would have happily parsed this as an empty day.
   globalThis.fetch = (async () => new Response(JSON.stringify({ error: 'server error' }), { status: 500 })) as unknown as typeof fetch;
   try {
-    await assert.rejects(() => sweepReads(NOW, blob));
+    // Asserted on the MESSAGE, not just that it rejects: without this, deleting the res.ok
+    // check leaves the test passing for the wrong reason — `{error:...}` has no `.network`,
+    // so `[...file.network, ...]` throws its own TypeError and satisfies a bare
+    // assert.rejects just as well as the intended guard does.
+    await assert.rejects(() => sweepReads(NOW, blob), /unreadable: 500/);
     assert.deepEqual(deleted, [], 'nothing should have been deleted once the day fetch failed');
   } finally {
     globalThis.fetch = realFetch;
@@ -190,5 +194,26 @@ test('a truncated days/ listing aborts the sweep rather than risk deleting refer
     true, // days/ claims there's another page we never fetched
   );
   await assert.rejects(() => sweepReads(NOW, blob));
+  assert.deepEqual(deleted, []);
+});
+
+// CRITICAL: "referenced by a STORED day file" and "referenced right now" can disagree within
+// one cron run. putDay's own day-file sweep can evict a day that turns 7 days old this
+// morning; a cache hit can then set item.audio in memory to that same now-orphaned blob
+// (same story, same readKey) before today's file is ever written. Built purely from storage,
+// the referenced set would miss this and delete the blob seconds before today's file goes on
+// to point at it. `alsoReferenced` is what the cron passes to say "this run's own in-memory
+// item.audio values are referenced by definition" — this must hold even when NO stored day
+// file mentions the URL at all.
+test('a read passed via alsoReferenced survives even though no stored day file mentions it', async () => {
+  const readUrl = 'https://blob.example/reads/cache-hit-orphan.wav';
+  const deleted: string[] = [];
+  const blob = fakeBlob(
+    [], // no day files in storage at all — the only reference comes from alsoReferenced
+    [{ url: readUrl, pathname: 'reads/cache-hit-orphan.wav', uploadedAt: new Date(NOW.getTime() - 5 * DAY_MS) }],
+    (urls) => deleted.push(...urls),
+  );
+  const result = await sweepReads(NOW, blob, [readUrl]);
+  assert.deepEqual(result, []);
   assert.deepEqual(deleted, []);
 });

@@ -91,11 +91,18 @@ export async function GET(req: Request) {
   // working is exactly the kind of thing that would otherwise run unnoticed until the store
   // fills up. Runs BEFORE the final putDay, not after: appending to day.degraded once the
   // day file is already written only reaches the HTTP response, gone the moment the request
-  // ends — invisible to any monitor that reads the stored file instead. Safe to run before
-  // today's own reads are confirmed referenced: they're minutes old, so isOldRead keeps them
-  // regardless of whether today's file already appears in the referenced set.
+  // ends — invisible to any monitor that reads the stored file instead.
+  //
+  // `items` (not `toVoice`) is passed as `alsoReferenced` — not because "minutes old" makes
+  // today's reads safe (it doesn't: a cache hit can set item.audio to a blob from a day file
+  // that putDay's own 7-day sweep just evicted earlier in this very call, orphaning it in
+  // storage before today's file is ever written), but because the sweep's referenced set is
+  // built from STORED day files and today's isn't stored yet. Every item.audio this run
+  // actually holds — freshly voiced or a cache hit — is referenced by definition, regardless
+  // of what's on disk yet. Publisher tape URLs in `items` are harmless: they can never match
+  // a reads/ object.
   try {
-    const swept = await sweepReads();
+    const swept = await sweepReads(new Date(), undefined, items.map((item) => item.audio).filter((a): a is string => !!a));
     if (swept.length) console.log(`swept ${swept.length} expired read(s): ${swept.join(', ')}`);
   } catch (e) {
     console.error(`read sweep failed — ${(e as Error).message}`);

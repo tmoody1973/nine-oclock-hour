@@ -70,7 +70,17 @@ const defaultStoreBlobDeps: StoreBlobDeps = { list, del };
 // item.audio values are collected first, and anything still referenced survives regardless
 // of age. Returns what it deleted rather than logging and swallowing — the caller (the cron)
 // is what makes a sweep failure visible, by recording it into day.degraded.
-export async function sweepReads(now = new Date(), blob: StoreBlobDeps = defaultStoreBlobDeps): Promise<string[]> {
+//
+// `alsoReferenced` exists because "referenced by a STORED day file" and "referenced right
+// now" can disagree within a single cron run: putDay's own day-file sweep can evict a day
+// that turns 7 days old this morning, and a cache hit can then set item.audio in memory to
+// that same now-orphaned blob (same story, same readKey) before today's file is ever
+// written. Building the referenced set purely from storage would treat that blob as
+// unreferenced and delete it seconds before today's file goes on to point at it — a bug that
+// depends on statement order rather than fixing it. Passing the run's own in-memory
+// item.audio values here states "referenced by definition", regardless of where in the cron
+// the sweep happens to sit.
+export async function sweepReads(now = new Date(), blob: StoreBlobDeps = defaultStoreBlobDeps, alsoReferenced: Iterable<string> = []): Promise<string[]> {
   const { blobs: days, hasMore: moreDays } = await blob.list({ prefix: 'days/' });
   // The dangerous direction: a truncated days/ page means a truncated referenced set, which
   // means REAL, STILL-PLAYING audio looks unreferenced and gets deleted. reads/ truncating
@@ -78,7 +88,7 @@ export async function sweepReads(now = new Date(), blob: StoreBlobDeps = default
   // direction fails loudly rather than silently sweeping on partial information.
   if (moreDays) throw new Error('days/ exceeds one page; sweep aborted rather than risk deleting referenced audio');
 
-  const referenced = new Set<string>();
+  const referenced = new Set<string>(alsoReferenced);
   for (const day of days) {
     // No catch here — a day file that fails to fetch must NOT be treated as "references
     // nothing". A day 4-7 days old holds reads already past their own 3-day window; drop it
