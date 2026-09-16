@@ -1,0 +1,44 @@
+name: CI
+
+# Every push on every branch, and every pull request. Catching a break on the branch
+# it happened on is the point; waiting for a PR means finding it later than necessary.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0        # matches packageManager in package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26        # matches the version this is developed on
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Four gates, in the order that fails fastest and cheapest first.
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      # `--conditions=react-server` lives in the test script itself: lib/reads.ts,
+      # lib/day.ts, lib/cds.ts and lib/store.ts all open with `import 'server-only'`,
+      # which throws under any other condition.
+      - name: Test
+        run: pnpm test
+
+      # Deliberately runs with NO secrets. Verified: the build needs none, so CI never
+      # holds a credential. If this ever starts needing one, that is a design change to
+      # argue about, not a secret to quietly add here.
+      - name: Build
+        run: pnpm build
