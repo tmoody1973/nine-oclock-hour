@@ -872,7 +872,14 @@ git commit -m "feat: a five a.m. job that writes the day file to blob storage"
 - Create: `lib/hour.ts`, `lib/hour.test.ts`
 
 **Interfaces:**
-- Produces: `layout(blocks: Block[], pledge: boolean)`, `score(hour: Block[], opts)`. Both pure: no DOM, no fetch, no `Math.random` (untimed drift is passed in).
+- Produces: `layout(blocks: Block[], pledge: boolean)`, `score(hour: Block[], opts)`.
+
+**`opts.weights` is a per-TOPIC penalty map, not score ceilings.** It is
+`Partial<Record<Topic, number>>`. Task 7 fills it from `weightsFor(picks)` — `0` for a subject
+the listener chose, `2` for one they did not — and Step 4 of that task replaces the fixed `2`
+in the retention walk with `weights[b.topic] ?? 2`. It does **not** scale or cap the five
+headline scores; those stay 30/25/15/15/15. Getting this wrong breaks Task 7 silently, because
+the meter would still produce numbers, just not personal ones. Both pure: no DOM, no fetch, no `Math.random` (untimed drift is passed in).
 
 - [ ] **Step 1: Write the failing tests** in `lib/hour.test.ts`
 
@@ -911,8 +918,14 @@ test('pledge week adds two pitch breaks', () => {
   assert.equal(pledged - plain, 240);
 });
 
+// **The target is HOUR + 60 = 3600, not HOUR.** `score` computes `off = plan.end - (HOUR + 60)`
+// (prototype/index.html:595). HOUR is the 3540 of schedulable programming; the 1:00 legal ID
+// sits ON TOP of it, exactly as the Global Constraints say. An earlier draft of this test used
+// `3540 - 90 - 60`, which lands at 3540 — sixty seconds short — and scores 15, not 30. Verified
+// against the real formula: 3450 gives off = 0 and Clock = 30; 3390 gives off = -60 and Clock
+// = 15; sixty seconds long gives Clock = 0.
 test('an hour that lands inside five seconds scores full marks on the clock', () => {
-  const blocks = [seg('id', 60, { fixed: true }), seg('a', 3540 - 90 - 60)];
+  const blocks = [seg('id', 60, { fixed: true }), seg('a', 3600 - 90 - 60)];
   const out = score(blocks, { pledge: false, flash: 'now', drift: 0, weights: {} });
   assert.equal(out.scores.Clock, 30);
 });
