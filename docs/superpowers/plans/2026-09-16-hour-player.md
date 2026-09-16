@@ -885,10 +885,19 @@ import type { Block } from './types.ts';
 const seg = (id: string, len: number, extra: Partial<Block> = {}): Block =>
   ({ id, label: id, len, how: 'satellite', kind: 'seg', mode: 'tape', topic: 'news', ...extra });
 
-test('the weather window lands at 19:00 when the hour is shorter than that', () => {
-  const { rows } = layout([seg('a', 600)], false);
-  const wx = rows.find((r) => r.b.id === 'wx');
-  assert.equal(wx?.at, 19 * 60);
+// **These four were rewritten after running the prototype's real `layout()`.** The original
+// first assertion — "the weather window lands at 19:00 when the hour is shorter than that" —
+// **fails against the actual engine**: with 600s of content the window lands at 600, not
+// 1140. Nobody had executed it. Port the engine as it is; these assert what it really does.
+test('an under-filled hour packs the windows against the content', () => {
+  const { rows, end } = layout([seg('a', 600)], false);
+  assert.equal(rows.find((r) => r.b.id === 'wx')?.at, 600, 'not 19:00 — the window follows the content');
+  assert.ok(end < 3540, 'and the hour comes up short, which is what the Clock score penalises');
+});
+
+test('content filling exactly to 19:00 puts the weather window on 19:00', () => {
+  const { rows } = layout([seg('a', 19 * 60)], false);
+  assert.equal(rows.find((r) => r.b.id === 'wx')?.at, 19 * 60);
 });
 
 test('a segment still running at 19:00 crashes the window and says by how much', () => {
@@ -908,6 +917,28 @@ test('an hour that lands inside five seconds scores full marks on the clock', ()
   assert.equal(out.scores.Clock, 30);
 });
 ```
+
+> **A design question for Tarik, surfaced rather than silently resolved.** The plan's Global
+> Constraints call the weather and traffic windows *immovable*, and Task 11 calls them
+> "immovable landmarks a producer reads at a glance". Measured against the real engine, they
+> are only immovable in one direction:
+>
+> | content | weather window lands at | scheduled | crash recorded? |
+> |---|---|---|---|
+> | 600s | **600** | 1140 | no |
+> | 1140s | 1140 | 1140 | no |
+> | 1800s | **1800** | 1140 | yes, over by 660 |
+>
+> Overrun the window and it crashes — correct, and that is the rule the game teaches. But
+> **under**-fill and the window slides silently earlier, with nothing flagged except the
+> short hour costing Clock points indirectly. So an hour with ten minutes of content puts
+> weather at 10:00 and nobody says anything.
+>
+> Ruling R5 stands: **the prototype is the authority and this task ports it verbatim.** Tarik
+> tuned these rules by playing it, and a producer who under-fills has a bigger problem than
+> a mispositioned window. But if the intent was that the window never moves at all — dead air
+> before it rather than an early weather hit — that is a change to the engine, not to a test,
+> and it belongs in its own task after Tarik has decided.
 
 - [ ] **Step 2: Run them**
 
