@@ -1,23 +1,12 @@
 // The wire as a front page, and the bar that shows what the hour actually is. Both plain
 // enough to render on the server; the click handlers that need a browser are passed in from
 // `HourBuilder`, which is already the client boundary these live inside.
-import type { Block, Topic, WireItem } from '@/lib/types';
-import { byDesk, mixOf, DESK_NAME } from '@/lib/desks';
+import type { Block, WireItem } from '@/lib/types';
+import { byDesk, mixOf, DESK_NAME, DESK_COLOR } from '@/lib/desks';
 import { HOW_LABEL, WHY_NOT, rollable, used } from '@/lib/wire';
 import styles from './HourBuilder.module.css';
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
-
-// The dataviz skill's validated 8-hue dark-mode categorical set (references/palette.md),
-// in DESK_ORDER. Only 8 hues clear the colorblind-safety gates as an ordered set, and there
-// are 10 desks, so the last two (music, local) repeat earlier hues.
-// ponytail: color here is decorative, never the only encoding — every segment also carries
-// its name in text or a `title` — so the rare repeat costs nothing worth a 9th validated hue.
-const DESK_COLOR: Record<Topic, string> = {
-  news: '#3987e5', politics: '#d95926', world: '#199e70', economy: '#c98500',
-  health: '#d55181', tech: '#008300', climate: '#9085e9', culture: '#e66767',
-  music: '#3987e5', local: '#d95926',
-};
 
 export function Wire({ items, hour, degraded, onAdd, onOpen }: {
   items: WireItem[];

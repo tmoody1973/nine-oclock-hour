@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { byDesk, mixOf, DESK_ORDER } from './desks';
+import { byDesk, mixOf, DESK_ORDER, DESK_COLOR } from './desks';
 import type { Block, WireItem } from './types';
 
 const item = (id: string, topic: WireItem['topic']): WireItem =>
@@ -56,4 +56,12 @@ test('exactly half is not lopsided — the test is > 0.5, not >=', () => {
 
 test('untimed tape that ran long counts what it actually ran', () => {
   assert.equal(mixOf([{ ...block('a', 'politics', 120), realLen: 300 }]).total, 300);
+});
+
+// Pinned after review found two desks sharing a color — the bar's whole job is telling desks
+// apart at a glance, so a duplicate defeats it even though the srOnly list keeps the real
+// numbers knowable either way.
+test('every desk on the mix bar has its own color', () => {
+  const colors = DESK_ORDER.map((t) => DESK_COLOR[t]);
+  assert.equal(new Set(colors).size, colors.length);
 });
