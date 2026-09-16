@@ -83,16 +83,17 @@ export async function GET(req: Request) {
       // Its marker is already sitting in day.degraded from the pessimistic write above.
     }
   });
-  if (day.degraded?.length === 0) delete day.degraded; // absent on a healthy day — see lib/types.ts
-  const url = await putDay(day);
-
   // Reads older than three days and no longer referenced by any surviving day file — see
   // lib/store.ts's sweepReads for the trap this avoids (day files sweep at 7 days; deleting
   // reads blindly at 3 would leave a day aged 4-7 pointing at audio that no longer exists).
   // A sweep failure must not fail the build: it's storage hygiene, not this morning's
-  // content, so it's recorded into degraded (making it visible in the response below) rather
-  // than thrown — a sweep that silently stops working is exactly the kind of thing that
-  // would otherwise run unnoticed until the store fills up.
+  // content, so it's recorded into degraded rather than thrown — a sweep that silently stops
+  // working is exactly the kind of thing that would otherwise run unnoticed until the store
+  // fills up. Runs BEFORE the final putDay, not after: appending to day.degraded once the
+  // day file is already written only reaches the HTTP response, gone the moment the request
+  // ends — invisible to any monitor that reads the stored file instead. Safe to run before
+  // today's own reads are confirmed referenced: they're minutes old, so isOldRead keeps them
+  // regardless of whether today's file already appears in the referenced set.
   try {
     const swept = await sweepReads();
     if (swept.length) console.log(`swept ${swept.length} expired read(s): ${swept.join(', ')}`);
@@ -100,6 +101,9 @@ export async function GET(req: Request) {
     console.error(`read sweep failed — ${(e as Error).message}`);
     day.degraded = [...(day.degraded ?? []), 'sweep:reads'];
   }
+
+  if (day.degraded?.length === 0) delete day.degraded; // absent on a healthy day — see lib/types.ts
+  const url = await putDay(day);
 
   // `degraded` names any feed that failed this morning. It is the only machine-readable
   // signal that the wire is thin because something broke rather than because nobody filed,

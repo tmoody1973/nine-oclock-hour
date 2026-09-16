@@ -57,8 +57,8 @@ export const isOldRead = (uploadedAt: Date, now = Date.now()) => uploadedAt.getT
 // get the real @vercel/blob functions via the default.
 type SweepBlob = { url: string; pathname: string; uploadedAt: Date };
 export type StoreBlobDeps = {
-  list: (options: { prefix: string }) => Promise<{ blobs: SweepBlob[] }>;
-  del: (url: string) => Promise<void>;
+  list: (options: { prefix: string }) => Promise<{ blobs: SweepBlob[]; hasMore: boolean }>;
+  del: (urls: string[]) => Promise<void>;
 };
 const defaultStoreBlobDeps: StoreBlobDeps = { list, del };
 
@@ -71,21 +71,35 @@ const defaultStoreBlobDeps: StoreBlobDeps = { list, del };
 // of age. Returns what it deleted rather than logging and swallowing — the caller (the cron)
 // is what makes a sweep failure visible, by recording it into day.degraded.
 export async function sweepReads(now = new Date(), blob: StoreBlobDeps = defaultStoreBlobDeps): Promise<string[]> {
-  const { blobs: days } = await blob.list({ prefix: 'days/' });
+  const { blobs: days, hasMore: moreDays } = await blob.list({ prefix: 'days/' });
+  // The dangerous direction: a truncated days/ page means a truncated referenced set, which
+  // means REAL, STILL-PLAYING audio looks unreferenced and gets deleted. reads/ truncating
+  // only means a stale object survives a cycle longer — asymmetric risk, so only this
+  // direction fails loudly rather than silently sweeping on partial information.
+  if (moreDays) throw new Error('days/ exceeds one page; sweep aborted rather than risk deleting referenced audio');
+
   const referenced = new Set<string>();
   for (const day of days) {
-    try {
-      const file: DayFile = await fetch(day.url, { cache: 'no-store' }).then((r) => r.json());
-      for (const item of [...file.network, ...Object.values(file.stations).flatMap((s) => s.local)]) {
-        if (item.audio) referenced.add(item.audio);
-      }
-    } catch { /* an unreadable day file references nothing it would have kept alive anyway */ }
+    // No catch here — a day file that fails to fetch must NOT be treated as "references
+    // nothing". A day 4-7 days old holds reads already past their own 3-day window; drop it
+    // from the referenced set and the very next filter deletes audio a live file still
+    // plays. One unreadable day file costs a failed sweep (caught by the cron, recorded into
+    // degraded, visible) — that is a fully recoverable cost. Deleted audio is not.
+    const res = await fetch(day.url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`day file ${day.pathname} unreadable: ${res.status}`);
+    const file: DayFile = await res.json();
+    for (const item of [...file.network, ...Object.values(file.stations).flatMap((s) => s.local)]) {
+      if (item.audio) referenced.add(item.audio);
+    }
   }
 
-  // Same volume assumption as putDay's own sweep, one order of magnitude more generous:
-  // ~26 reads/day × a 3-day window is ~78 objects, nowhere near list()'s 1000-per-page cap.
+  // This assumption holds only while the sweep keeps running: ~26 reads/day × a 3-day window
+  // is ~78 objects, nowhere near list()'s 1000-per-page cap. If the sweep itself degrades for
+  // a month, reads/ accumulates at ~26/day and eventually exceeds one page — a silent
+  // failure mode of its own, but the safe direction: a stale object surviving longer, never
+  // a live one vanishing. Not guarded as strictly as days/ for that reason.
   const { blobs: reads } = await blob.list({ prefix: 'reads/' });
   const toDelete = reads.filter((r) => isOldRead(r.uploadedAt, now.getTime()) && !referenced.has(r.url));
-  await Promise.all(toDelete.map((r) => blob.del(r.url)));
+  if (toDelete.length) await blob.del(toDelete.map((r) => r.url));
   return toDelete.map((r) => r.pathname);
 }
