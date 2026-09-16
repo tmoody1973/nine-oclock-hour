@@ -64,10 +64,10 @@ pnpm create next-app@latest . --ts --app --eslint --no-tailwind --no-src-dir --i
 In `package.json` scripts, add:
 
 ```json
-"test": "node --import tsx --test \"lib/**/*.test.ts\""
+"test": "node --conditions=react-server --import tsx --test \"lib/**/*.test.ts\""
 ```
 
-Then: `pnpm add -D tsx`
+The `--conditions=react-server` flag is not optional and is not decoration: four later modules open with `import 'server-only'`, whose exports map throws under every other condition, and each has a test that imports it directly. Without the flag those suites crash. Then: `pnpm add -D tsx`
 
 - [ ] **Step 3: Write the shared types** in `lib/types.ts`
 
@@ -928,7 +928,7 @@ export function Player({ list, station }: { list: PlayItem[]; station: string })
 
 - [ ] **Step 6: Try it on a phone**
 
-Run `pnpm dev`, open the app on an iPhone on the same network, build an hour, press **Play my hour**, then lock the screen.
+Run `pnpm dev --port 3020` — **not bare `pnpm dev`, which binds port 3000, and port 3000 on this machine belongs to an unrelated server that must never be started, stopped or tested against.** Then open `http://<your-Mac's-LAN-IP>:3020` on an iPhone on the same network (the phone cannot reach `localhost`), build an hour, press **Play my hour**, then lock the screen.
 Expected: audio keeps playing with the screen off, and the lock screen shows the title and station. If it stops on lock, the cause is almost always a second audio element being created — check that only the two refs above exist.
 
 - [ ] **Step 7: Commit**
@@ -1178,7 +1178,7 @@ Expected: PASS.
 - [ ] **Step 5: Voice one read for real**
 
 ```bash
-GEMINI_API_KEY=... BLOB_READ_WRITE_TOKEN=... pnpm exec tsx -e "
+GEMINI_API_KEY=... BLOB_READ_WRITE_TOKEN=... node --conditions=react-server --import tsx -e "
 import('./lib/reads.ts').then(async (m) => {
   const url = await m.voiceRead({ id: 'test-1', src: 'WBEZ', how: 'station', kind: 'seg',
     title: \"How Chicago's arts spending compares with other cities\",
@@ -1187,6 +1187,8 @@ import('./lib/reads.ts').then(async (m) => {
   console.log(url);
 });"
 ```
+Note the `--conditions=react-server` flag: `lib/reads.ts` opens with `import 'server-only'`, which throws under any other condition. A bare `pnpm exec tsx -e` fails here, and the failure reads like a bug in the module. It is not. **Do not delete the guard to make the command run.**
+
 Expected: a Blob URL. Open it and listen: about 30 seconds, the source named once, no invented detail. If the voice reads the teaser back verbatim, the prompt failed — fix the prompt, not the output.
 
 - [ ] **Step 6: Voice the day's reads during the cron**
