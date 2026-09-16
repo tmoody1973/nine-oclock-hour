@@ -14,8 +14,16 @@ export const scriptPrompt = (item: WireItem) => [
   `What the newsroom says it is about: ${item.teaser}`,
 ].join('\n');
 
-export const readKey = (item: WireItem, script: string) =>
-  `reads/${item.id}-${createHash('sha256').update(script).digest('hex').slice(0, 12)}.mp3`;
+// The model has already changed once mid-build (2.5 → 3.1) and will again — one named
+// constant makes the next swap a one-line change instead of a grep.
+export const TTS_MODEL = 'gemini-3.1-flash-tts-preview';
+export const DEFAULT_VOICE = 'Kore';
+
+// Real output is a WAV we build ourselves (see voiceRead), never mp3 — the brief's own
+// naming was wrong here. Voice is part of the key: the same script in two voices must cache
+// as two objects, not one silently overwriting the other.
+export const readKey = (item: WireItem, script: string, voice: string = DEFAULT_VOICE) =>
+  `reads/${item.id}-${createHash('sha256').update(`${voice}:${script}`).digest('hex').slice(0, 12)}.wav`;
 
 type Voice = 'elevenlabs' | 'gemini';
 export const backend = (): Voice => (process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'gemini');
@@ -40,21 +48,30 @@ async function gemini(model: string, body: unknown) {
   return res.json();
 }
 
-export async function voiceRead(item: WireItem): Promise<string> {
+// Gemini TTS's own limit: text ≤ 4000 bytes. A ~75-word read is nowhere near it, but a
+// malformed feed (a huge headline or teaser) shouldn't get to spend an API call finding
+// that out — fail fast, before the network round trip.
+const MAX_TTS_BYTES = 4000;
+
+export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE): Promise<string> {
   const written = await gemini('gemini-2.5-flash', { contents: [{ parts: [{ text: scriptPrompt(item) }] }] });
   const script: string = written.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
   if (!script) throw new Error(`no script for ${item.id}`);
+  if (Buffer.byteLength(script, 'utf8') > MAX_TTS_BYTES) {
+    throw new Error(`script for ${item.id} is ${Buffer.byteLength(script, 'utf8')} bytes, over the ${MAX_TTS_BYTES}-byte TTS limit`);
+  }
 
-  const key = readKey(item, script);
+  const key = readKey(item, script, voice);
   try { return (await head(key)).url; } catch { /* not voiced yet */ }
 
-  const spoken = await gemini('gemini-2.5-flash-preview-tts', {
+  const spoken = await gemini(TTS_MODEL, {
     contents: [{ parts: [{ text: script }] }],
-    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } },
+    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
   });
   const b64 = spoken.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (!b64) throw new Error(`no audio for ${item.id}`);
-  // Gemini returns raw PCM; wrap it as a WAV so browsers will play it.
+  // Gemini returns raw PCM (16-bit, 24kHz) — never mp3 — so it has to be wrapped in a WAV
+  // container before a browser will play it. No ffmpeg/audio-lib dependency for a 44-byte header.
   const pcm = Buffer.from(b64, 'base64');
   const wav = Buffer.alloc(44 + pcm.length);
   wav.write('RIFF', 0); wav.writeUInt32LE(36 + pcm.length, 4); wav.write('WAVEfmt ', 8);
@@ -63,6 +80,6 @@ export async function voiceRead(item: WireItem): Promise<string> {
   wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(pcm.length, 40);
   pcm.copy(wav, 44);
 
-  const { url } = await put(key.replace(/\.mp3$/, '.wav'), wav, { access: 'public', contentType: 'audio/wav', addRandomSuffix: false });
+  const { url } = await put(key, wav, { access: 'public', contentType: 'audio/wav', addRandomSuffix: false });
   return url;
 }
