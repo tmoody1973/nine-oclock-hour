@@ -1396,6 +1396,15 @@ produces one.
 
 - [ ] **Step 1: Wire the page** — `app/page.tsx` reads today's file with `getDay(new Date().toISOString().slice(0,10))`, falls back to the most recent day in Blob when the cron has not run, and renders the station picker, wire, rail, player and aircheck. The wire is a flat list at this point; Task 10 replaces it with the desk view, so do not build section grouping here.
 
+  **Remount `<Player>` when the hour changes — do not swap its `list` in place.** Player owns
+  its own position (`i`) and nothing resets it when `list` changes without a remount. Task 6's
+  latch lets the hour end a second time, but only if the second hour arrives as a fresh mount:
+  give `<Player>` a `key` that changes when the built hour changes (the block ids joined, or a
+  counter you bump on press-air). Swap `list` underneath it instead and `i` keeps its old value,
+  so the listener's second hour starts partway in — silently, with no error. Flagged by the
+  reviewer who found the original double-fire bug; it is not breakage in Task 6's diff, it is a
+  trap laid for this page.
+
 **Where the interaction already exists, so this is a port and not an invention.** The prototype
 in `prototype/index.html` (735 lines) has all of it. Line numbers, as with Task 5:
 
