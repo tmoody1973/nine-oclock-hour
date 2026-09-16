@@ -9,10 +9,20 @@ export const scriptPrompt = (item: WireItem) => [
   `Write a radio read of about 55 words — about 30 seconds out loud — in your own words.`,
   `Name the source aloud once, like "${item.src} reports".`,
   `No adjectives you cannot source, no speculation, no sign-off.`,
+  `Output the script only — no lead-in like "Here's your radio read:", no title, no preamble, no quotation marks around it.`,
   ``,
   `Headline: ${item.title}`,
   `What the newsroom says it is about: ${item.teaser}`,
 ].join('\n');
+
+// The seatbelt, not the fix — the prompt above is the fix. A model can still open with a
+// lead-in ("Here's your radio read:\n\n...") despite being asked not to; that line would be
+// voiced aloud on air if it reached the TTS call. Drops a leading line that ends in a colon
+// and is followed by a blank line, plus any wrapping quote marks.
+export function stripPreamble(text: string): string {
+  const noLeadIn = text.trim().replace(/^[^\n]*:[ \t]*\n[ \t]*\n/, '');
+  return noLeadIn.trim().replace(/^["'“‘]+/, '').replace(/["'”’]+$/, '').trim();
+}
 
 // Both models have already changed once mid-build (the TTS one, 2.5 → 3.1) and will again —
 // one named constant each makes the next swap a one-line change instead of a grep.
@@ -41,7 +51,7 @@ const MAX_TTS_BYTES = 4000;
 
 export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE): Promise<string> {
   const written = await gemini(SCRIPT_MODEL, { contents: [{ parts: [{ text: scriptPrompt(item) }] }] });
-  const script: string = written.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+  const script: string = stripPreamble(written.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
   if (!script) throw new Error(`no script for ${item.id}`);
   if (Buffer.byteLength(script, 'utf8') > MAX_TTS_BYTES) {
     throw new Error(`script for ${item.id} is ${Buffer.byteLength(script, 'utf8')} bytes, over the ${MAX_TTS_BYTES}-byte TTS limit`);

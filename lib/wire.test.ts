@@ -53,6 +53,29 @@ test('a tape roll over 900 seconds is flagged long; a read never is', () => {
   assert.equal(read.long, false);
 });
 
+// This is the rights guard the whole feature exists to protect. `item.audio` on a
+// tape-carrying item is the publisher's own audio; adding it to the hour as a 'read'
+// must never let that tape through. Only voiceRead()'s own audio — marked by
+// `item.spoken` — may stream from a read block. Keying on `mode === 'read'` alone would
+// pass this test too, which is exactly why it exists.
+test("another newsroom's tape added as a read carries no audio, even though item.audio is set", () => {
+  const b = block(item({ how: 'station', audio: 'https://wbez.example/tape.mp3' }), 'read');
+  assert.equal(b.audio, undefined);
+  assert.equal(b.spoken, false);
+});
+
+test('a voiced read carries its own audio, and is marked spoken', () => {
+  const b = block(item({ audio: 'https://blob.example/reads/x.wav', spoken: true }), 'read');
+  assert.equal(b.audio, 'https://blob.example/reads/x.wav');
+  assert.equal(b.spoken, true);
+});
+
+test('spoken never applies to a tape block, regardless of the flag on the wire item', () => {
+  const b = block(item({ audio: 'https://npr.example/tape.mp3', spoken: true }), 'tape');
+  assert.equal(b.audio, 'https://npr.example/tape.mp3');
+  assert.equal(b.spoken, false);
+});
+
 const day = (): DayFile => ({
   date: '2026-09-16', builtAt: '2026-09-16T05:00:00Z',
   network: [item({ id: 'net1' })],

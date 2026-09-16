@@ -57,7 +57,12 @@ export function block(item: WireItem, mode: 'tape' | 'read', now = Date.now()): 
     mode,
     topic: item.topic,
     src: item.src,
-    audio: mode === 'tape' ? item.audio : undefined,
+    // A read only carries audio when it's our own voiced take — gated on `item.spoken`
+    // (set by voiceRead() in the cron), never on `mode === 'read'` alone. Keying on mode
+    // alone would let a tape item added as a read stream the publisher's tape through the
+    // back door — exactly the rights violation display-only items exist to prevent.
+    audio: mode === 'tape' ? item.audio : (item.spoken ? item.audio : undefined),
+    spoken: mode === 'read' && !!item.spoken,
     est: usingEstimate,
     // The prototype's fake newscasts carried a hardcoded `expired: true`. Real ones carry an
     // ISO `expires` timestamp instead (see lib/day.ts), so the expiry has to be computed —
