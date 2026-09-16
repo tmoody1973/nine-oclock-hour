@@ -1805,7 +1805,13 @@ referenced survives regardless of age; anything unreferenced and older than thre
 
 **Files:**
 - Create: `lib/desks.ts`, `lib/desks.test.ts`, `components/Desks.tsx`
-- Modify: `app/page.tsx`
+- Modify: `components/HourBuilder.tsx`, `components/HourBuilder.module.css`
+
+> **The file list said `app/page.tsx`. That was wrong and would have sent you to the wrong
+> file.** `app/page.tsx` renders no wire at all — it reads a day file and hands it to
+> `<HourBuilder>`. The flat wire list you are replacing is `wire.map((w) => …)` at
+> `components/HourBuilder.tsx:253`, under the `What came in` heading at `:251`. The rail that
+> gets the mix bar is in the same component. Corrected 2026-09-16 after checking the source.
 
 **Interfaces:**
 - Consumes: `classify` and `Topic` (Task 2), `WireItem` (Task 1), `Block` (Task 5).
