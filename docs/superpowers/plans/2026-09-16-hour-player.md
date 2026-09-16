@@ -1729,6 +1729,36 @@ git commit -m "feat: voice the reads with gemini tts, in our own words"
 
 ---
 
+### Task 9b: Pick the voice
+
+**Files:**
+- Create: `lib/voices.ts`, `app/api/audition/route.ts`
+- Modify: `components/HourBuilder.tsx`, `components/HourBuilder.module.css`
+
+**Interfaces:**
+- Consumes: `voiceRead`/`speak` (Task 9), `TTS_MODEL` and the voice parameter Task 9 was told to expose.
+- Produces: `VOICES: readonly string[]`, `DEFAULT_VOICE: string` from `lib/voices.ts` (pure — no `server-only`, both halves import it).
+
+**Why this shape.** Tarik asked for a voice picker. The cost decides the design: re-voicing a day's reads is roughly 26 items x 30 seconds ~= 20c every time somebody switches, so a picker that regenerates everything makes curiosity expensive. An **audition** button voices one short sample line in the selected voice for a fraction of a cent, which answers "what do the others sound like" without touching the day's cached reads.
+
+**Be honest about what changing the voice does.** Reads are voiced by the 5 a.m. cron and cached. Picking a new voice **cannot** retroactively re-voice audio that already exists — it applies to reads voiced from then on. Say so in the interface, in one short line next to the picker. This product already has three silent refusals and a bulletin note that overstates what happened; do not add a fourth quiet lie.
+
+**The voices.** Thirty prebuilt Gemini voices, case-sensitive, hardcoded because there is no endpoint that lists them:
+
+`Achernar, Achird, Algenib, Algieba, Alnilam, Aoede, Autonoe, Callirrhoe, Charon, Despina, Enceladus, Erinome, Fenrir, Gacrux, Iapetus, Kore, Laomedeia, Leda, Orus, Puck, Pulcherrima, Rasalgethi, Sadachbia, Sadaltager, Schedar, Sulafat, Umbriel, Vindemiatrix, Zephyr, Zubenelgenubi`
+
+Google names no default and publishes no personality descriptions. **Audition four or five yourself, pick one that sounds like a morning news anchor, set it as `DEFAULT_VOICE`, and say in your report which you tried and why you chose it.** That is a few cents well spent. `languageCode` is `en-US` (also valid: `en-IN`, `en-GB`).
+
+- [ ] **Step 1: `lib/voices.ts`** — the list and the default. Pure module, no `server-only`, so the client picker and the server route share one source. A second hardcoded copy will drift.
+
+- [ ] **Step 2: `app/api/audition/route.ts`** — `POST { voice }`, returns `audio/wav` bytes. Reject any voice not in `VOICES` with a 400 before calling anything: this endpoint spends money and takes a value straight from the client. Voice one fixed sample line — a plausible newsroom sentence, not a publisher's text. Do not write auditions to Blob; stream the bytes back and let them be transient.
+
+- [ ] **Step 3: the picker in `HourBuilder.tsx`** — a labelled `<select>` of the voices, an "Audition" button, and the honesty line. Persist the choice in `localStorage` and fall back to `DEFAULT_VOICE` when absent or unreadable (private windows throw). Keyboard reachable, a real `<label>`, and the audition's loading and error states visible — a spend that silently does nothing is worse than a visible failure.
+
+- [ ] **Step 4: tests** — `VOICES` non-empty and containing `DEFAULT_VOICE`; the route rejecting an unknown voice without calling the API. Watch each fail first.
+
+- [ ] **Step 5: report the real cost** — how many auditions you ran and what they cost.
+
 ### Task 10: The front page — desks, and the mix bar
 
 **Files:**
