@@ -657,6 +657,21 @@ git add lib/day.ts lib/day.test.ts && git commit -m "feat: build the day file fr
 - Consumes: `buildDay` from Task 3.
 - Produces: `putDay(day: DayFile): Promise<string>`, `getDay(date: string): Promise<DayFile | null>`.
 
+**Two traps this task will hit, both already paid for twice.** Task briefs are extracted
+per task, so the plan's Global Constraints do not travel with them — they are repeated here
+deliberately.
+
+1. **`lib/store.ts` opens with `import 'server-only'`, and that package throws under any
+   condition except `react-server`.** The `test` script already carries
+   `--conditions=react-server`; any *ad hoc* command that imports this module needs it too.
+   A bare `pnpm exec tsx -e "import('./lib/store.ts')..."` will fail, and the failure looks
+   like a bug in the module. It is not. Use
+   `node --conditions=react-server --import tsx -e "..."`. **Do not delete the guard to make
+   a command run** — it is what keeps the CDS token out of the browser bundle, and this repo
+   is public. Tasks 2 and 3 each lost a round to this.
+2. **Port 3000 on this machine belongs to an unrelated server.** Never start anything on it,
+   never stop it, never test against it. Use 3020 or 3030, as the commands below do.
+
 - [ ] **Step 1: Add the Blob client**
 
 ```bash
@@ -718,8 +733,8 @@ export async function GET(req: Request) {
 - [ ] **Step 5: Test it locally**
 
 ```bash
-NPR_CDS_TOKEN=$(cat ~/.config/npr-cds/token) CRON_SECRET=local pnpm dev &
-curl -s -H "Authorization: Bearer local" http://127.0.0.1:3000/api/cron/build-day | head -c 300
+NPR_CDS_TOKEN=$(cat ~/.config/npr-cds/token) CRON_SECRET=local pnpm dev --port 3020 &
+curl -s -H "Authorization: Bearer local" http://127.0.0.1:3020/api/cron/build-day | head -c 300
 ```
 Expected: JSON with today's date and a network count. Blob writes need `BLOB_READ_WRITE_TOKEN`; without it the route throws, which is the correct failure — report it rather than falling back to the filesystem.
 
