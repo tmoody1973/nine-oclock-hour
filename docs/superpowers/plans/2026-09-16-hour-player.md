@@ -1156,7 +1156,7 @@ export function Player({ list, station }: { list: PlayItem[]; station: string })
   return (
     <section aria-label="Player">
       <audio ref={el} onEnded={() => setI((n) => n + 1)} preload="none" />
-      <audio ref={next} preload="metadata" style={{ display: 'none' }} />
+      <audio ref={next} preload="auto" style={{ display: 'none' }} />
       <button onClick={() => { setPlaying((p) => !p); const a = el.current; if (!a) return; playing ? a.pause() : void a.play().catch(() => setPlaying(false)); }}>
         {playing ? 'Pause' : 'Play my hour'}
       </button>
@@ -1166,6 +1166,21 @@ export function Player({ list, station }: { list: PlayItem[]; station: string })
   );
 }
 ```
+
+**`preload` is the difference between warming and pretending to.** The hidden element exists to
+buffer the next file so the hour does not gap; `preload="metadata"` fetches only enough to
+learn a duration, which warms nothing that matters. It is `preload="auto"` above for that
+reason. The visible element stays `preload="none"` deliberately — iOS will not download
+anything before a user gesture anyway, and asking it to wastes data on an hour the listener may
+never start.
+
+**Verify this rather than trust it**, because it is the one thing standing between this and a
+silent gap on a commute. In Step 6, with the phone on the network tab of Safari's remote
+inspector or with the device's data counter visible: confirm the *next* file begins
+downloading while the *current* one is still playing. If it does not, say so with what you
+observed — the fallback is to construct the next `Audio()` object eagerly rather than relying
+on the element's `preload` hint, but do not reach for that until you have watched the simple
+version fail.
 
 - [ ] **Step 6: Try it on a phone**
 
