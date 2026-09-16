@@ -874,6 +874,31 @@ git commit -m "feat: a five a.m. job that writes the day file to blob storage"
 **Interfaces:**
 - Produces: `layout(blocks: Block[], pledge: boolean)`, `score(hour: Block[], opts)`.
 
+**`opts.flash` is the bulletin decision, and nothing in this plan said so.** It was named in
+the signature and used in tests as `flash: 'now'` with its meaning stated nowhere — the same
+defect as `weights` below, found by sweeping the plan for fields named but never defined.
+`FlashChoice = 'now' | 'late' | 'skip'` is the producer's answer when the bulletin breaks at
+**34:00**, and `score()` reads it only to apply the penalty and the note:
+
+| value | what the producer did | cost | note |
+|---|---|---|---|
+| `'now'` | took it live at 9:34 | none | ok — "You took the bulletin live at 9:34." |
+| `'late'` | held it for the next break | `fresh -= 3` | warn — "The clock survived; the news was second-hand by the time it aired." |
+| `'skip'` | passed on it | `onair -= 6`, `fresh -= 4` | bad — "Every other station in the network carried it." |
+
+**Placement is the caller's job, not `score()`'s** — and this boundary matters, because a
+component that assumes otherwise will render an hour with no bulletin in it. In the prototype
+(`takeFlash`, line 526) choosing `now` or `late` splices a `BULLETIN` block into the hour:
+`now` inserts immediately after the block running when the clock passes 34:00, `late` inserts
+one position further along (`Math.min(n + 2, hour.length)`), and `skip` inserts nothing.
+`score()` never touches the array — it is handed an hour that already contains the bulletin, or
+does not, and `opts.flash` tells it which choice produced that hour.
+
+**Minor trap, noted once here: `est` means two different things.** On `WireItem` it is
+`est?: number` — estimated seconds when the feed carries no duration. On `Block` it is
+`est?: boolean` — this block's length was an estimate. Same name, different type, different
+meaning, and both are load-bearing in `score()`'s drift walk.
+
 **`opts.weights` is a per-TOPIC penalty map, not score ceilings.** It is
 `Partial<Record<Topic, number>>`. Task 7 fills it from `weightsFor(picks)` — `0` for a subject
 the listener chose, `2` for one they did not — and Step 4 of that task replaces the fixed `2`
