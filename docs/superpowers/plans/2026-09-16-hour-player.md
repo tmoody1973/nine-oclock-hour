@@ -1276,6 +1276,13 @@ or the markup dropped. Write that condition down next to the call.
 Style `.figure` in CSS to match the prototype: it is what makes the timings read as figures
 rather than prose.
 
+**Always pass `city` and `neighbour` to `score()`.** They are optional on `ScoreOpts` only
+because `lib/hour.ts` must stay pure and cannot import `STATIONS` from `lib/day.ts`, which is
+behind `import 'server-only'`. Omit them and two notes lose their explanatory text silently —
+"Fewer than two local items" ends with an empty *why*, which reads as a bug to a listener and
+looks like nothing at all to a test. Take both from `day.stations[home]` and pass them on every
+call. A reviewer flagged this on Task 5 precisely because the failure is quiet.
+
 - [ ] **Step 6: Build the end card** in `components/Aircheck.tsx`
 
 Show the five scores, the retention line, the notes, and underneath: **"What the network actually did"** — the same morning's Morning Edition rundown in order with runtimes, read from `day.network` filtered to `src === 'Morning Edition'`, so a player can see where the professionals put the light story. Add one line naming `day.mostCarried.title` when it is not in the player's hour: *"Every other newsroom carried this. You didn't."* — **but only when `day.mostCarried.stations >= 2`.** `stations: 0` means the heuristic found no genuine match and the line must not render at all; see the note above `mostCarried` in Task 3 for why. On a real day's wire this line will often be absent, and that is correct: a confident sentence built on a weak match tells the listener something false.
