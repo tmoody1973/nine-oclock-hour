@@ -34,4 +34,31 @@ test('the meter actually responds to the listener — this is the whole feature'
     'a listener who chose these subjects must hold this hour better than one who chose nothing');
   assert.ok(mine.low > generic.low,
     'and their retention curve must bottom out higher');
+  // Pinned, not merely ordered. `>` alone still passes if the effect SHRINKS - a personalised
+  // listener scoring 6 instead of 8 is a degraded feature that still sorts the right way round.
+  // These four are the numbers the comment above claims, verified against the real engine.
+  assert.equal(generic.scores.Hold, 5, 'generic listener must still score exactly 5');
+  assert.equal(generic.low, 58, 'and bottom out at exactly 58');
+  assert.equal(mine.scores.Hold, 8, 'personalised listener must still score exactly 8');
+  assert.equal(mine.low, 70, 'and bottom out at exactly 70');
+});
+
+test('picking one of two heavy topics lands between picking neither and both', () => {
+  // politics and health alternating, three each. Verified against the real engine: nothing
+  // picked 5/58, politics only 6/64, both 8/70. The MIDDLE value is the whole point - a bug
+  // that read one representative weight and applied it to every block could only ever produce
+  // the 5 or the 8, never the 6. This is what proves hour.ts:242's lookup is really per-block.
+  const hour = [
+    seg('a', 300, { topic: 'politics' }), seg('b', 300, { topic: 'health' }), seg('c', 300, { topic: 'politics' }),
+    seg('d', 300, { topic: 'health' }), seg('e', 300, { topic: 'politics' }), seg('f', 300, { topic: 'health' }),
+  ];
+  const opts = { pledge: false, flash: 'now' as const, drift: 0 };
+  const none = score(hour, { ...opts, weights: {} });
+  const one = score(hour, { ...opts, weights: weightsFor(['politics']) });
+  const both = score(hour, { ...opts, weights: weightsFor(['politics', 'health']) });
+  assert.equal(none.scores.Hold, 5); assert.equal(none.low, 58);
+  assert.equal(one.scores.Hold, 6); assert.equal(one.low, 64);
+  assert.equal(both.scores.Hold, 8); assert.equal(both.low, 70);
+  assert.ok(one.scores.Hold > none.scores.Hold && one.scores.Hold < both.scores.Hold,
+    'one topic picked must land strictly between none and both');
 });
