@@ -29,3 +29,16 @@ export async function getDay(date: string): Promise<DayFile | null> {
     return await fetch(meta.url, { cache: 'no-store' }).then((r) => r.json());
   } catch { return null; }
 }
+
+// The page's fallback for when the 5 a.m. cron hasn't run yet (or failed) and today has no
+// file: serve whatever the most recent day was, rather than a blank page. Untested like
+// `getDay`/`putDay` above it — it needs live Blob credentials to exercise, which is exactly
+// why `isStale` was carved out as the one piece of branching logic that can run without them.
+export async function getLatestDay(): Promise<DayFile | null> {
+  try {
+    const { blobs } = await list({ prefix: 'days/' });
+    if (!blobs.length) return null;
+    const latest = blobs.reduce((a, b) => (a.uploadedAt > b.uploadedAt ? a : b));
+    return await fetch(latest.url, { cache: 'no-store' }).then((r) => r.json());
+  } catch { return null; }
+}

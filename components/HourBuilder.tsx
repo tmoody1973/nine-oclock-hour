@@ -1,0 +1,306 @@
+'use client';
+// The interactive hour: station picker, wire, rail, player and aircheck. Ported from
+// prototype/index.html's DOM-manipulation script — same interaction, rebuilt as React state
+// because this build streams real audio and reads a real day file instead of six fake ones.
+//
+// This is a client component, not `app/page.tsx` itself, because `getDay`/`getLatestDay`
+// (lib/store.ts) sit behind `import 'server-only'` and can only run in a server component.
+// `app/page.tsx` fetches the day file and hands it here as a prop; everything interactive
+// lives in this one file to avoid splitting tightly-coupled state (the wire, the rail and the
+// air button all read and write the same `hour` array) across files that would just pass it
+// back and forth as props.
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
+import { BULLETIN, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
+import { block, buildWire, HOW_LABEL, LEGAL_ID, placementNote, rollable, used, WHY_NOT } from '@/lib/wire';
+import { toPlaylist } from '@/lib/playlist';
+import { ALL_TOPICS, weightsFor } from '@/lib/taste';
+import { Player } from '@/components/Player';
+import { Aircheck } from '@/components/Aircheck';
+import styles from './HourBuilder.module.css';
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+
+export function HourBuilder({ day }: { day: DayFile }) {
+  const stationIds = useMemo(() => Object.keys(day.stations), [day]);
+  const [home, setHome] = useState(stationIds[0]);
+  const [picks, setPicks] = useState<Topic[]>([]);
+  const [pledge, setPledge] = useState(false);
+  const [hour, setHour] = useState<Block[]>([LEGAL_ID]);
+  const [flash, setFlash] = useState<FlashChoice | null>(null);
+  const [flashPending, setFlashPending] = useState(false);
+  const [airedHour, setAiredHour] = useState<Block[] | null>(null);
+  const [drift, setDrift] = useState<number | null>(null);
+  const [done, setDone] = useState(false);
+  const [sheetItem, setSheetItem] = useState<WireItem | null>(null);
+
+  const station = day.stations[home];
+  const wire = useMemo(() => buildWire(day, home), [day, home]);
+  const plan = useMemo(() => layout(hour, pledge), [hour, pledge]);
+  const left = HOUR + 60 - plan.end;
+
+  function resetHour() {
+    setHour([LEGAL_ID]);
+    setFlash(null);
+    setFlashPending(false);
+    setAiredHour(null);
+    setDrift(null);
+    setDone(false);
+  }
+
+  function changeStation(id: string) {
+    setHome(id);
+    resetHour();
+  }
+
+  function togglePick(t: Topic) {
+    setPicks((prev) => (prev.includes(t) ? prev.filter((p) => p !== t) : prev.length < 3 ? [...prev, t] : prev));
+  }
+
+  function addToHour(item: WireItem, mode: 'tape' | 'read') {
+    setHour((prev) => [...prev.filter((b) => b.id !== `${item.id}:tape` && b.id !== `${item.id}:read`), block(item, mode)]);
+  }
+
+  function removeFromHour(id: string) {
+    setHour((prev) => prev.filter((b) => b.id !== id));
+  }
+
+  function addMusic(seconds: number) {
+    setHour((prev) => [...prev, {
+      id: `music-${Math.random().toString(36).slice(2)}`, label: 'Music bed', len: seconds,
+      music: true, how: 'ours', kind: 'seg', mode: 'tape', topic: 'music',
+    }]);
+  }
+
+  function addCredit() {
+    setHour((prev) => (prev.some((b) => b.credit) ? prev : [...prev, {
+      id: 'credit', label: pledge ? 'Underwriting credit (doubled)' : 'Underwriting credit', len: pledge ? 60 : 30,
+      credit: true, how: 'ours', kind: 'seg', mode: 'read', topic: 'local',
+    }]));
+  }
+
+  function togglePledge() {
+    setPledge((p) => {
+      const next = !p;
+      setHour((prev) => prev.map((b) => (b.credit ? { ...b, len: next ? 60 : 30, label: next ? 'Underwriting credit (doubled)' : 'Underwriting credit' } : b)));
+      return next;
+    });
+  }
+
+  // Splice the bulletin into the hour (unless skipped) and roll the one drift number the
+  // whole hour uses, then hand the result to <Player>. Scoring itself waits for onDone.
+  function finalizeAir(choice: FlashChoice) {
+    let finalHour = hour;
+    if (choice !== 'skip') {
+      const blk: Block = { ...BULLETIN, bulletin: true, how: 'satellite', kind: 'seg', mode: 'read' };
+      let at = 0, i = hour.length;
+      for (let n = 0; n < hour.length; n++) {
+        at += hour[n].len;
+        if (at >= BULLETIN.at) { i = choice === 'now' ? n + 1 : Math.min(n + 2, hour.length); break; }
+      }
+      finalHour = [...hour.slice(0, i), blk, ...hour.slice(i)];
+    }
+    setDrift(Math.round((Math.random() * 2 - 1) * 40));
+    setAiredHour(finalHour);
+  }
+
+  function handleAir() {
+    if (hour.length < 3) return;
+    if (flash) return finalizeAir(flash);
+    setFlashPending(true);
+  }
+
+  function chooseFlash(choice: FlashChoice) {
+    setFlash(choice);
+    setFlashPending(false);
+    finalizeAir(choice);
+  }
+
+  const result = useMemo(() => {
+    if (!done || !airedHour || drift === null || !flash) return null;
+    const neighbour = day.stations[station.neighbour];
+    return score(airedHour, { pledge, flash, drift, weights: weightsFor(picks), city: station.city, neighbour: neighbour?.name ?? station.neighbour });
+  }, [done, airedHour, drift, flash, pledge, picks, day, station]);
+
+  return (
+    <div className={styles.wrap}>
+      <header className={styles.header}>
+        <span className={`${styles.lamp} ${airedHour ? styles.lampLive : ''}`}>{airedHour ? 'On air' : 'Off air'}</span>
+        <h1>{"Nine O'Clock Hour"}</h1>
+        <label className={styles.picker}>
+          You are working at{' '}
+          <select value={home} onChange={(e) => changeStation(e.target.value)} aria-label="Choose your station">
+            {stationIds.map((id) => (
+              <option key={id} value={id}>{day.stations[id].name} — {day.stations[id].city}</option>
+            ))}
+          </select>
+        </label>
+        <p className={styles.hint}>
+          Fill the nine o&rsquo;clock hour from what came in this morning, then put it on air.
+          From the network feed on <span>{day.date}</span>.
+          {day.degraded?.length ? ` (${day.degraded.join(', ')} did not answer this morning.)` : ''}
+        </p>
+      </header>
+
+      {!airedHour && (
+        <>
+          <div className={styles.rules}>
+            <p><b>Network tape is yours to air.</b> NPR programs come down the satellite. Roll them.</p>
+            <p><b>Another station&rsquo;s tape is not.</b> Credit it and read it, or call them for the cut.</p>
+            <p><b>Podcast audio isn&rsquo;t cleared for broadcast.</b> Talk about it, don&rsquo;t roll it.</p>
+            <p><b>Untimed tape is a gamble.</b> Some pieces arrive with no duration. Roll one and you find out live.</p>
+          </div>
+
+          <div className={styles.topics}>
+            <span>Pick up to three topics you care about:</span>
+            {ALL_TOPICS.map((t) => (
+              <button key={t} type="button" className={`${styles.topicBtn} ${picks.includes(t) ? styles.topicOn : ''}`} onClick={() => togglePick(t)} aria-pressed={picks.includes(t)}>
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.board}>
+            <section>
+              <div className={styles.rackLabel}><span>What came in</span><span>{wire.length} items</span></div>
+              <div className={styles.wire}>
+                {wire.map((w) => {
+                  const est = !w.len && w.est;
+                  const canRoll = rollable(w);
+                  const lenText = w.len ? clock(w.len) : est ? `≈ ${clock(w.est!)} untimed` : 'text only';
+                  return (
+                    <article key={w.id} className={`${styles.item} ${used(hour, w) ? styles.itemUsed : ''}`}>
+                      <div>
+                        <h3><button type="button" onClick={() => setSheetItem(w)}>{w.title}</button></h3>
+                        <p className={styles.meta}>
+                          <span className={styles.src}>{w.src}</span>
+                          <span>{w.when}</span>
+                          <span>{lenText}</span>
+                          <span className={`${styles.flag} ${w.how === 'satellite' || w.how === 'ours' ? styles.flagOk : styles.flagHold}`}>{HOW_LABEL[w.how]}</span>
+                          {w.expires && <span>good until {w.expires}</span>}
+                        </p>
+                      </div>
+                      <div className={styles.acts}>
+                        <button type="button" disabled={!canRoll} onClick={() => addToHour(w, 'tape')}>
+                          {w.len ? `Roll tape ${clock(w.len)}` : est ? `Roll it ≈ ${clock(w.est!)}` : 'No tape'}
+                        </button>
+                        <button type="button" onClick={() => addToHour(w, 'read')}>{w.how === 'station' ? 'Read with credit 0:30' : 'Read 0:30'}</button>
+                        {!canRoll && <span className={styles.why}>{w.len || est ? WHY_NOT[w.how] : 'text only, nothing to roll'}</span>}
+                      </div>
+                      {w.url && (
+                        <div className={styles.listen}>
+                          <a href={w.url} target="_blank" rel="noreferrer">Audition at {w.src}</a>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section>
+              <div className={styles.railShell}>
+                <div className={styles.rackLabel}><span>The hour</span><span>9:00 – 9:59</span></div>
+                <div className={styles.readout}>
+                  <span className={`${styles.big} ${left < 0 ? styles.bigOver : Math.abs(left) <= 5 ? styles.bigTight : ''}`}>
+                    {left < 0 ? '+' : ''}{clock(Math.abs(left))}
+                  </span>
+                  <span className={styles.hint}>{left < 0 ? 'over — the network joins without you' : 'to fill'}</span>
+                </div>
+                <div className={styles.rail}>
+                  {plan.rows.map(({ b, at }) => (
+                    <div key={b.id} className={`${styles.blk} ${b.fixed ? styles.blkFixed : ''} ${'music' in b && b.music ? styles.blkMusic : ''} ${'window' in b && b.window ? styles.blkWindow : ''} ${'expired' in b && b.expired && b.mode === 'tape' ? styles.blkStale : ''}`}>
+                      <span>{clock(at)}</span>
+                      <span className={styles.who}>{b.label}{'mode' in b && b.mode === 'read' ? ' — read' : ''}</span>
+                      <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span className={'est' in b && b.est ? styles.blkEst : ''}>{'est' in b && b.est ? '≈' : ''}{clock(b.len)}</span>
+                        {!b.fixed && <button type="button" onClick={() => removeFromHour(b.id)} aria-label={`Remove ${b.label}`}>×</button>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.filler}>
+                  <button type="button" onClick={() => addMusic(180)}>+ Music 3:00</button>
+                  <button type="button" onClick={() => addMusic(270)}>+ Music 4:30</button>
+                  <button type="button" onClick={() => addMusic(390)}>+ Music 6:30</button>
+                  <button type="button" onClick={addCredit}>+ Underwriting 0:30</button>
+                  <button type="button" className={pledge ? styles.pledgeOn : ''} onClick={togglePledge} aria-pressed={pledge}>Pledge week: {pledge ? 'on' : 'off'}</button>
+                </div>
+                <button type="button" className={styles.air} disabled={hour.length < 3} onClick={handleAir}>Put it on air</button>
+                <button type="button" className={styles.ghost} onClick={resetHour}>Clear the hour</button>
+              </div>
+            </section>
+          </div>
+        </>
+      )}
+
+      {airedHour && !done && (
+        <div className={styles.onAir}>
+          <Player key={airedHour.map((b) => b.id).join('|')} list={toPlaylist(airedHour)} station={station.name} onDone={() => setDone(true)} />
+        </div>
+      )}
+
+      {airedHour && done && result && (
+        <div className={styles.onAir}>
+          <Aircheck result={result} hour={airedHour} day={day} />
+          <button type="button" className={styles.ghost} onClick={resetHour}>Build another hour</button>
+        </div>
+      )}
+
+      <p className={styles.foot}>
+        Headlines, runtimes, teasers and audio links come from each newsroom&rsquo;s own feed and play from their servers; nothing is copied or stored here.
+      </p>
+
+      <BulletinModal open={flashPending} onChoose={chooseFlash} />
+      <StorySheet item={sheetItem} onClose={() => setSheetItem(null)} />
+    </div>
+  );
+}
+
+function BulletinModal({ open, onChoose }: { open: boolean; onChoose: (c: FlashChoice) => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (open && !el.open) el.showModal();
+    if (!open && el.open) el.close();
+  }, [open]);
+  return (
+    <dialog ref={ref} className={styles.sheet} aria-labelledby="flash-title">
+      <p style={{ color: 'var(--red)' }}>Bulletin · 9:34 · 1:15</p>
+      <h2 id="flash-title">The Fed has announced its decision.</h2>
+      <p>Washington is up live in seventy-five seconds. Every station on the network is taking it. Your hour is already built, so something has to give.</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <button type="button" className={styles.ghost} onClick={() => onChoose('now')}>Take it live at 9:34 — everything after it shifts</button>
+        <button type="button" className={styles.ghost} onClick={() => onChoose('late')}>Hold it for the next break — safer clock, older news</button>
+        <button type="button" className={styles.ghost} onClick={() => onChoose('skip')}>Skip it — stay with what you planned</button>
+      </div>
+    </dialog>
+  );
+}
+
+function StorySheet({ item, onClose }: { item: WireItem | null; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (item && !el.open) el.showModal();
+    if (!item && el.open) el.close();
+  }, [item]);
+  return (
+    <dialog ref={ref} className={styles.sheet} aria-labelledby="sheet-title" onClose={onClose}>
+      {item && (
+        <>
+          <p>{item.src} · {item.when}{item.len ? ` · ${clock(item.len)}` : ''}</p>
+          <h2 id="sheet-title">{item.title}</h2>
+          <p>{item.teaser || 'No summary came with this one in the feed.'}</p>
+          <p className={styles.look}>{placementNote(item)}</p>
+          <div className={styles.sheetRow}>
+            <a href={item.url} target="_blank" rel="noreferrer">Open the full story at the source →</a>
+            <button type="button" className={styles.ghost} onClick={() => ref.current?.close()}>Close</button>
+          </div>
+        </>
+      )}
+    </dialog>
+  );
+}
