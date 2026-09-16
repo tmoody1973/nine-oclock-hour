@@ -24,10 +24,26 @@ export async function GET(req: Request) {
   if (!expected) return new Response('no', { status: 503 });
   if (req.headers.get('authorization') !== `Bearer ${expected}`) return new Response('no', { status: 401 });
   const day = await buildDay();
+  // Write the day file BEFORE voicing, not after. maxDuration is 60s; roughly 26 items at
+  // two sequential Gemini calls each can exceed that comfortably. Voicing used to run
+  // before the only putDay() call — a timeout there lost the whole day, not just the reads,
+  // and the site fell back to yesterday via getLatestDay(). Now a timeout costs reads, never
+  // the day.
+  await putDay(day);
   // Voice every item with no tape so it can go on air read, in our own words. A read that
-  // fails to voice becomes a card in the player, not a failed cron — see lib/reads.ts.
+  // fails to voice becomes a card in the player, not a failed cron — but the failure itself
+  // must be visible. Without `degraded`, a dead or missing GEMINI_API_KEY (rejected by
+  // Gemini, swallowed here) looks exactly like a healthy morning with fewer reads than usual.
   for (const item of [...day.network, ...Object.values(day.stations).flatMap((s) => s.local)]) {
-    if (!item.audio) { try { item.audio = await voiceRead(item, READ_VOICE); item.spoken = true; } catch { /* a missing read is a card, not a failure */ } }
+    if (!item.audio) {
+      try {
+        item.audio = await voiceRead(item, READ_VOICE);
+        item.spoken = true;
+      } catch (e) {
+        console.error(`voice ${item.id} failed, leaving it as a card — ${(e as Error).message}`);
+        day.degraded = [...(day.degraded ?? []), `voice:${item.id}`];
+      }
+    }
   }
   const url = await putDay(day);
   // `degraded` names any feed that failed this morning. It is the only machine-readable

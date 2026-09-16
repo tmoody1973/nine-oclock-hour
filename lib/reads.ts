@@ -19,10 +19,17 @@ export const scriptPrompt = (item: WireItem) => [
 // The seatbelt, not the fix — the prompt above is the fix. A model can still open with a
 // lead-in ("Here's your radio read:\n\n...") despite being asked not to; that line would be
 // voiced aloud on air if it reached the TTS call. Drops a leading line that ends in a colon
-// and is followed by a blank line, plus any wrapping quote marks.
-export function stripPreamble(text: string): string {
-  const noLeadIn = text.trim().replace(/^[^\n]*:[ \t]*\n[ \t]*\n/, '');
-  return noLeadIn.trim().replace(/^["'“‘]+/, '').replace(/["'”’]+$/, '').trim();
+// and is followed by a blank line, plus any wrapping quote marks — UNLESS that line names
+// the source. scriptPrompt asks the model to name the source aloud like "${item.src}
+// reports", and a plausible way for that to come out is "WBEZ reports:\n\n...", which looks
+// exactly like a preamble but is actually the rights-required credit. Stripping it would
+// air another newsroom's reporting uncredited — a rights bug, not a cosmetic one — so a
+// leading line containing `src` is left alone even when it matches the lead-in shape.
+export function stripPreamble(text: string, src: string): string {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^([^\n]*):[ \t]*\n[ \t]*\n([\s\S]*)$/);
+  const withoutLeadIn = match && !match[1].includes(src) ? match[2] : trimmed;
+  return withoutLeadIn.trim().replace(/^["'“‘]+/, '').replace(/["'”’]+$/, '').trim();
 }
 
 // Both models have already changed once mid-build (the TTS one, 2.5 → 3.1) and will again —
@@ -32,15 +39,24 @@ export const TTS_MODEL = 'gemini-3.1-flash-tts-preview';
 // DEFAULT_VOICE itself lives in lib/voices.ts — the pure module both this file and the
 // client picker import, so there's exactly one place a new voice or a new default is set.
 
-// Real output is a WAV we build ourselves (see voiceRead), never mp3 — the brief's own
-// naming was wrong here. Voice is part of the key: the same script in two voices must cache
-// as two objects, not one silently overwriting the other.
-export const readKey = (item: WireItem, script: string, voice: string = DEFAULT_VOICE) =>
-  `reads/${item.id}-${createHash('sha256').update(`${voice}:${script}`).digest('hex').slice(0, 12)}.wav`;
+// Keyed on the deterministic INPUTS to a read — item id, headline, teaser, voice — never on
+// the script the model happened to write. The script comes from a fresh, nondeterministic
+// call every time, so keying on it meant the same story tomorrow, a manual re-run, or the
+// same wire item carried by two stations all produced different text, a different key, and
+// full-price TTS spend on every single run — a cache that looked like cost control and
+// wasn't. Keying on inputs also means a corrected headline earns a new key by itself,
+// rather than silently serving audio for the old one.
+export const readKey = (item: WireItem, voice: string = DEFAULT_VOICE) =>
+  `reads/${item.id}-${createHash('sha256').update(`${voice}:${item.title}:${item.teaser}`).digest('hex').slice(0, 12)}.wav`;
 
 async function gemini(model: string, body: unknown) {
-  const res = await fetch(`${API}/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  const res = await fetch(`${API}/${model}:generateContent`, {
+    method: 'POST',
+    // Not a `?key=` query param: outgoing URLs reach traces and observability tooling that a
+    // header body doesn't. Nothing today interpolates it into a logged URL, but a header is
+    // one line safer for a key protecting a public repo.
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY ?? '' },
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
   return res.json();
@@ -80,15 +96,17 @@ export async function speak(text: string, voice: string = DEFAULT_VOICE): Promis
 }
 
 export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE): Promise<string> {
+  // Cache check first, before either Gemini call — a cache hit now costs zero API calls,
+  // not the one script-generation call it used to spend even when the TTS step was skipped.
+  const key = readKey(item, voice);
+  try { return (await head(key)).url; } catch { /* not voiced yet */ }
+
   const written = await gemini(SCRIPT_MODEL, { contents: [{ parts: [{ text: scriptPrompt(item) }] }] });
-  const script: string = stripPreamble(written.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
+  const script: string = stripPreamble(written.candidates?.[0]?.content?.parts?.[0]?.text ?? '', item.src);
   if (!script) throw new Error(`no script for ${item.id}`);
   if (Buffer.byteLength(script, 'utf8') > MAX_TTS_BYTES) {
     throw new Error(`script for ${item.id} is ${Buffer.byteLength(script, 'utf8')} bytes, over the ${MAX_TTS_BYTES}-byte TTS limit`);
   }
-
-  const key = readKey(item, script, voice);
-  try { return (await head(key)).url; } catch { /* not voiced yet */ }
 
   const wav = await speak(script, voice);
   const { url } = await put(key, wav, { access: 'public', contentType: 'audio/wav', addRandomSuffix: false });

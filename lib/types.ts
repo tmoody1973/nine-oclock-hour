@@ -54,7 +54,7 @@ export type Block = {
   expired?: boolean;       // a newscast past its time
   old?: boolean;           // filed before today
   long?: boolean;          // a full show inside the hour
-  spoken?: boolean;        // a 'read' block whose audio is our own voiced mp3, not a publisher's tape
+  spoken?: boolean;        // a 'read' block whose audio is our own voiced wav, not a publisher's tape
 };
 
 export type Hour = Block[];
