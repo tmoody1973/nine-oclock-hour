@@ -32,7 +32,9 @@ test('the keyword pass covers every desk it claims to, from realistic station he
   assert.equal(classify(['319418027'], 'Local Ukrainian community holds a vigil for the war in Ukraine', 'ours'), 'world');
 });
 
-test('the music pattern keeps matching plurals and does not match "musical"', () => {
+test('word-boundary and case traps that a later edit could easily reintroduce', () => {
   assert.equal(classify(['319418027'], 'The record store highlights new albums this week', 'ours'), 'music', 'a trailing boundary would break the plural "albums"');
   assert.notEqual(classify(['319418027'], 'A musical adaptation opens downtown next month', 'ours'), 'music', 'the bare "music" alternative must not match inside "musical"');
+  assert.notEqual(classify(['319418027'], 'Volunteers fed 300 people at the shelter last night', 'ours'), 'economy', 'lower-case "fed" is the verb, not the Federal Reserve');
+  assert.notEqual(classify(['319418027'], 'A city coalition forms over the school budget', 'ours'), 'climate', '"coal" must not match inside "coalition"');
 });

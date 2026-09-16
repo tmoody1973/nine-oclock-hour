@@ -18,12 +18,18 @@ const BY_ID: Record<string, Topic> = {
 // teaser. First match wins, so the most specific pattern goes first.
 const BY_WORD: [Topic, RegExp][] = [
   ['music',    /\b(album|band|musician|song|concert|jazz|hip.?hop|orchestra|record label|singer|music\b|vinyl|rapper|choir|symphony|record shop|setlist|headliner)/i],
-  ['climate',  /\b(climate|emissions|drought|wildfire|flooding|heat wave|solar|coal|pipeline|carbon)/i],
+  ['climate',  /\b(climate|emissions|drought|wildfire|flooding|heat wave|solar|coal\b|pipeline|carbon)/i],
   ['health',   /\b(hospital|patient|doctor|vaccine|medicaid|medicare|mental health|opioid|clinic|disease|birth control)/i],
   ['tech',     /\b(\bai\b|artificial intelligence|software|chip|startup|semiconductor|algorithm|data centre|data center|nasa|researchers)/i],
-  ['economy',  /\b(econom|inflation|tariff|unemploy|wages?|rent|housing market|budget|tax(es|payer)?|layoff|the fed\b|interest rate)/i],
+  // These two are proper nouns whose lower-case forms are ordinary English words, so they
+  // deliberately OMIT the /i flag. That is the entire mechanism: it is what separates
+  // "Fed holds rates steady" from "volunteers fed 300 people". Do not add /i to these two
+  // lines, and do not fold them into the case-insensitive lines below.
+  ['economy',  /\bFed\b/],
+  ['world',    /\bEU\b/],
+  ['economy',  /\b(econom|inflation|tariff|unemploy|wages?|rent|housing market|budget|tax(es|payer)?|layoff|federal reserve|interest rate)/i],
   ['politics', /\b(mayor|alderman|city council|governor|senat|congress|legislat|election|campaign|reelection|ballot|impeach|court|lawsuit|immigration|ice\b)/i],
-  ['world',    /\b(ukraine|gaza|israel|china|russia|nato|the eu\b|migrants?|border|foreign minister|united nations)/i],
+  ['world',    /\b(ukraine|gaza|israel|china|russia|nato|migrants?|border|foreign minister|united nations)/i],
   ['culture',  /\b(museum|festival|artist|theatre|theater|film|novel|exhibit|restaurant|chef|arts spending|mural)/i],
 ];
 
