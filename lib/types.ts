@@ -16,6 +16,7 @@ export type WireItem = {
   audio?: string;         // stream URL; absent when there is no tape
   expires?: string;       // ISO time, newscasts only
   old?: boolean;          // filed before today
+  spoken?: boolean;       // audio is our own read, voiced by voiceRead() — not the publisher's tape
 };
 
 export type DayFile = {
@@ -53,6 +54,7 @@ export type Block = {
   expired?: boolean;       // a newscast past its time
   old?: boolean;           // filed before today
   long?: boolean;          // a full show inside the hour
+  spoken?: boolean;        // a 'read' block whose audio is our own voiced mp3, not a publisher's tape
 };
 
 export type Hour = Block[];

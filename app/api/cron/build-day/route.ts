@@ -1,5 +1,6 @@
 import { buildDay } from '@/lib/day';
 import { putDay } from '@/lib/store';
+import { voiceRead } from '@/lib/reads';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -16,6 +17,11 @@ export async function GET(req: Request) {
   if (!expected) return new Response('no', { status: 503 });
   if (req.headers.get('authorization') !== `Bearer ${expected}`) return new Response('no', { status: 401 });
   const day = await buildDay();
+  // Voice every item with no tape so it can go on air read, in our own words. A read that
+  // fails to voice becomes a card in the player, not a failed cron — see lib/reads.ts.
+  for (const item of [...day.network, ...Object.values(day.stations).flatMap((s) => s.local)]) {
+    if (!item.audio) { try { item.audio = await voiceRead(item); item.spoken = true; } catch { /* a missing read is a card, not a failure */ } }
+  }
   const url = await putDay(day);
   // `degraded` names any feed that failed this morning. It is the only machine-readable
   // signal that the wire is thin because something broke rather than because nobody filed,

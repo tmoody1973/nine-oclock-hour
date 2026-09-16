@@ -9,5 +9,7 @@ export const toPlaylist = (hour: Block[]): PlayItem[] =>
     title: b.label,
     src: b.src ?? '',
     seconds: b.realLen ?? b.len,
-    audio: b.mode === 'tape' && (b.how === 'satellite' || b.how === 'ours') ? b.audio : undefined,
+    // A spoken read is our own script in our own voice, so it streams regardless of `how` —
+    // the rights restriction on tape (satellite/ours only) doesn't apply to audio we made.
+    audio: (b.mode === 'tape' && (b.how === 'satellite' || b.how === 'ours')) || (b.mode === 'read' && b.spoken) ? b.audio : undefined,
   }));
