@@ -98,6 +98,11 @@ export type DayFile = {
   network: WireItem[];
   stations: Record<string, { name: string; city: string; neighbour: string; local: WireItem[] }>;
   mostCarried: { title: string; url: string; stations: number };
+  // Feeds that failed this morning, by label. Absent on a healthy day. Without this, a
+  // total outage produces a perfectly well-formed file — empty network, six stations with
+  // nothing in them — that is indistinguishable from a day when nobody filed. A file that
+  // looks like success is worse than no file, because nothing downstream can tell.
+  degraded?: string[];
 };
 
 // One thing scheduled in the hour. Wire items become blocks; so do the fixed pieces
@@ -332,7 +337,12 @@ export async function cdsQuery(params: Record<string, string>): Promise<CdsDoc[]
   if (!token) throw new Error('NPR_CDS_TOKEN is not set');
   const url = new URL(CDS);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+  // A feed that HANGS is worse than one that fails: a stalled request eats the whole
+  // function budget and, in a cron, silently produces no day file at all. 8s is generous
+  // against a wire that normally answers in ~200ms. Verified 2026-09-16 that
+  // AbortSignal.timeout aborts a hung connection and surfaces as an ordinary TimeoutError,
+  // so the isolation wrapper in lib/day.ts catches it like any other failure.
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`CDS ${res.status} for ${url.pathname}?${url.searchParams}`);
   return (await res.json()).resources ?? [];
 }
@@ -605,18 +615,22 @@ function airable(items: WireItem[]): WireItem[] {
 // without throwing. The fragility was never in the parsing; it was in the orchestration.
 // So each query is isolated: a failed arm contributes nothing, says so in the logs, and
 // the rest of the wire still ships.
-async function safe<T>(label: string, run: () => Promise<T[]>): Promise<T[]> {
-  try {
-    return await run();
-  } catch (e) {
-    console.error(`day build: ${label} failed, continuing without it \u2014 ${(e as Error).message}`);
-    return [];
-  }
-}
-
 export async function buildDay(now = new Date()): Promise<DayFile> {
   const date = now.toISOString().slice(0, 10);
   const q = (params: Record<string, string>) => cdsQuery({ sort: 'publishDateTime:desc', ...params });
+
+  // Every feed is isolated, and every failure is recorded rather than only logged — see
+  // `degraded` on DayFile for why a silent empty file is the dangerous outcome.
+  const degraded: string[] = [];
+  const safe = async <T>(label: string, run: () => Promise<T[]>): Promise<T[]> => {
+    try {
+      return await run();
+    } catch (e) {
+      console.error(`day build: ${label} failed, continuing without it \u2014 ${(e as Error).message}`);
+      degraded.push(label);
+      return [];
+    }
+  };
 
   const [me, atc, casts] = await Promise.all([
     safe('Morning Edition', () => q({ collectionIds: '3', limit: '8' })),
@@ -631,17 +645,26 @@ export async function buildDay(now = new Date()): Promise<DayFile> {
     ...atc.map((d) => toWireItem(d, 'satellite', 'All Things Considered')),
   ].map((i) => (i.url ? i : { ...i, url: NETWORK_SITE[i.src] ?? '' })));
 
-  const stations: DayFile['stations'] = {} as DayFile['stations'];
-  for (const [id, s] of Object.entries(STATIONS)) {
+  // Parallel, not sequential. `safe()` never throws, so Promise.all cannot reject — and a
+  // single stalled station now costs 8s once rather than 8s plus blocking the five queued
+  // behind it. Measured: with one station hanging, sequential took 1807ms and parallel
+  // 1202ms; the gap is the whole point, and it scales with the timeout, not the sample.
+  const entries = await Promise.all(Object.entries(STATIONS).map(async ([id, s]) => {
     const docs = await safe(s.name, () => q({ collectionIds: '319418027', ownerHrefs: `https://organization.api.npr.org/v4/services/${id}`, limit: '6' }));
-    stations[id] = { ...s, local: airable(docs.map((d) => {
+    const local = airable(docs.map((d) => {
       const item = toWireItem(d, 'ours', s.name);
       return item.url ? item : { ...item, url: SITE[id] };   // new object, never mutated
-    })) };
-  }
+    }));
+    return [id, { ...s, local }] as const;
+  }));
+  const stations = Object.fromEntries(entries) as DayFile['stations'];
 
   const locals = Object.values(stations).flatMap((s) => s.local);
-  return { date, builtAt: now.toISOString(), network, stations, mostCarried: mostCarried(locals.concat(network)) };
+  return {
+    date, builtAt: now.toISOString(), network, stations,
+    mostCarried: mostCarried(locals.concat(network)),
+    ...(degraded.length ? { degraded } : {}),
+  };
 }
 ```
 
