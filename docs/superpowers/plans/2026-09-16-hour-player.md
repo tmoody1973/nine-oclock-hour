@@ -814,7 +814,9 @@ Expected: FAIL — `./hour.ts` does not exist.
 
 - [ ] **Step 3: Port the engine** from the prototype into `lib/hour.ts`
 
-Copy `layout()` and the scoring body from the published prototype (version 4 of the artifact; the source is `/private/tmp/claude-502/-Users-tarikmoody-Projects-hyfin-grove/2c8ef1f8-3e15-494f-af26-0da4996f3beb/scratchpad/newsroom-sim/index.html`), with three changes:
+Copy `layout()` and the scoring body from the prototype committed in this repo at **`prototype/index.html`** (version 4 of the published artifact), with three changes:
+
+> The earlier draft of this step pointed at a session scratchpad under `/private/tmp/claude-502/...`. That path is temporary and belongs to a different session; it happens to still exist today and is byte-identical to the repo copy (54,065 bytes each), but it will be cleaned up and then this step would have had no source at all. Use the repo copy — it is the one under version control.
 
 1. Export `layout(blocks, pledge)` and `score(hour, { pledge, flash, drift, weights })` instead of reading module-level state.
 2. Replace the `Math.random()` untimed-tape drift with the `drift` argument, so tests are deterministic. The UI passes `Math.round((Math.random() * 2 - 1) * 40)`.
