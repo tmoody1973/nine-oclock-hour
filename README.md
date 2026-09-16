@@ -216,7 +216,12 @@ Parked until the loop holds people's attention:
 
 ## Licence
 
-Not yet chosen. Until one is added, default copyright applies and all rights are reserved.
+[MIT](LICENSE) — use it, change it, ship it; keep the notice.
+
+**That covers this code and only this code.** Nothing here licenses the material it reads.
+NPR's Content Distribution Service content is governed by NPR's own terms, member stations'
+items are display-only, and every piece of audio belongs to whoever recorded it. Those rules
+are the reason the app is shaped the way it is — see **The rules that shape it** above.
 
 ---
 
