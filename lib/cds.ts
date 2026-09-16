@@ -1,3 +1,4 @@
+import 'server-only';
 import type { How, WireItem } from './types';
 import { classify } from './topics';
 
