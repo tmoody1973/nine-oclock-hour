@@ -1186,6 +1186,127 @@ git commit -m "feat: the wire as a front page, with a mix bar over the hour"
 
 ---
 
+---
+
+### Task 11: The hot clock
+
+**Files:**
+- Create: `lib/clock.ts`, `lib/clock.test.ts`, `components/HotClock.tsx`
+- Modify: `app/page.tsx`
+
+**Interfaces:**
+- Consumes: `layout()` from Task 5 (which already returns `rows` of `{ b, at }` — the block and the second it starts).
+- Produces: `arcs(rows, opts): Arc[]` where `Arc = { id; label; startAt; seconds; a0; a1; kind; minWidthApplied }`.
+
+**The reference.** Tarik supplied NPR's own printed hot clock for *Morning Edition*, effective 13 August 2018, as the model. It is a ring read clockwise from 12 o'clock, outer ticks marking clock time and inner numbers marking each element's duration, with five lettered local segments (A–E) and a five-colour key. Transcribed in full, because the implementer will not see the image:
+
+| At | Element | Runs | Class |
+|---|---|---|---|
+| 0:00 | BILLBOARD | 0:50 | promo |
+| 1:00 | NEWSCAST 1 | 2:59 | newscast |
+| 4:00 | NEWSCAST 2 | 1:39 | newscast |
+| 5:40 | funding credit | 0:19 | credit |
+| 6:00 | MUSIC | 1:29 | bed |
+| 7:30 | SEGMENT A | 11:29 | segment |
+| 19:00 | MUSIC | 1:29 | bed |
+| 20:30 | FA PROMO | 0:29 | promo |
+| 21:00 | funding credit | 0:49 | credit |
+| 21:50 | SEGMENT B | 7:09 | segment |
+| 29:00 | MUSIC | 0:29 | bed |
+| 29:30 | ATC PROMO | 0:29 | promo |
+| 30:00 | NEWSCAST 3 | 1:29 | newscast |
+| 31:30 | NEWSCAST 4 | 0:59 | newscast |
+| 33:00 | MUSIC | 0:34 | bed |
+| 34:35 | funding credit | (short) | credit |
+| 34:35 | SEGMENT C | 7:54 | segment |
+| 42:30 | MUSIC | 1:29 | bed |
+| 44:30 | H&N PROMO | 0:29 | promo |
+| 45:00 | RETURN | 0:29 | promo |
+| 45:35 | funding credit | 0:34 | credit |
+| 45:35 | SEGMENT D | 3:59 | segment |
+| 49:35 | MUSIC | 1:54 | bed |
+| 51:30 | SEGMENT E | 7:29 | segment |
+| 59:00 | SILENCE | 0:05 | silence |
+
+Its key: grey = segment, black = newscast, light blue = promo, slate = music bed, red = funding credit.
+
+**What to take from it, and what not to.** Take the vocabulary and the visual grammar: a ring clockwise from 12, ticks on the outside, durations on the inside, each element a wedge sized by its true length. **Do not copy its accessibility.** The poster carries meaning in colour with the key in a far corner, rotates labels ninety degrees, renders a 0:05 element as a hairline no thumb could hit, and — as an image — says nothing at all to a screen reader. Those are four defects to fix, not features to reproduce:
+
+1. **Never colour alone.** Every wedge carries a second channel: a distinct SVG pattern fill (solid / hatched / dotted / crosshatch / open) as well as its colour, and its name in text or a `<title>`. Confirm each pair of adjacent classes differs in luminance, not only in hue, so the ring reads in greyscale.
+2. **No rotated text.** Labels sit horizontally in a legend column beside the ring, connected by leader lines or by number, not curved around the arc. Wedges narrower than about 20° get a number only, resolved in the legend.
+3. **A floor on wedge size.** An element shorter than 20 seconds still draws at a 20-second arc so it is visible, and sets `minWidthApplied: true` so the UI can mark it. The true duration always appears in the label — the arc may exaggerate; the number never does.
+4. **The ring is not the control.** It is `aria-hidden`, and the same data renders as a visually-hidden `<ol>`: *"1. Billboard, starts 0:00, runs 50 seconds, promo."* The interactive, keyboard-operable surface is the linear rail beside it. This is the whole accessibility strategy in one sentence: **the clock is the picture, the rail is the control.** Do not add click handlers, focus rings or `tabindex` to any arc.
+
+**It must not fight Task 10's mix bar.** They answer different questions and must use different visual channels: the **clock encodes what kind of element** (segment, newscast, promo, bed, credit, silence, window); the **mix bar encodes what the hour is about** (the desks). Never colour the clock by desk.
+
+- [ ] **Step 1: Write the failing test** in `lib/clock.test.ts`
+
+```ts
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { arcs, HOUR } from './clock.ts';
+
+const row = (id: string, at: number, len: number, extra = {}) =>
+  ({ at, b: { id, label: id, len, how: 'satellite', kind: 'seg', mode: 'tape', topic: 'news', ...extra } }) as any;
+
+test('the hour starts at twelve o clock and runs clockwise', () => {
+  const [a] = arcs([row('a', 0, 900)]);
+  assert.equal(a.a0, 0);
+  assert.equal(a.a1, 90, 'fifteen minutes is a quarter turn');
+});
+
+test('an element keeps its true seconds even when the arc is widened', () => {
+  const [a] = arcs([row('silence', 59 * 60, 5)]);
+  assert.equal(a.seconds, 5, 'the number never lies');
+  assert.ok(a.a1 - a.a0 >= (20 / HOUR) * 360 - 1e-9, 'the arc is floored so it can be seen');
+  assert.equal(a.minWidthApplied, true);
+});
+
+test('an element longer than the floor is drawn at its true width', () => {
+  const [a] = arcs([row('seg', 0, 11 * 60 + 29)]);
+  assert.equal(a.minWidthApplied, false);
+  assert.ok(Math.abs((a.a1 - a.a0) - ((11 * 60 + 29) / HOUR) * 360) < 1e-9);
+});
+
+test('every arc is classified, and the classes match the reference key', () => {
+  const out = arcs([row('wx', 19 * 60, 45, { window: true }), row('uw', 21 * 60, 30, { credit: true }), row('cast', 0, 179, { kind: 'newscast' })]);
+  assert.deepEqual(out.map((a) => a.kind), ['window', 'credit', 'newscast']);
+});
+```
+
+- [ ] **Step 2: Run it**
+
+Run: `pnpm test`
+Expected: FAIL — `./clock.ts` does not exist.
+
+- [ ] **Step 3: Implement `lib/clock.ts`** — pure geometry, no DOM. `HOUR = 3600`. Degrees, not radians, so the tests read like a clock face. `MIN_ARC_SECONDS = 20`. Classify each row in this order, first match wins: `silence`, `credit`, `window` (weather and traffic), `bed` (music), `promo`, `newscast` (`kind === 'newscast'`), else `segment`.
+
+- [ ] **Step 4: Run the tests**
+
+Run: `pnpm test`
+Expected: PASS, all four.
+
+- [ ] **Step 5: Build `components/HotClock.tsx`**
+
+An SVG ring, `viewBox="0 0 320 320"`, each arc an annular `<path>`. Ticks every minute on the outside, longer at each five. `12:00` marked START. Pattern fills defined once in `<defs>`. The whole `<svg>` carries `aria-hidden="true"`; beside it, a `<ol>` in a visually-hidden class lists every element as a sentence with its start, duration and class. A visible legend column lists each class once with its swatch, its pattern and its name.
+
+Responsive rule from the global constraints: below roughly 480px the ring shrinks to fit the gutter and the legend stacks beneath it; the ring never forces a horizontal scroll. Respect `prefers-reduced-motion` — if arcs animate as blocks are added, skip the animation entirely under that query.
+
+- [ ] **Step 6: Place it** in `app/page.tsx`, above the linear rail, with the rail remaining the only interactive surface.
+
+- [ ] **Step 7: Check it**
+
+Build a real hour and confirm, saying which you verified and how: the wedges sum to a full circle; a 0:05 element is visible and labelled "0:05"; the ring is legible with colour removed (screenshot converted to greyscale, or a greyscale CSS filter); a screen reader or the accessibility tree reads the hidden list in order; at 390px wide the page does not scroll sideways.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add lib/clock.ts lib/clock.test.ts components/HotClock.tsx app/page.tsx
+git commit -m "feat: a hot clock that reads like NPR's, and reads aloud too"
+```
+
+---
+
 ## Parked for later plans
 
 - **Phaser and the pixel newsroom.** The loop has to hold people before it gets art. Sprite generation through the spritecook connector, original characters only.
@@ -1193,3 +1314,4 @@ git commit -m "feat: the wire as a front page, with a mix bar over the hour"
 - **Streaks and a leaderboard across devices.** Needs accounts; local streaks first.
 - **The news-director layer.** Assign reporters, watch the beats, live with the budget.
 - **Other stations' audio inside the stream.** Needs a phone call to each newsroom, not a code change.
+- **The furniture the reference clock has and our hour does not.** NPR's printed Morning Edition clock (transcribed in Task 11) carries a 0:50 billboard at the top, four newscasts rather than one, a music bed between almost every element (over six minutes of the hour), four promo slots, four separate funding credits, and a 0:05 silence at 59:00 for the station to join on. Our hour is a **local** hour — the 9 a.m. hour after Morning Edition ends, where the station fills everything — so the network clock is a vocabulary and a visual model, not a rundown to copy. Whether to add billboards, beds and promos as real schedulable furniture is a product decision for Tarik, not something to infer: it would make the hour markedly more realistic and markedly more fiddly to fill.
