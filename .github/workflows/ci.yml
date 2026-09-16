@@ -24,6 +24,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Next generates route/layout types (LayoutProps, PageProps) into .next/types.
+      # Without this, `tsc --noEmit` fails on a clean checkout with
+      # "Cannot find name 'LayoutProps'" -- which is exactly what CI caught on its first
+      # run, and what every local "tsc clean" in this project had been quietly leaning on
+      # a warm .next/ to hide. typegen does this without paying for a full build, so the
+      # cheap gates still run first.
+      - name: Generate route types
+        run: pnpm exec next typegen
+
       # Four gates, in the order that fails fastest and cheapest first.
       - name: Typecheck
         run: pnpm exec tsc --noEmit
