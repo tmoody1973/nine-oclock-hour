@@ -1,0 +1,735 @@
+<title>Nine O'Clock Hour</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Saira+Condensed:wght@600;700&display=swap">
+<style>
+  :root {
+    --ink: #10131a; --panel: #171b24; --panel-2: #1e2430; --rule: #2a313f; --edge: #3c4557;
+    --fg: #ece8e0; --fg-soft: #98a1b1; --amber: #e8a33d; --red: #e5484d; --green: #46b98a;
+    --font-display: "Saira Condensed", "Arial Narrow", sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: var(--fg); font-family: var(--font-body);
+         font-size: 15px; line-height: 1.5; padding: 0 16px 64px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .figure { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.02em; margin: 0; text-wrap: balance; }
+  button, select { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  a { color: var(--fg); }
+
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px;
+           border-bottom: 1px solid var(--rule); padding-block: 22px 16px; margin-bottom: 16px; }
+  .lamp { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase;
+          border: 1px solid var(--red); color: var(--red); border-radius: 3px; padding: 2px 8px; }
+  .lamp[data-live="1"] { background: var(--red); color: var(--ink); }
+  h1 { font-size: clamp(26px, 4.2vw, 38px); line-height: 1; }
+  .slug { color: var(--fg-soft); font-size: 13px; max-width: 58ch; margin: 0; }
+  .slug strong { color: var(--fg); font-weight: 600; }
+  .picker { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 13px; color: var(--fg-soft); }
+  .picker select { background: var(--panel-2); border: 1px solid var(--edge); border-radius: 3px;
+                   padding: 6px 8px; min-height: 36px; font-size: 13px; }
+
+  .rules { display: grid; gap: 10px 22px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+           border: 1px solid var(--rule); border-left: 3px solid var(--amber); border-radius: 3px;
+           padding: 12px 14px; margin-bottom: 22px; font-size: 13px; color: var(--fg-soft); }
+  .rules p { margin: 0; } .rules b { color: var(--fg); font-weight: 600; }
+
+  .board { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: start; }
+  @media (min-width: 900px) { .board { grid-template-columns: minmax(0, 1.3fr) minmax(310px, 0.8fr); } }
+  .rack-label { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase;
+                color: var(--fg-soft); display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+                border-bottom: 1px solid var(--rule); padding-bottom: 6px; margin-bottom: 10px; }
+
+  .wire { display: flex; flex-direction: column; }
+  .item { display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  .item.used { opacity: 0.45; }
+  .item h3 { font-family: var(--font-body); font-weight: 600; font-size: 14px; line-height: 1.35; }
+  .item h3 button { background: none; border: 0; padding: 0; text-align: left; font: inherit; color: inherit; }
+  .item h3 button:hover { color: var(--amber); }
+  .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; color: var(--fg-soft); margin: 3px 0 0; }
+  .src { font-family: var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg); }
+  .flag { border: 1px solid var(--edge); color: var(--fg-soft); border-radius: 3px; padding: 0 5px; font-size: 11px; }
+  .flag.sat { border-color: var(--green); color: var(--green); }
+  .flag.hold { border-color: var(--amber); color: var(--amber); }
+  .listen { display: flex; align-items: center; gap: 10px; grid-column: 1 / -1; flex-wrap: wrap; }
+  .listen a { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--fg-soft);
+              border: 1px solid var(--rule); border-radius: 3px; padding: 4px 10px; min-height: 30px; text-decoration: none; }
+  .listen a:hover { border-color: var(--green); color: var(--green); }
+  .listen a::before { content: "▶"; font-size: 9px; color: var(--green); }
+  .acts { display: flex; flex-direction: column; gap: 6px; justify-content: center; align-items: stretch; }
+  .acts button { background: transparent; border: 1px solid var(--edge); border-radius: 3px; padding: 4px 9px;
+                 font-size: 12px; white-space: nowrap; min-height: 32px; }
+  .acts button:hover:not([disabled]) { border-color: var(--amber); color: var(--amber); }
+  .acts button[disabled] { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+  .why { font-size: 11px; color: var(--fg-soft); text-align: right; max-width: 180px; }
+
+  .rail-shell { background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 14px; position: sticky; top: 12px; }
+  .readout { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .readout .big { font-family: var(--font-mono); font-size: 30px; font-variant-numeric: tabular-nums; }
+  .readout .big.over { color: var(--red); } .readout .big.tight { color: var(--green); }
+  .hint { font-size: 12px; color: var(--fg-soft); }
+  .rail { display: flex; flex-direction: column; gap: 2px; min-height: 120px; }
+  .blk { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center;
+         background: var(--panel-2); border-left: 3px solid var(--amber); border-radius: 2px; padding: 6px 8px; font-size: 13px; }
+  .blk .at { font-family: var(--font-mono); font-size: 12px; color: var(--fg-soft); }
+  .blk .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .blk .len { font-family: var(--font-mono); font-size: 12px; }
+  .blk.fixed { border-left-color: var(--edge); color: var(--fg-soft); }
+  .blk.window { background: transparent; border: 1px dashed var(--edge); border-left: 3px solid var(--edge); }
+  .blk.bulletin { border-left-color: var(--red); color: var(--fg); }
+  .blk.music { border-left-color: var(--green); }
+  .blk.stale { border-left-color: var(--red); }
+  .blk.est .len { color: var(--amber); }
+  .blk button { background: none; border: 0; color: var(--fg-soft); padding: 0 4px; font-size: 16px; line-height: 1; }
+  .blk button:hover { color: var(--red); }
+  .filler { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+  .filler button { background: transparent; border: 1px dashed var(--edge); border-radius: 3px; padding: 5px 9px; font-size: 12px; min-height: 32px; }
+  .filler button:hover { border-style: solid; border-color: var(--green); color: var(--green); }
+  .air { width: 100%; background: var(--amber); color: var(--ink); border: 0; border-radius: 3px;
+         font-family: var(--font-display); font-size: 19px; letter-spacing: 0.14em; text-transform: uppercase;
+         padding: 12px; min-height: 48px; }
+  .air[disabled] { background: var(--edge); color: var(--fg-soft); cursor: not-allowed; }
+  .ghost { background: none; border: 1px solid var(--edge); border-radius: 3px; padding: 6px 10px; font-size: 12px; min-height: 32px; }
+
+  .aircheck { margin-top: 26px; border-top: 1px solid var(--rule); padding-top: 18px; }
+  .scores { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 14px 0 4px; }
+  .score .n { font-family: var(--font-mono); font-size: 22px; font-variant-numeric: tabular-nums; }
+  .score .l { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-soft); }
+  .bar { height: 4px; background: var(--rule); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--amber); }
+  .bar i.bad { background: var(--red); } .bar i.good { background: var(--green); }
+  .notes { margin: 16px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+  .notes li { display: grid; grid-template-columns: 104px 1fr; gap: 12px; align-items: start; }
+  .notes .tag { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; padding-top: 3px; }
+  .notes .tag.bad { color: var(--red); } .notes .tag.ok { color: var(--green); } .notes .tag.warn { color: var(--amber); }
+  .notes small { display: block; color: var(--fg-soft); font-size: 12.5px; margin-top: 2px; }
+  .forces { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--fg-soft); margin: 8px 0 0; padding: 0; list-style: none; }
+  .forces b { color: var(--fg); font-weight: 600; font-family: var(--font-mono); }
+  svg { display: block; max-width: 100%; }
+
+  dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--edge); border-radius: 4px;
+           max-width: 560px; width: calc(100% - 32px); padding: 0; }
+  dialog::backdrop { background: rgba(6, 8, 12, 0.72); }
+  .sheet { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .sheet h2 { font-family: var(--font-body); font-weight: 600; font-size: 17px; line-height: 1.3; }
+  .sheet p { margin: 0; }
+  .sheet .snippet { font-size: 15px; line-height: 1.6; }
+  .sheet .credit { font-size: 12px; color: var(--fg-soft); }
+  .sheet .brief p { margin: 0 0 10px; }
+  .sheet .look { border-left: 2px solid var(--amber); padding-left: 10px; font-size: 13.5px; color: var(--fg-soft); }
+  .sheet .look b { color: var(--fg); font-weight: 600; }
+  .sheet .play { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--edge); border-radius: 3px;
+                 padding: 8px 12px; min-height: 40px; font-size: 13px; text-decoration: none; }
+  .sheet .play:hover { border-color: var(--green); color: var(--green); }
+  .sheet .play::before { content: "▶"; font-size: 10px; color: var(--green); }
+  .sheet .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+  .sheet a.out { font-size: 13px; color: var(--amber); }
+
+  .foot { margin-top: 34px; border-top: 1px solid var(--rule); padding-top: 14px; font-size: 13px; color: var(--fg-soft); max-width: 70ch; }
+  .foot a { color: var(--amber); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="lamp" id="lamp">Off air</span>
+    <h1>Nine O'Clock Hour</h1>
+    <label class="picker">You are working at
+      <select id="station" aria-label="Choose your station"></select>
+    </label>
+    <p class="slug">It is <strong class="figure">8:52 a.m.</strong> Fill the nine o'clock hour from what came in this morning, then put it on air. Listen to any piece, read what it says, and watch the clock. Everything below is real, from the network feed on <span class="figure">16 September 2026</span>.</p>
+  </header>
+
+  <div class="rules">
+    <p><b>Network tape is yours to air.</b> NPR programs come down the satellite. Roll them.</p>
+    <p><b>Another station's tape is not.</b> Credit it and read it, or call them for the cut.</p>
+    <p><b>Podcast audio isn't cleared for broadcast.</b> Talk about it, don't roll it.</p>
+    <p><b>Untimed tape is a gamble.</b> Some pieces arrive with no duration. Roll one and you find out live.</p>
+  </div>
+
+  <div class="board">
+    <section>
+      <div class="rack-label"><span>What came in</span><span id="wire-count" class="figure"></span></div>
+      <div class="wire" id="wire"></div>
+    </section>
+    <section>
+      <div class="rail-shell">
+        <div class="rack-label"><span>The hour</span><span>9:00 – 9:59</span></div>
+        <div class="readout">
+          <span class="big figure" id="remain">59:00</span>
+          <span class="hint" id="remain-label">to fill</span>
+        </div>
+        <div class="rail" id="rail"></div>
+        <div class="filler">
+          <button data-music="180">+ Music 3:00</button>
+          <button data-music="270">+ Music 4:30</button>
+          <button data-music="390">+ Music 6:30</button>
+          <button data-credit="1">+ Underwriting 0:30</button>
+          <button data-pledge="1" id="pledge-btn" aria-pressed="false">Pledge week: off</button>
+        </div>
+        <button class="air" id="air">Put it on air</button>
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button class="ghost" id="clear">Clear the hour</button>
+          <span class="hint" id="best"></span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="aircheck" id="aircheck" hidden>
+    <div class="rack-label"><span>Aircheck</span><span class="figure" id="total"></span></div>
+    <div class="scores" id="scores"></div>
+    <div style="margin-top:18px">
+      <div class="rack-label"><span>Who stayed</span><span class="hint">modelled listeners, minute by minute</span></div>
+      <svg id="hold" viewBox="0 0 640 150" role="img" aria-labelledby="hold-t"><title id="hold-t">Listener retention across the hour</title></svg>
+      <ul class="forces">
+        <li><b>+4</b> a music bed</li><li><b>+2</b> a local story</li><li><b>−2</b> a heavy news piece</li>
+        <li><b>−3</b> each heavy piece past two in a row</li><li><b>−3</b> anything over 6:40</li>
+      </ul>
+    </div>
+    <ul class="notes" id="notes"></ul>
+  </section>
+
+  <p class="foot">Headlines, runtimes, teasers and audio links come from each newsroom's own feed and play from their servers; nothing is copied or stored here. <span id="sources"></span></p>
+</div>
+
+<dialog id="flash" aria-labelledby="flash-title">
+  <div class="sheet">
+    <p class="credit" style="color:var(--red)">Bulletin · 9:34 · 1:15</p>
+    <h2 id="flash-title">The Fed has announced its decision.</h2>
+    <p class="snippet">Washington is up live in seventy-five seconds. Every station on the network is taking it. Your hour is already built, so something has to give.</p>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button class="ghost" data-flash="now">Take it live at 9:34 — everything after it shifts</button>
+      <button class="ghost" data-flash="late">Hold it for the next break — safer clock, older news</button>
+      <button class="ghost" data-flash="skip">Skip it — stay with what you planned</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="sheet" aria-labelledby="sheet-title">
+  <div class="sheet">
+    <p class="credit" id="sheet-credit"></p>
+    <h2 id="sheet-title"></h2>
+    <p class="snippet" id="sheet-snippet"></p>
+    <div id="sheet-audio"></div>
+    <div class="row">
+      <a class="out" id="sheet-link" href="#" target="_blank" rel="noreferrer">Open the full story at the source →</a>
+      <button class="ghost" id="sheet-close">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const HOUR = 3540, READ = 30;
+// Two windows nobody may move, and the credit that pays for the hour.
+const WINDOWS = [ { id:'wx', at: 19 * 60, len: 45, label: 'Weather window' }, { id:'tx', at: 49 * 60, len: 45, label: 'Traffic window' } ];
+const UNDERWRITING_BY = 30 * 60;
+const BULLETIN = { id:'bulletin', label: 'BULLETIN — the Fed announces its decision', len: 75, at: 34 * 60, topic: 'economy' };
+
+// Walk the hour and drop the fixed windows where the clock reaches them. A block that is still
+// running when a window comes up has crashed into it, and the walk says by how much.
+// Pledge week: two pitch breaks land in the hour and never move, and the credit doubles.
+const PITCHES = [ { id:'p1', at: 12 * 60, len: 120, label: 'Pitch break' }, { id:'p2', at: 42 * 60, len: 120, label: 'Pitch break' } ];
+let pledge = false;
+
+function layout(blocks) {
+  const out = [], crashes = [];
+  const pending = [...WINDOWS, ...(pledge ? PITCHES : [])].sort((a, b) => a.at - b.at).map((w) => ({ ...w }));
+  let at = 0;
+  for (const b of blocks) {
+    while (pending.length && at >= pending[0].at) {
+      const w = pending.shift();
+      out.push({ b: { ...w, fixed: true, window: true }, at });
+      if (at > w.at + 1) crashes.push({ label: w.label, late: at - w.at });
+      at += w.len;
+    }
+    if (pending.length && at + b.len > pending[0].at && at < pending[0].at) {
+      crashes.push({ label: pending[0].label, over: at + b.len - pending[0].at, by: b.label });
+    }
+    out.push({ b, at });
+    at += b.realLen || b.len;
+  }
+  while (pending.length) {
+    const w = pending.shift();
+    out.push({ b: { ...w, fixed: true, window: true }, at });
+    if (at > w.at + 1) crashes.push({ label: w.label, late: at - w.at });
+    at += w.len;
+  }
+  return { rows: out, end: at, crashes };
+}
+const CAN_ROLL = { satellite: true, ours: true, station: false, podcast: false };
+const WHY_NOT = { station: "another station's tape — read it with credit", podcast: 'podcast audio, not cleared for air' };
+const HOW_LABEL = { satellite: 'satellite', ours: 'ours', station: 'other station', podcast: 'podcast' };
+const NPR_AUDIO = 'https://ondemand.npr.org/anon.npr-mp3/npr/';
+
+// The same network morning everywhere. Audio streams from the source; nothing is copied here.
+const NETWORK = [
+  { id:'nc9', src:'NPR', how:'satellite', kind:'newscast', t:"NPR News: 9 a.m. newscast", len:280, when:'live at 9:05', topic:'news',
+    teaser:'The hourly network newscast, five minutes, cut at five past the hour.', url:'https://www.npr.org/podcasts/500005/npr-news-now' },
+  { id:'nc7', src:'NPR', how:'satellite', kind:'newscast', t:"NPR News: 7 a.m. newscast", len:279, when:'07:10', expires:'8:20', expired:true, topic:'news',
+    teaser:'Two hours old. Its lead has already been overtaken by the morning.', url:'https://www.npr.org/podcasts/500005/npr-news-now' },
+  { id:'me1', src:'Morning Edition', how:'satellite', kind:'seg', t:"The Fed is expected to raise rates for the first time in 3 years", len:214, when:'this morning', topic:'economy',
+    teaser:'The Fed is widely expected to raise its benchmark rate to fight stubborn inflation, making it costlier to borrow for a car or carry a credit-card balance.',
+    audio:NPR_AUDIO + 'me/2026/09/20260916_me_the_fed_is_expected_to_raise_interest_rates_for_the_first_time_in_3_years.mp3?d=214',
+    url:'https://www.npr.org/2026/09/16/nx-s1-5968724/federal-reserve-interest-rates-inflation-economy' },
+  { id:'me2', src:'Morning Edition', how:'satellite', kind:'seg', t:"What a rate rise means for consumers", len:310, when:'this morning', topic:'economy',
+    teaser:"Moody's Analytics chief economist Mark Zandi on the Fed's expected decision and what it means for households.",
+    audio:NPR_AUDIO + 'me/2026/09/20260916_me_the_fed_is_expected_to_raise_interest_rates._what_it_means_for_consumers.mp3?d=310',
+    url:'https://www.npr.org/2026/09/16/nx-s1-5969840/the-fed-is-expected-to-raise-interest-rates-what-it-means-for-consumers' },
+  { id:'me3', src:'Morning Edition', how:'satellite', kind:'seg', t:"A move to impeach the defense secretary over the Iran war", len:140, when:'this morning', topic:'politics',
+    teaser:'A Kentucky Republican has moved to impeach the defense secretary, alleging the Iran war was waged illegally.',
+    audio:NPR_AUDIO + 'me/2026/09/20260916_me_rep._thomas_massie_moves_to_impeach_defense_secretary_pete_hegseth_over_the_iran_war.mp3?d=140',
+    url:'https://www.npr.org/2026/09/16/nx-s1-5969910/rep-thomas-massie-moves-to-impeach-defense-secretary-pete-hegseth-over-the-iran-war' },
+  { id:'me4', src:'Morning Edition', how:'satellite', kind:'seg', t:"New maps reveal gaps in access to affordable birth control", len:301, when:'this morning', topic:'health',
+    teaser:'New mapping shows how many women live in counties with limited access — and a data lag means the picture may be worse.',
+    audio:NPR_AUDIO + 'me/2026/09/20260916_me_21_million_women_live_in_u.s._counties_with_limited_birth_control_access.mp3?d=301',
+    url:'https://www.npr.org/2026/09/16/nx-s1-5956869/birth-control-contraception-access-clinic' },
+  { id:'me5', src:'Morning Edition', how:'satellite', kind:'seg', t:"Two tech journalists on their new AI show", len:420, when:'this morning', topic:'tech',
+    teaser:'Steve Inskeep talks with tech journalists Casey Newton and Kevin Roose about their new show coming to NPR.',
+    audio:NPR_AUDIO + 'me/2026/09/20260916_me_machine_gods_explores_the_latest_developments_in_the_world_of_ai.mp3?d=420',
+    url:'https://www.npr.org/2026/09/16/nx-s1-5969921/machine-gods-explores-the-latest-developments-in-the-world-of-ai' },
+  { id:'atc1', src:'All Things Considered', how:'satellite', kind:'seg', t:"What to make of warnings that AI may pose an existential threat", len:394, when:'yesterday', old:true, topic:'tech',
+    teaser:'Fears of AI wiping out humanity surged this week. Could it happen, and how?',
+    audio:NPR_AUDIO + 'atc/2026/09/20260915_atc_what_to_make_of_warnings_that_ai_may_pose_an_existential_threat_to_humanity.mp3?d=394',
+    url:'https://www.npr.org/2026/09/15/nx-s1-5969783/what-to-make-of-warnings-that-ai-may-pose-an-existential-threat-to-humanity' },
+  { id:'atc2', src:'All Things Considered', how:'satellite', kind:'seg', t:"A rare glimpse inside Israeli-occupied southern Lebanon", len:282, when:'yesterday', old:true, topic:'world',
+    teaser:'NPR gains rare access to the occupied zone of southern Lebanon.',
+    audio:NPR_AUDIO + 'atc/2026/09/20260915_atc_lebanon_israel_un.mp3?d=282',
+    url:'https://www.npr.org/2026/09/15/nx-s1-5966886/a-rare-glimpse-inside-israeli-occupied-southern-lebanon' },
+  { id:'atc3', src:'All Things Considered', how:'satellite', kind:'seg', t:"Turks keep gold as a hedge against inflation", len:258, when:'yesterday', old:true, topic:'world',
+    teaser:'Billions of dollars of gold sit in Turkish households outside the banking system. The government wants it inside.',
+    audio:NPR_AUDIO + 'atc/2026/09/20260915_atc_gold_under_the_pillow.mp3?d=258',
+    url:'https://www.npr.org/2026/09/15/nx-s1-5949212/turks-often-keep-gold-as-a-hedge-against-inflation-it-may-be-hurting-turkeys-future' },
+  { id:'atc5', src:'All Things Considered', how:'satellite', kind:'seg', t:"A crackdown on immigrant truckers reaches an appeals court", len:162, when:'yesterday', old:true, topic:'politics',
+    teaser:'A federal appeals panel hears arguments; critics say the crackdown will do little for road safety.',
+    audio:NPR_AUDIO + 'atc/2026/09/20260915_atc_trump_administration_s_crackdown_on_immigrant_truckers_rolls_into_appeals_court.mp3?d=162',
+    url:'https://www.npr.org/2026/09/15/nx-s1-5968726/trump-administrations-crackdown-on-immigrant-truckers-rolls-into-appeals-court' },
+  { id:'atc6', src:'All Things Considered', how:'satellite', kind:'seg', t:"Missed the Emmys? Here's a recap", len:225, when:'yesterday', old:true, topic:'culture',
+    teaser:'Big wins, beautiful moments, awkward jokes and a few surprises.',
+    audio:NPR_AUDIO + 'atc/2026/09/20260915_atc_missed_the_2026_emmys_broadcast_here_s_a_recap.mp3?d=225',
+    url:'https://www.npr.org/2026/09/15/nx-s1-5969387/missed-the-2026-emmys-broadcast-heres-a-recap' },
+  { id:'up1', src:'Up First', how:'podcast', kind:'seg', t:"Up First: the Fed, the war's cost, the Kennedy Center", len:776, when:'6 a.m. today', topic:'news',
+    teaser:"The morning podcast's three stories, with chapter marks. Premium audio: play it or link it, never store it.",
+    url:'https://www.npr.org/2026/09/16/nx-s1-5970932/federal-reserve-interest-rates-reports-reveal-iran-war-costs-kennedy-center-closure' },
+];
+
+// Six newsrooms, each with what it actually filed this week, and a neighbour whose tape you may not roll.
+const STATIONS = {
+  s921: { name: '88Nine Radio Milwaukee', city: 'Milwaukee', neighbour: 's55', local: [
+    { id:'mke1', t:"MKE concert picks: a return, a reunion and a Bash", len:0, when:'this morning', topic:'local',
+      teaser:'Graham Hunt is back in town, The Fatty Acid are back together, and the Bay View Bash fills a full day on KK.', url:'https://radiomilwaukee.org/concerts/2026-09-16/concerts-in-milwaukee-this-week' },
+    { id:'mke2', t:"Bay View Bash: five stages, 100 vendors, one dog parade", len:0, when:'2 days ago', topic:'local',
+      teaser:'Five stages of music, more than 100 vendors and a dog parade fill Kinnickinnic Avenue on Saturday.', url:'https://radiomilwaukee.org/events-festivals/2026-09-14/bay-view-bash-2026-schedule' },
+    { id:'mke4', t:"Best new music: a debut single from Spanish Horses", len:0, when:'yesterday', topic:'music',
+      teaser:"The Euro-based alt group announced themselves with their first single.", url:'https://radiomilwaukee.org/show/whats-all-this/2026-09-15/new-indie-music-spanish-horses' },
+    { id:'mke3', t:"Ladies First: Danielle Ponder on her new album (full show)", len:1749, when:'yesterday', topic:'music',
+      teaser:"Ponder on change, growth and the record she made about it, out in October.",
+      audio:'https://dovetail.prxu.org/17913/11bb35ad-2bae-4d9b-9255-8b9ff49ff083/Ladies_First_Danielle_Ponder_091026.mp3',
+      url:'https://radiomilwaukee.org/show/ladies-first/2026-09-11/danielle-ponder-everything-has-changed' },
+  ]},
+  s55: { name: 'KCRW', city: 'Los Angeles', neighbour: 's552', local: [
+    { id:'la1', t:"A film festival showcases Compton's creative energy", len:257, when:'yesterday', topic:'culture',
+      teaser:'The Compton Hub City International Film Festival is in its third year.',
+      audio:'https://ondemand-media.kcrw.com/fdd/audio/download/kcrw/shows/kcrw-reports/2026_0915_ATC_COMPTONnew.MP3',
+      url:'https://www.kcrw.com/shows/kcrw-reports/stories/a-film-festival-showcases-comptons-creative-energy' },
+    { id:'la2', t:"L.A. considers new protections for mom-and-pop businesses", len:273, when:'2 days ago', topic:'local',
+      teaser:'Small businesses have few protections against rent rises and evictions; the city and county are working on measures to change that.',
+      audio:'https://ondemand-media.kcrw.com/fdd/audio/download/kcrw/shows/kcrw-reports/SMALL-BIZ-2WAY.mp3',
+      url:'https://www.kcrw.com/shows/kcrw-reports/stories/l-a-considers-new-protections-for-mom-and-pop-businesses' },
+    { id:'la3', t:"The ongoing shrinkage of Orange County's coastline", len:313, when:'2 days ago', topic:'climate',
+      teaser:'Are the beach cities ready for the El Niño to come?',
+      audio:'https://ondemand-media.kcrw.com/fdd/audio/download/kcrw/shows/kcrw-reports/2026_0914_GUSTAVO_BEACH.MP3',
+      url:'https://www.kcrw.com/shows/kcrw-reports/stories/the-ongoing-shrinkage-of-orange-countys-coastline' },
+    { id:'la4', t:"A SoCal father remembers his daughter, 25 years on", len:465, when:'5 days ago', topic:'local',
+      teaser:"Tom Frost is not letting the world forget his late daughter.",
+      audio:'https://ondemand-media.kcrw.com/fdd/audio/download/kcrw/shows/kcrw-reports/2026_0909_TOMFROST.MP3',
+      url:'https://www.kcrw.com/shows/kcrw-reports/stories/i-miss-her-every-day-socal-father-remembers-9-11' },
+    { id:'la5', t:"South Pasadena drops one camera vendor, keeps the cameras", len:263, when:'6 days ago', topic:'local',
+      teaser:'The first city in the county to cancel its contract is now looking at alternatives.',
+      audio:'https://ondemand-media.kcrw.com/fdd/audio/download/kcrw/shows/kcrw-reports/2026_0909_ZOHA_FLOCKCAMERAS.MP3',
+      url:'https://www.kcrw.com/shows/kcrw-reports/stories/south-pasadena-drops-flock-but-not-ai-street-cameras' },
+  ]},
+  s308: { name: 'WBEZ', city: 'Chicago', neighbour: 's295', local: [
+    { id:'chi1', t:"How Chicago's arts spending compares with other cities", len:0, est:210, when:'yesterday', topic:'local',
+      teaser:'The mayor has launched his reelection bid and wants his arts and culture investments to define the administration.',
+      audio:'https://podcast-stream.wbez.org/recast/wbez-features/20260915180927_076326-20260915_5.44_ARTSFEATURECULTURALSPENDINGCK.3.5MIN.mp3',
+      url:'https://www.wbez.org' },
+    { id:'chi2', t:"The mayor launches his reelection campaign", len:0, est:195, when:'2 days ago', topic:'politics',
+      teaser:'The announcement drew a who’s who of the city’s progressive activists.',
+      audio:'https://podcast-stream.wbez.org/recast/wbez-features/20260914173436_464472-20260914_520_JohnsonReelection_MW.mp3',
+      url:'https://www.wbez.org' },
+    { id:'chi3', t:"El Grito returns to Grant Park", len:0, est:180, when:'2 days ago', topic:'culture',
+      teaser:'Thousands gathered for the two-day celebration of Mexican culture and independence.',
+      audio:'https://podcast-stream.wbez.org/recast/wbez-features/20260914072344_401257-260914-645-Chicago-El-Grito-SVB.mp3',
+      url:'https://www.wbez.org' },
+    { id:'chi4', t:"A birder's 1,200-day streak through the fall migration", len:0, est:240, when:'2 days ago', topic:'local',
+      teaser:'Birds are already moving through the area, and one watcher has kept a daily streak for more than three years.',
+      audio:'https://podcast-stream.wbez.org/recast/wbez-features/20260914075401_018108-260914-745-Sammy-Birding-Feature-AR.mp3',
+      url:'https://www.wbez.org' },
+    { id:'chi5', t:"How this newsroom covered the days after 9/11, 25 years on", len:0, est:255, when:'4 days ago', topic:'local',
+      teaser:'A former host revisits his first show after the attacks, and what it meant for the country.',
+      audio:'https://podcast-stream.wbez.org/recast/wbez-features/20260912094926_626739-20260912_9.35_SEPT12BROADCASTNJ.4MIN.mp3',
+      url:'https://www.wbez.org' },
+  ]},
+  s552: { name: 'WNYC', city: 'New York', neighbour: 's308', local: [
+    { id:'ny1', t:"Schools chancellor weighs plans for 30,000 students in small schools", len:0, when:'this morning', topic:'local',
+      teaser:'The chancellor has said repeatedly that the rise in small schools is a priority this year.', url:'https://gothamist.com/news/schools-chancellor-weighs-plans-for-30k-students-in-small-nyc-schools' },
+    { id:'ny2', t:"Park Slope rejoices after a stolen bodega kitten is returned", len:0, when:'yesterday', topic:'local',
+      teaser:'The accused catnapper was arrested by police.', url:'https://gothamist.com/news/park-slope-rejoices-after-catnappers-return-stolen-kitten-to-bodega' },
+    { id:'ny3', t:"600 new curbside EV charging points are coming to the city", len:0, when:'yesterday', topic:'local',
+      teaser:'The transportation department is taking public comment until the end of the month.', url:'https://gothamist.com/news/brooklyn-firm-to-add-over-600-ev-charging-points-to-nyc-curbside-spots' },
+    { id:'ny4', t:"Plans to ease crowding at two juvenile detention centers", len:0, when:'yesterday', topic:'local',
+      teaser:'Both centers have been over capacity for years.', url:'https://gothamist.com/news/nyc-announces-plans-to-ease-crowding-at-violence-plagued-juvenile-detention-centers' },
+    { id:'ny5', t:"A congressman bought more data-center stock as AI backlash grows", len:0, when:'yesterday', topic:'politics',
+      teaser:'He says he had no involvement in the buying decisions; disclosures show shares in two data-center companies.', url:'https://gothamist.com/news/nj-rep-kean-acquired-more-data-center-stocks-as-backlash-to-ai-boom-grows' },
+  ]},
+  s295: { name: 'WABE', city: 'Atlanta', neighbour: 's150', local: [
+    { id:'atl1', t:"A second former state lawmaker is sentenced for pandemic fraud", len:0, when:'2 days ago', topic:'politics',
+      teaser:'A former state representative was sentenced to time served and ordered to pay restitution after admitting false statements.', url:'https://www.wabe.org/second-former-georgia-lawmaker-sentenced-for-pandemic-unemployment-fraud/' },
+    { id:'atl2', t:"The Beltline's Northwest Trail breaks ground, with rail still in play", len:0, when:'5 days ago', topic:'local',
+      teaser:'Nearly a mile of new trail, a pedestrian bridge over Northside Drive and a passage under the interstate.', url:'https://www.wabe.org/atlanta-beltlines-northwest-trail-segment-begins-construction-as-officials-also-push-for-rail/' },
+    { id:'atl3', t:"Georgia's EV makers adapt after federal support disappears", len:0, when:'6 days ago', topic:'economy',
+      teaser:'After a hard year and a half, the state’s clean-energy manufacturers are still going, with adjustments.', url:'https://www.wabe.org/georgia-bet-big-on-ev-manufacturing-trump-pulled-the-plug/' },
+    { id:'atl4', t:"Elder care faces a squeeze as Haitians lose protected status", len:0, when:'8 days ago', topic:'health',
+      teaser:'One in four direct-care health workers nationwide is an immigrant, and advocates warn Georgia cannot afford to lose more.', url:'https://www.wabe.org/georgias-elder-care-workforce-faces-impact-as-haitians-lose-protected-immigration-status/' },
+    { id:'atl5', t:"Afrofuturism at Dragon Con: visions of innovation and resilience", len:0, when:'12 days ago', topic:'culture',
+      teaser:'Black creatives and cosplayers return each year to a world where their visions of the future are celebrated.', url:'https://www.wabe.org/afrofuturism-gives-black-creatives-of-dragon-con-visions-of-innovation-and-resilience/' },
+  ]},
+  s150: { name: 'KQED', city: 'the Bay Area', neighbour: 's921', local: [
+    { id:'sf2', t:"Opera cancels more performances as the musicians' strike goes on", len:0, when:'yesterday', topic:'culture',
+      teaser:'Amid union negotiations, performances of two productions have been cut.', url:'https://ww2.kqed.org/arts/2026/09/15/sf-opera-cancels-additional-performances-as-musicians-strike-continues/' },
+    { id:'sf3', t:"A new state law sets standards for smoke-damaged homes", len:0, when:'yesterday', topic:'climate',
+      teaser:"The state sets the nation's first standards for smoke damage.", url:'https://ww2.kqed.org/science/2026/09/15/newsom-signs-new-law-to-clear-confusion-around-smoke-damage/' },
+    { id:'sf4', t:"14,000 security guards at tech campuses plan to strike", len:0, when:'yesterday', topic:'local',
+      teaser:'The union representing guards at major tech companies says the strike starts Friday.', url:'https://ww2.kqed.org/news/2026/09/15/14000-security-guards-for-major-tech-companies-plan-to-strike/' },
+    { id:'sf5', t:"How to check you are registered before the primary", len:0, when:'yesterday', topic:'local',
+      teaser:'What to check before the November state primary, and how to fix a registration.', url:'https://ww2.kqed.org/news/2026/09/15/am-i-registered-to-vote-midterms-2026-california-voting-for-governor-check-voter-registration-mail-in-ballots/' },
+  ]},
+};
+
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+const $ = (sel) => document.querySelector(sel);
+const FIXED_ID = { id:'legalid', label:'Legal ID and promo', len:60, fixed:true };
+
+let home = 's921', wire = [], hour = [];
+
+function buildWire() {
+  const s = STATIONS[home], nb = STATIONS[s.neighbour];
+  const locals = s.local.map((l) => ({ ...l, src: s.name, how: 'ours', kind: 'seg' }));
+  const borrowed = nb.local.slice(0, 2).map((l) => ({ ...l, id: 'nb-' + l.id, src: nb.name, how: 'station', kind: 'seg' }));
+  wire = [...NETWORK, ...locals, ...borrowed];
+}
+const byId = (id) => wire.find((w) => w.id === id);
+
+function block(item, mode) {
+  const est = !item.len && item.est;
+  return { id: item.id + ':' + mode, ref: item.id, label: item.t, src: item.src, how: item.how, mode,
+           len: mode === 'read' ? READ : (item.len || item.est || READ),
+           est: mode === 'tape' && !!est, topic: item.topic, kind: item.kind,
+           expired: !!item.expired, old: !!item.old, long: mode === 'tape' && item.len > 900 };
+}
+const used = (id) => hour.some((b) => b.ref === id);
+
+function start() {
+  buildWire();
+  flashChoice = null;
+  hour = [ { ...FIXED_ID }, block(byId('nc9'), 'tape'), block(byId('me1'), 'tape'),
+           { id: 'credit', label: 'Underwriting credit', len: 30, credit: true, topic: 'credit', how: 'ours' } ];
+  $('#aircheck').hidden = true;
+  $('#lamp').dataset.live = '0'; $('#lamp').textContent = 'Off air';
+  render();
+}
+
+function renderWire() {
+  const el = $('#wire');
+  el.innerHTML = '';
+  for (const w of wire) {
+    const est = !w.len && w.est;
+    const rollable = CAN_ROLL[w.how] && (w.len > 0 || est);
+    const lenText = w.len ? clock(w.len) : est ? `≈ ${clock(w.est)} untimed` : 'text only';
+    const art = document.createElement('article');
+    art.className = 'item' + (used(w.id) ? ' used' : '');
+    art.innerHTML = `
+      <div>
+        <h3><button data-open="${w.id}">${w.t}</button></h3>
+        <p class="meta">
+          <span class="src">${w.src}</span><span>${w.when}</span>
+          <span class="${w.len || est ? 'figure' : ''}">${lenText}</span>
+          <span class="flag ${w.how === 'satellite' || w.how === 'ours' ? 'sat' : 'hold'}">${HOW_LABEL[w.how]}</span>
+          ${w.expires ? `<span class="figure">good until ${w.expires}</span>` : ''}
+        </p>
+      </div>
+      <div class="acts">
+        <button data-add="${w.id}" data-mode="tape" ${rollable ? '' : 'disabled'}>${w.len ? `Roll tape ${clock(w.len)}` : est ? `Roll it ≈ ${clock(w.est)}` : 'No tape'}</button>
+        <button data-add="${w.id}" data-mode="read">${w.how === 'station' ? 'Read with credit 0:30' : 'Read 0:30'}</button>
+        ${rollable ? '' : `<span class="why">${w.len || est ? WHY_NOT[w.how] : 'text only, nothing to roll'}</span>`}
+      </div>
+      ${w.audio ? `<div class="listen"><a href="${w.url}" target="_blank" rel="noreferrer">Audition at ${w.src}</a><span class="hint">opens the newsroom's own player</span></div>` : ''}`;
+    el.appendChild(art);
+  }
+  $('#wire-count').textContent = `${wire.length} items`;
+}
+
+function renderRail() {
+  const rail = $('#rail');
+  rail.innerHTML = '';
+  const { rows, end } = layout(hour);
+  for (const { b, at } of rows) {
+    const el = document.createElement('div');
+    el.className = 'blk' + (b.fixed ? ' fixed' : '') + (b.music ? ' music' : '') + (b.window ? ' window' : '')
+      + (b.expired && b.mode === 'tape' ? ' stale' : '') + (b.est ? ' est' : '');
+    el.innerHTML = `<span class="at">${clock(at)}</span>
+      <span class="who">${b.label}${b.mode === 'read' ? ' — read' : ''}</span>
+      <span style="display:flex; gap:6px; align-items:center;"><span class="len">${b.est ? '≈' : ''}${clock(b.len)}</span>${b.fixed ? '' : `<button data-drop="${b.id}" aria-label="Remove ${b.label}">×</button>`}</span>`;
+    rail.appendChild(el);
+  }
+  const left = HOUR + 60 - end;
+  const big = $('#remain');
+  big.textContent = (left < 0 ? '+' : '') + clock(Math.abs(left));
+  big.className = 'big figure' + (left < 0 ? ' over' : Math.abs(left) <= 5 ? ' tight' : '');
+  $('#remain-label').textContent = left < 0 ? 'over — the network joins without you' : 'to fill';
+  $('#air').disabled = hour.length < 3;
+}
+const render = () => { renderWire(); renderRail(); };
+
+// What a producer would want before deciding: the story in a few sentences, then the one line
+// that decides where it can sit in the hour.
+function placementNote(w) {
+  if (w.how === 'station') return `<b>${w.src}'s reporting.</b> You may credit it and read it, but their tape stays on their air.`;
+  if (w.how === 'podcast') return '<b>Podcast audio.</b> Not cleared for broadcast: talk about it, link it, never roll it.';
+  if (w.expired) return '<b>Already expired.</b> This cut was good until ' + w.expires + '. At nine it is history.';
+  if (!w.len && w.est) return `<b>No duration in the feed.</b> Roughly ${clock(w.est)}, but nobody timed it. Roll it and you find out live.`;
+  if (!w.len) return '<b>Text only.</b> There is no tape, so this is a thirty-second read or nothing.';
+  if (w.long) return `<b>A full show at ${clock(w.len)}.</b> It will eat the hour whole.`;
+  if (w.old) return '<b>Yesterday\'s tape.</b> Fine as texture, risky as news: the story may have moved overnight.';
+  return `<b>Clean to air at ${clock(w.len)}.</b> Network tape, yours to roll.`;
+}
+
+function openSheet(id) {
+  const w = byId(id);
+  $('#sheet-credit').textContent = `${w.src} · ${w.when}${w.len ? ' · ' + clock(w.len) : ''}`;
+  $('#sheet-title').textContent = w.t;
+  const body = (w.brief || [w.teaser || 'No summary came with this one in the feed.']).map((p) => `<p>${p}</p>`).join('');
+  $('#sheet-snippet').innerHTML = `<div class="brief">${body}</div><p class="look">${placementNote(w)}</p>`;
+  $('#sheet-audio').innerHTML = w.audio || w.how === 'podcast'
+    ? `<a class="play" href="${w.url}" target="_blank" rel="noreferrer">Listen at ${w.src}</a>`
+    : '<p class="credit">No audio filed with this one.</p>';
+  $('#sheet-link').href = w.url;
+  $('#sheet').showModal();
+}
+
+// The bulletin arrives once per hour, and how you take it is the whole decision.
+let flashChoice = null;
+function takeFlash(choice) {
+  flashChoice = choice;
+  $('#flash').close();
+  if (choice !== 'skip') {
+    const blk = { ...BULLETIN, bulletin: true, how: 'satellite', kind: 'seg', late: choice === 'late' };
+    let at = 0, i = hour.length;
+    for (let n = 0; n < hour.length; n++) {
+      at += hour[n].len;
+      if (at >= BULLETIN.at) { i = choice === 'now' ? n + 1 : Math.min(n + 2, hour.length); break; }
+    }
+    hour.splice(i, 0, blk);
+  }
+  render();
+  air();
+}
+
+function air() {
+  if (!flashChoice) return $('#flash').showModal();
+  const notes = [];
+  let onair = 25, fresh = 15, mix = 15;
+  const s = STATIONS[home];
+
+  if (flashChoice === 'skip') { onair -= 6; fresh -= 4;
+    notes.push(['bad', 'You passed on the bulletin.', 'Every other station in the network carried it. A listener scanning the dial heard it somewhere else.']); }
+  else if (flashChoice === 'late') { fresh -= 3;
+    notes.push(['warn', 'You held the bulletin for the next break.', 'The clock survived; the news was second-hand by the time it aired.']); }
+  else notes.push(['ok', 'You took the bulletin live at 9:34.', 'Everything after it shifted, which is what a bulletin does.']);
+
+  let drift = 0;
+  for (const b of hour) {
+    if (!b.est) continue;
+    const real = b.len + Math.round((Math.random() * 2 - 1) * 40);
+    drift += real - b.len; b.realLen = real;
+  }
+  if (drift) notes.push([Math.abs(drift) > 25 ? 'warn' : 'ok', `Untimed tape ran <span class="figure">${clock(Math.abs(drift))}</span> ${drift > 0 ? 'long' : 'short'}.`,
+    'Nobody timed those pieces before air. That is what untimed means.']);
+
+  const casts = hour.filter((b) => b.kind === 'newscast');
+  const staleCast = casts.find((b) => b.expired && b.mode === 'tape');
+  if (staleCast) { fresh -= 10; onair -= 10;
+    notes.push(['bad', 'You aired the <strong>7 a.m. newscast</strong> at nine o\'clock.', 'It was written two hours ago and its lead has already changed. Take the nine.']); }
+  else if (!casts.length) { fresh -= 6; notes.push(['warn', 'No newscast at the top of the hour.', 'Nine in the morning is when people check in for news.']); }
+  else notes.push(['ok', 'The newscast at the top of the hour was the current one.', '']);
+  if (casts.length > 1) { fresh -= 4; notes.push(['warn', 'Two newscasts in one hour.', 'The second one repeats the first.']); }
+
+  const oldTape = hour.filter((b) => b.old && b.mode === 'tape');
+  if (oldTape.length) { fresh -= Math.min(6, oldTape.length * 3);
+    notes.push(['warn', `${oldTape.length} segment${oldTape.length > 1 ? 's' : ''} from yesterday's programs ran as tape.`, 'Fine as texture, risky as news: the story moved overnight.']); }
+  const longBlocks = hour.filter((b) => b.long);
+  if (longBlocks.length) { mix -= 4;
+    notes.push(['warn', `A full show ran inside the hour (<span class="figure">${clock(longBlocks[0].len)}</span>).`, 'A whole episode inside a news hour leaves no room to come back to the audience.']); }
+  onair = Math.max(0, onair); fresh = Math.max(0, fresh);
+
+  // The windows nobody may move.
+  const plan = layout(hour);
+  for (const c of plan.crashes) {
+    onair -= 5;
+    notes.push(c.over
+      ? ['bad', `You ran <span class="figure">${clock(c.over)}</span> into the ${c.label.toLowerCase()}.`, `"${c.by}" was still going when the window opened. Weather and traffic do not wait for a segment to finish.`]
+      : ['bad', `The ${c.label.toLowerCase()} opened <span class="figure">${clock(c.late)}</span> late.`, 'People set their morning by these. Late is the same as missing.']);
+  }
+
+  // The credit that pays for the hour.
+  const credit = hour.find((b) => b.credit);
+  const creditAt = credit ? plan.rows.find((r) => r.b.id === credit.id)?.at ?? 9999 : null;
+  if (!credit) { onair -= 8; notes.push(['bad', 'The underwriting credit never ran.', "That is the money that paid for this hour, and the account manager will be asking about it."]); }
+  else if (creditAt > UNDERWRITING_BY) { onair -= 6; notes.push(['bad', `The credit ran at <span class="figure">${clock(creditAt)}</span>, past its half-hour window.`, 'Outside the window it does not count, and the station eats the spot.']); }
+  else notes.push(['ok', `The underwriting credit cleared at <span class="figure">${clock(creditAt)}</span>.`, '']);
+
+  const off = plan.end - (HOUR + 60);
+  let clockScore;
+  if (off > 0) { clockScore = 0;
+    notes.push(['bad', `The hour runs <span class="figure">${clock(off)}</span> long.`, 'At ten the network joins whether you are finished or not. This is the one you cannot talk your way out of.']); }
+  else { clockScore = Math.max(0, Math.round(30 - Math.abs(off) / 4));
+    notes.push(Math.abs(off) > 20
+      ? ['warn', `<span class="figure">${clock(-off)}</span> of dead air before the top of the hour.`, 'Silence is the fastest way to lose a listener.']
+      : ['ok', `The hour lands within <span class="figure">${clock(Math.abs(off))}</span>.`, '']); }
+
+  const locals = hour.filter((b) => b.how === 'ours' && !b.music).length;
+  const music = hour.filter((b) => b.music).length;
+  const network = hour.filter((b) => b.how === 'satellite' && b.kind === 'seg').length;
+  const credited = hour.filter((b) => b.how === 'station').length;
+  if (locals < 2) { mix -= 6; notes.push(['warn', 'Fewer than two local items.', `An hour someone in ${s.city} could have heard anywhere.`]); }
+  if (!music) { mix -= 5; notes.push(['warn', 'No music at all.', 'The hour reads as a news block to someone who came for songs.']); }
+  if (network < 3) { mix -= 4; notes.push(['warn', 'Thin on network news for nine in the morning.', '']); }
+  mix = Math.max(0, mix);
+  if (mix === 15) notes.push(['ok', 'Local, network and music in proportion.', '']);
+  if (credited) notes.push(['ok', `${credited} item${credited > 1 ? 's' : ''} from ${STATIONS[s.neighbour].name}, credited and read.`, 'Their reporting, your voice, their name on it.']);
+
+  // The exit ramp: three grim stories in a row, and the audience is owed something before a break.
+  let run = 0, worstRun = 0, ramped = true;
+  for (const b of hour) {
+    const heavy = ['politics','world','economy','health','news'].includes(b.topic) && !b.music && !b.fixed;
+    if (heavy) { run++; worstRun = Math.max(worstRun, run); }
+    else { if (run >= 3) ramped = ramped && (b.music || ['music','culture','local'].includes(b.topic)); run = 0; }
+  }
+  if (worstRun >= 3) {
+    mix -= 4;
+    notes.push(['warn', `<span class="figure">${worstRun}</span> grim stories ran back to back.`,
+      'After three hard ones people need an exit ramp — music, a local piece, something human — before the next break.']);
+  } else notes.push(['ok', 'Never more than two heavy stories in a row.', '']);
+  if (pledge) notes.push(['warn', 'Pledge week: two pitch breaks and a doubled credit ate four and a half minutes.',
+    'Same news, less room, and a listener who is already being asked for money.']);
+
+  const curve = [];
+  let hold = 100, newsRun = 0;
+  for (const b of hour) {
+    const mins = Math.max(1, Math.round((b.realLen || b.len) / 60));
+    const heavy = ['politics','world','economy','health','news'].includes(b.topic);
+    if (b.music) { hold = Math.min(100, hold + 4); newsRun = 0; }
+    else if (b.fixed) hold -= 1;
+    else {
+      newsRun = heavy ? newsRun + 1 : 0;
+      hold -= heavy ? 2 + Math.max(0, newsRun - 2) * 3 : 1;
+      if ((b.realLen || b.len) > 400) hold -= 3;
+      if (b.how === 'ours') hold += 2;
+    }
+    hold = Math.max(20, Math.min(100, hold));
+    for (let i = 0; i < mins; i++) curve.push(hold);
+  }
+  const low = Math.min(...curve, 100);
+  const holdScore = Math.max(0, Math.round((low - 40) / 4));
+  notes.push(low < 65
+    ? ['warn', `Listening bottomed out at <span class="figure">${low}%</span>.`, 'Three heavy stories back to back is where people reach for the dial.']
+    : ['ok', `Listening never fell below <span class="figure">${low}%</span>.`, '']);
+
+  const scores = [['Clock', clockScore, 30], ['On air', onair, 25], ['Freshness', fresh, 15], ['Mix', mix, 15], ['Hold', holdScore, 15]];
+  const sum = scores.reduce((n, sc) => n + sc[1], 0);
+  $('#scores').innerHTML = scores.map(([l, v, max]) => `
+    <div class="score"><div class="l">${l}</div><div class="n">${v}<span style="color:var(--fg-soft); font-size:13px;">/${max}</span></div>
+    <div class="bar"><i class="${v / max > 0.79 ? 'good' : v / max < 0.4 ? 'bad' : ''}" style="width:${Math.round((v / max) * 100)}%"></i></div></div>`).join('');
+  $('#total').textContent = `${sum}/100`;
+  $('#notes').innerHTML = notes.map(([k, text, why]) =>
+    `<li><span class="tag ${k}">${k === 'bad' ? "You'd hear about it" : k === 'warn' ? 'Cost you' : 'Clean'}</span>
+     <span>${text}${why ? `<small>${why}</small>` : ''}</span></li>`).join('');
+  drawHold(curve);
+
+  $('#aircheck').hidden = false;
+  $('#lamp').dataset.live = '1'; $('#lamp').textContent = 'On air';
+  try {
+    const key = 'hour-best-' + home;
+    const best = Math.max(sum, Number(localStorage.getItem(key) || 0));
+    localStorage.setItem(key, String(best));
+    $('#best').textContent = `Best at ${s.name}: ${best}/100`;
+  } catch { /* private window: the hour still scores, it just isn't remembered */ }
+  $('#aircheck').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+
+function drawHold(curve) {
+  const W = 640, H = 150, padL = 34, padB = 22, padT = 10;
+  const n = Math.max(curve.length, 2);
+  const x = (i) => padL + (i / (n - 1)) * (W - padL - 8);
+  const y = (v) => padT + (1 - (v - 20) / 80) * (H - padT - padB);
+  const pts = curve.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const grid = [100, 80, 60, 40].map((v) => `
+    <line x1="${padL}" y1="${y(v)}" x2="${W - 8}" y2="${y(v)}" stroke="#2a313f" stroke-width="1"/>
+    <text x="4" y="${y(v) + 4}" fill="#98a1b1" font-size="11" font-family="IBM Plex Mono, monospace">${v}%</text>`).join('');
+  $('#hold').innerHTML = `${grid}
+    <polyline points="${pts}" fill="none" stroke="#e8a33d" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${x(n - 1)}" cy="${y(curve[curve.length - 1])}" r="3.5" fill="#e8a33d"/>
+    <text x="${padL}" y="${H - 6}" fill="#98a1b1" font-size="11" font-family="IBM Plex Mono, monospace">9:00</text>
+    <text x="${W - 46}" y="${H - 6}" fill="#98a1b1" font-size="11" font-family="IBM Plex Mono, monospace">9:59</text>`;
+}
+
+document.addEventListener('click', (e) => {
+  const open = e.target.closest('[data-open]');
+  if (open) return openSheet(open.dataset.open);
+  const add = e.target.closest('[data-add]');
+  if (add && !add.disabled) {
+    const item = byId(add.dataset.add);
+    if (used(item.id)) hour = hour.filter((b) => b.ref !== item.id);
+    hour.push(block(item, add.dataset.mode));
+    return render();
+  }
+  const drop = e.target.closest('[data-drop]');
+  if (drop) { hour = hour.filter((b) => b.id !== drop.dataset.drop); return render(); }
+  const music = e.target.closest('[data-music]');
+  if (music) { hour.push({ id: 'music' + Math.random(), label: 'Music bed', len: Number(music.dataset.music), music: true, topic: 'music', how: 'ours' }); return render(); }
+  const credit = e.target.closest('[data-credit]');
+  if (credit) {
+    if (hour.some((b) => b.credit)) return;
+    hour.push({ id: 'credit', label: 'Underwriting credit', len: 30, credit: true, fixedish: true, topic: 'credit', how: 'ours' });
+    return render();
+  }
+  const flash = e.target.closest('[data-flash]');
+  if (flash) return takeFlash(flash.dataset.flash);
+  const pl = e.target.closest('[data-pledge]');
+  if (pl) {
+    pledge = !pledge;
+    pl.textContent = `Pledge week: ${pledge ? 'on' : 'off'}`;
+    pl.setAttribute('aria-pressed', String(pledge));
+    const credit = hour.find((b) => b.credit);
+    if (credit) { credit.len = pledge ? 60 : 30; credit.label = pledge ? 'Underwriting credit (doubled)' : 'Underwriting credit'; }
+    return render();
+  }
+  if (e.target.id === 'air') return air();
+  if (e.target.id === 'clear') return start();
+  if (e.target.id === 'sheet-close') return $('#sheet').close();
+});
+$('#sheet').addEventListener('close', () => { $('#sheet-audio').innerHTML = ''; });
+
+const sel = $('#station');
+sel.innerHTML = Object.entries(STATIONS).map(([id, s]) => `<option value="${id}">${s.name} — ${s.city}</option>`).join('');
+sel.value = home;
+sel.addEventListener('change', (e) => { home = e.target.value; start(); });
+
+$('#sources').innerHTML = 'Pulled from NPR\'s Content Distribution Service on 16 September 2026 through <a href="https://www.npmjs.com/package/npr-cds-mcp">npr-cds-mcp</a>. Chicago pieces arrive with no duration in the feed, which is why they are untimed here.';
+try { const b = localStorage.getItem('hour-best-' + home); if (b) $('#best').textContent = `Best at ${STATIONS[home].name}: ${b}/100`; } catch { /* no storage, no memory */ }
+start();
+</script>
