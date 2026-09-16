@@ -203,7 +203,6 @@ export function HourBuilder({ day }: { day: DayFile }) {
         <p className={styles.hint}>
           Fill the nine o&rsquo;clock hour from what came in this morning, then put it on air.
           From the network feed on <span>{day.date}</span>.
-          {day.degraded?.length ? ` (${day.degraded.join(', ')} did not answer this morning.)` : ''}
         </p>
         <div className={styles.voicePicker}>
           <label className={styles.picker}>

@@ -23,6 +23,7 @@ export function Wire({ items, hour, degraded, onAdd, onOpen }: {
   const voiceFailures = degraded?.filter((d) => d.startsWith('voice:')) ?? [];
   return (
     <>
+      <div className={styles.rackLabel}><span>What came in</span><span>{items.length} items</span></div>
       {feedFailures.length > 0 && (
         <p className={styles.degraded}>
           We couldn&rsquo;t reach {new Intl.ListFormat('en').format(feedFailures)} this morning, so there&rsquo;s less here than usual.
@@ -89,6 +90,7 @@ export function MixBar({ hour }: { hour: Block[] }) {
             key={s.topic}
             className={styles.mixSeg}
             style={{ width: `${s.share * 100}%`, background: DESK_COLOR[s.topic] }}
+            title={`${s.name}: ${Math.round(s.seconds / 60)} min`}
           >
             {s.share > 0.12 ? s.name : ''}
           </span>
