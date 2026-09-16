@@ -43,3 +43,9 @@ next-env.d.ts
 
 # planning scratch (superpowers sdd workflow)
 .superpowers/
+
+# Editor/agent scratch. A stray .bak was spotted in the shared tree on 2026-09-16;
+# nothing was ever committed, but the repo is public and a git add is one keystroke.
+*.bak
+*.orig
+*.rej
