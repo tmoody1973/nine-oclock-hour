@@ -38,3 +38,10 @@ test('word-boundary and case traps that a later edit could easily reintroduce', 
   assert.notEqual(classify(['319418027'], 'Volunteers fed 300 people at the shelter last night', 'ours'), 'economy', 'lower-case "fed" is the verb, not the Federal Reserve');
   assert.notEqual(classify(['319418027'], 'A city coalition forms over the school budget', 'ours'), 'climate', '"coal" must not match inside "coalition"');
 });
+
+test('a sentence-initial "Fed up" is not economics', () => {
+  assert.notEqual(classify(['319418027'], 'Fed up with delays, riders demand a bus fix', 'ours'), 'economy');
+  assert.notEqual(classify(['319418027'], 'Fed by volunteers, the shelter served 300 last night', 'ours'), 'economy');
+  assert.equal(classify(['319418027'], 'Fed holds rates steady', 'ours'), 'economy');
+  assert.equal(classify(['319418027'], 'Fed chief testifies before congress', 'ours'), 'economy');
+});

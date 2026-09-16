@@ -22,10 +22,15 @@ const BY_WORD: [Topic, RegExp][] = [
   ['health',   /\b(hospital|patient|doctor|vaccine|medicaid|medicare|mental health|opioid|clinic|disease|birth control)/i],
   ['tech',     /\b(\bai\b|artificial intelligence|software|chip|startup|semiconductor|algorithm|data centre|data center|nasa|researchers)/i],
   // These two are proper nouns whose lower-case forms are ordinary English words, so they
-  // deliberately OMIT the /i flag. That is the entire mechanism: it is what separates
-  // "Fed holds rates steady" from "volunteers fed 300 people". Do not add /i to these two
-  // lines, and do not fold them into the case-insensitive lines below.
-  ['economy',  /\bFed\b/],
+  // deliberately OMIT the /i flag. The lookahead on Fed handles the one case case-sensitivity
+  // cannot: headlines are sentence-initial capitalised, so "Fed up with delays, riders demand
+  // a bus fix" would otherwise file under business. Measured 8/9 — it removes "Fed up with
+  // delays", "Fed up with potholes" and "Fed by volunteers, the shelter served 300" while
+  // keeping "Fed holds rates steady", "Fed hikes rates again", "Fed chief testifies before
+  // congress", "The Fed is expected to raise interest rates" and "Fed officials signal a
+  // pause". The single miss is a contrived stress case no newsroom would file. Do not add /i
+  // to these two lines, and do not fold them into the case-insensitive lines below.
+  ['economy',  /\bFed\b(?! (up|by)\b)/],
   ['world',    /\bEU\b/],
   ['economy',  /\b(econom|inflation|tariff|unemploy|wages?|rent|housing market|budget|tax(es|payer)?|layoff|federal reserve|interest rate)/i],
   ['politics', /\b(mayor|alderman|city council|governor|senat|congress|legislat|election|campaign|reelection|ballot|impeach|court|lawsuit|immigration|ice\b)/i],
