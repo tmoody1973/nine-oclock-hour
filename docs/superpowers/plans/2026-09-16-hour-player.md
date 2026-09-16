@@ -758,7 +758,17 @@ export async function GET(req: Request) {
   if (secret !== `Bearer ${process.env.CRON_SECRET}`) return new Response('no', { status: 401 });
   const day = await buildDay();
   const url = await putDay(day);
-  return Response.json({ date: day.date, network: day.network.length, url });
+  // `degraded` names any feed that failed this morning. It is the only machine-readable
+  // signal that the wire is thin because something broke rather than because nobody filed,
+  // so it belongs in the response a human or a monitor actually looks at. Absent on a
+  // healthy day — see lib/types.ts.
+  return Response.json({
+    date: day.date,
+    network: day.network.length,
+    stations: Object.fromEntries(Object.entries(day.stations).map(([id, st]) => [id, st.local.length])),
+    degraded: day.degraded ?? [],
+    url,
+  });
 }
 ```
 
@@ -769,6 +779,10 @@ export async function GET(req: Request) {
 ```
 
 10:00 UTC is 5 a.m. Central, before anyone opens the app. Vercel sends the cron secret as the Authorization header when `CRON_SECRET` is set.
+
+**Report what the response actually said**, including the per-station counts and whether
+`degraded` came back empty. A run where `degraded` is empty and every station has items is
+the only shape that means "this worked".
 
 - [ ] **Step 5: Test it locally**
 
@@ -1489,6 +1503,13 @@ Two exports, both plain and both server-renderable except where the click handle
 
 - `<Wire items={...} onAdd={...} />` — the day's wire as a front page. One `<section>` per desk from `byDesk()`, an `<h2>` carrying the desk name and its story count, and each story a row with its headline, source, runtime (or the word **read** when `len` is 0), and a link out to the publisher. Every row keeps the source and link the rights rules require — the desk grouping never replaces attribution.
 - `<MixBar hour={...} />` — a single horizontal bar above the rail, one segment per desk from `mixOf().shares`, widths as percentages, each segment labelled with the desk name and its minutes when the segment is wide enough to hold text. When `mixOf().lopsided` is set, one line under the bar reads: *"More than half your hour is <desk name>."* — a note, never a blocker; a producer is allowed to build a politics hour on purpose.
+
+**When the wire is short because something broke, say so.** If `day.degraded` is present and
+non-empty, render one line above the desks: *"We couldn't reach WBEZ and KQED this morning,
+so there's less here than usual."* — naming the newsrooms, in plain words, with no apology
+and no jargon. This is the whole reason `degraded` exists: without it a broken morning and a
+quiet morning look identical, and the listener blames the product for being empty. Absent on
+a healthy day, and the line must not render at all then.
 
 Accessibility: the bar is decorative, so give it `aria-hidden` and put the same numbers in a visually-hidden list beside it. Do not encode the desk by colour alone — each segment carries its name in text or in a `title`.
 
