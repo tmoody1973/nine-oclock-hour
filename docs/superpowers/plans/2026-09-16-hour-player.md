@@ -1341,6 +1341,25 @@ test('fixed furniture is not part of the mix', () => {
   const mix = mixOf([block('a', 'politics', 300), { ...block('id', 'news', 60), fixed: true }]);
   assert.equal(mix.total, 300);
 });
+
+// The four below were not in the first draft of this task. They were added after running
+// the implementation standalone and noticing these paths had no coverage — all four already
+// behave correctly, so they cost nothing and pin behaviour that is easy to break later.
+test('an empty hour does not divide by zero', () => {
+  assert.deepEqual(mixOf([]), { total: 0, shares: [], lopsided: null });
+});
+
+test('an hour of nothing but furniture has no mix at all', () => {
+  assert.equal(mixOf([{ ...block('id', 'news', 60), fixed: true }]).total, 0);
+});
+
+test('exactly half is not lopsided — the test is > 0.5, not >=', () => {
+  assert.equal(mixOf([block('a', 'politics', 200), block('b', 'world', 200)]).lopsided, null);
+});
+
+test('untimed tape that ran long counts what it actually ran', () => {
+  assert.equal(mixOf([{ ...block('a', 'politics', 120), realLen: 300 }]).total, 300);
+});
 ```
 
 - [ ] **Step 2: Run it**
@@ -1503,6 +1522,14 @@ test('an element longer than the floor is drawn at its true width', () => {
   assert.ok(Math.abs((a.a1 - a.a0) - ((11 * 60 + 29) / HOUR) * 360) < 1e-9);
 });
 
+test('the ring is a real hour, not the schedulable 3540 — the gap is meant to be there', () => {
+  // Guards against someone closing the 6-degree gap by setting HOUR = 3540, which would
+  // slide every wedge out of position, worst at the end of the hour.
+  assert.equal(HOUR, 3600);
+  const [wx] = arcs([row('wx', 49 * 60, 45, { window: true })]);
+  assert.ok(Math.abs(wx.a0 - 294) < 1e-9, 'the traffic window sits at 49:00 of a real hour');
+});
+
 test('every arc is classified, and the classes match the reference key', () => {
   const out = arcs([row('wx', 19 * 60, 45, { window: true }), row('uw', 21 * 60, 30, { credit: true }), row('cast', 0, 179, { kind: 'newscast' })]);
   assert.deepEqual(out.map((a) => a.kind), ['window', 'credit', 'newscast']);
@@ -1514,7 +1541,22 @@ test('every arc is classified, and the classes match the reference key', () => {
 Run: `pnpm test`
 Expected: FAIL — `./clock.ts` does not exist.
 
-- [ ] **Step 3: Implement `lib/clock.ts`** — pure geometry, no DOM. `HOUR = 3600`. Degrees, not radians, so the tests read like a clock face. `MIN_ARC_SECONDS = 20`. Classify each row in this order, first match wins: `silence`, `credit`, `window` (weather and traffic), `bed` (music), `promo`, `newscast` (`kind === 'newscast'`), else `segment`.
+**The ring will not close, and that is correct — do not `fix` it.** `HOUR` here is **3600**,
+because the ring is a clock face: one real hour, 360 degrees. But a full hour of programming
+is **3540** seconds (see Task 5 — the prototype's own `HOUR`, 59 minutes). So a completely
+full hour sweeps 354 degrees and leaves a **6-degree gap** at the top. That gap is the minute
+that is not programming, and NPR's own printed clock has exactly the same thing: content runs
+to 59:00, then 0:05 of silence, then the top of the hour.
+
+The tempting fix is to set `HOUR = 3540` so the wedges meet. **That is wrong and it is not a
+cosmetic difference.** Every element's start angle comes from its `at` value — seconds from
+the top of a real hour — so dividing by 3540 would slide every wedge progressively further
+out of position, worst at the end of the hour: a block scheduled at 49:00 would be drawn at
+49:50. The weather and traffic windows are immovable landmarks a producer reads at a glance,
+and they would both be in the wrong place.
+
+- [ ] **Step 3: Implement `lib/clock.ts`** — pure geometry, no DOM. `HOUR = 3600` (a real
+  hour, not the 3540 of schedulable programming — see above). Degrees, not radians, so the tests read like a clock face. `MIN_ARC_SECONDS = 20`. Classify each row in this order, first match wins: `silence`, `credit`, `window` (weather and traffic), `bed` (music), `promo`, `newscast` (`kind === 'newscast'`), else `segment`.
 
 - [ ] **Step 4: Run the tests**
 
