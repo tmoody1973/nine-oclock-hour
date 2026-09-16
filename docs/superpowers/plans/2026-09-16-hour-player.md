@@ -16,7 +16,7 @@
 - **The day file refreshes daily and is not an archive.** One file per date; delete files older than 7 days.
 - **The CDS token never reaches the browser.** `NPR_CDS_TOKEN` is a server-only Vercel environment variable. Locally it lives at `~/.config/npr-cds/token` (mode 600) — read it, never print it, never commit it.
 - **Every item on screen carries its source and a link back.** That is what "attribute via url" requires.
-- **v1 plays tape only.** Items with no audio show an on-screen card for their 30 seconds. No text-to-speech in this plan.
+- **Reads are spoken, not skipped.** An item with no tape becomes a 30-second read voiced by Gemini 2.5 Flash TTS (about 1.5¢ per minute of audio; a six-minute day costs roughly 9¢). The script is **our own summary with attribution** — never a publisher's copy read aloud, which display-only rights do not permit. Cache each read in Blob and regenerate only when the script changes.
 - **Other stations' audio links out to their player in v1.** Only NPR network audio and 88Nine's own audio play inside our stream, until Tarik has asked the other stations.
 - **Port the prototype's rules verbatim:** 59 minutes of programming plus a 1:00 legal ID; weather window 45s at 19:00; traffic window 45s at 49:00; underwriting credit 30s that must start before 30:00 (60s in pledge week, plus two 2:00 pitch breaks at 12:00 and 42:00); bulletin 75s at 34:00; a read is 30s.
 - **Scoring weights, unchanged from the prototype:** Clock 30, On air 25, Freshness 15, Mix 15, Hold 15.
@@ -34,6 +34,7 @@
 | `lib/day.ts` | Turns CDS results into a `DayFile`, including rights flags and "most carried" |
 | `lib/hour.ts` | Pure rules engine: `layout()`, `score()`. No DOM, no fetch |
 | `lib/taste.ts` | Topic weights from a listener's three picks; used by `score()` |
+| `lib/reads.ts` | Writes a 30-second script in our own words, voices it with Gemini TTS, caches the mp3 |
 | `app/api/cron/build-day/route.ts` | The 5 a.m. job: build the day file, write it to Blob |
 | `app/page.tsx` | The hour builder: wire, rail, aircheck |
 | `components/Player.tsx` | One `<audio>`, ping-pong preload, Media Session, read cards |
@@ -784,10 +785,156 @@ git push -u origin main
 
 ---
 
+---
+
+### Task 9: Speak the reads
+
+**Files:**
+- Create: `lib/reads.ts`, `lib/reads.test.ts`
+- Modify: `app/api/cron/build-day/route.ts`, `lib/playlist.ts`, `.env.example`
+
+**Interfaces:**
+- Consumes: `WireItem` (Task 1), `putDay` (Task 4), `toPlaylist` (Task 6).
+- Produces: `scriptPrompt(item: WireItem): string`, `readKey(item: WireItem, script: string): string`, `voiceRead(item: WireItem): Promise<string>` returning the cached mp3 URL.
+
+**Why this shape.** A read has to be in our own words: display-only rights let us summarise and link, not perform a publisher's text. So the job writes a short script from the headline and the feed's summary, attributes the source out loud ("NPR reports..."), and only then voices it. Both calls go to Gemini: text for the script, `gemini-2.5-flash-preview-tts` for the audio at $10 per million audio tokens, where 25 tokens is one second.
+
+- [ ] **Step 1: Write the failing test** in `lib/reads.test.ts`
+
+```ts
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { scriptPrompt, readKey } from './reads.ts';
+import type { WireItem } from './types.ts';
+
+const item: WireItem = { id: 'g-s308-6913', src: 'WBEZ', how: 'station', kind: 'seg',
+  title: "How Chicago's arts spending compares with other cities", teaser: 'The mayor wants his arts investments to define the administration.',
+  url: 'https://www.wbez.org', topic: 'local', when: '2026-09-16', len: 0 };
+
+test('the script prompt asks for our own words, with the source named aloud', () => {
+  const p = scriptPrompt(item);
+  assert.match(p, /own words/i);
+  assert.match(p, /WBEZ/);
+  assert.match(p, /55 words|about 30 seconds/i);
+  assert.ok(!p.includes('verbatim'));
+});
+
+test('the cache key changes when the script changes', () => {
+  assert.notEqual(readKey(item, 'first script'), readKey(item, 'second script'));
+  assert.equal(readKey(item, 'same'), readKey(item, 'same'));
+});
+```
+
+- [ ] **Step 2: Run it**
+
+Run: `pnpm test`
+Expected: FAIL — `./reads.ts` does not exist.
+
+- [ ] **Step 3: Implement `lib/reads.ts`**
+
+```ts
+import 'server-only';
+import { createHash } from 'node:crypto';
+import { put, head } from '@vercel/blob';
+import type { WireItem } from './types';
+
+const API = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+export const scriptPrompt = (item: WireItem) => [
+  `Write a radio read of about 55 words — about 30 seconds out loud — in your own words.`,
+  `Name the source aloud once, like "${item.src} reports".`,
+  `No adjectives you cannot source, no speculation, no sign-off.`,
+  ``,
+  `Headline: ${item.title}`,
+  `What the newsroom says it is about: ${item.teaser}`,
+].join('\n');
+
+export const readKey = (item: WireItem, script: string) =>
+  `reads/${item.id}-${createHash('sha256').update(script).digest('hex').slice(0, 12)}.mp3`;
+
+async function gemini(model: string, body: unknown) {
+  const res = await fetch(`${API}/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+export async function voiceRead(item: WireItem): Promise<string> {
+  const written = await gemini('gemini-2.5-flash', { contents: [{ parts: [{ text: scriptPrompt(item) }] }] });
+  const script: string = written.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+  if (!script) throw new Error(`no script for ${item.id}`);
+
+  const key = readKey(item, script);
+  try { return (await head(key)).url; } catch { /* not voiced yet */ }
+
+  const spoken = await gemini('gemini-2.5-flash-preview-tts', {
+    contents: [{ parts: [{ text: script }] }],
+    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } },
+  });
+  const b64 = spoken.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!b64) throw new Error(`no audio for ${item.id}`);
+  // Gemini returns raw PCM; wrap it as a WAV so browsers will play it.
+  const pcm = Buffer.from(b64, 'base64');
+  const wav = Buffer.alloc(44 + pcm.length);
+  wav.write('RIFF', 0); wav.writeUInt32LE(36 + pcm.length, 4); wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(24000, 24); wav.writeUInt32LE(48000, 28); wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(pcm.length, 40);
+  pcm.copy(wav, 44);
+
+  const { url } = await put(key.replace(/\.mp3$/, '.wav'), wav, { access: 'public', contentType: 'audio/wav', addRandomSuffix: false });
+  return url;
+}
+```
+
+- [ ] **Step 4: Run the tests**
+
+Run: `pnpm test`
+Expected: PASS.
+
+- [ ] **Step 5: Voice one read for real**
+
+```bash
+GEMINI_API_KEY=... BLOB_READ_WRITE_TOKEN=... pnpm exec tsx -e "
+import('./lib/reads.ts').then(async (m) => {
+  const url = await m.voiceRead({ id: 'test-1', src: 'WBEZ', how: 'station', kind: 'seg',
+    title: \"How Chicago's arts spending compares with other cities\",
+    teaser: 'The mayor wants his arts investments to define the administration.',
+    url: 'https://www.wbez.org', topic: 'local', when: 'today', len: 0 });
+  console.log(url);
+});"
+```
+Expected: a Blob URL. Open it and listen: about 30 seconds, the source named once, no invented detail. If the voice reads the teaser back verbatim, the prompt failed — fix the prompt, not the output.
+
+- [ ] **Step 6: Voice the day's reads during the cron**
+
+In `app/api/cron/build-day/route.ts`, after `buildDay()`, voice every item with no tape and attach the URL:
+
+```ts
+for (const item of [...day.network, ...Object.values(day.stations).flatMap((s) => s.local)]) {
+  if (!item.audio) { try { item.audio = await voiceRead(item); item.spoken = true; } catch { /* a missing read is a card, not a failure */ } }
+}
+```
+
+Add `spoken?: boolean` to `WireItem` in `lib/types.ts`, and in `lib/playlist.ts` let a spoken read stream like any other item: `b.mode === 'read' && b.spoken` qualifies alongside tape.
+
+- [ ] **Step 7: Check the bill**
+
+Run the cron once and count: reads voiced × 30 seconds × $10 per million audio tokens at 25 tokens a second works out near 9¢ for a dozen reads. Put the real figure in the report.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add lib/reads.ts lib/reads.test.ts app/api/cron/build-day/route.ts lib/playlist.ts lib/types.ts .env.example
+git commit -m "feat: voice the reads with gemini tts, in our own words"
+```
+
+
 ## Parked for later plans
 
 - **Phaser and the pixel newsroom.** The loop has to hold people before it gets art. Sprite generation through the spritecook connector, original characters only.
-- **Generated voice for the reads.** ElevenLabs at build time, so a read is audio rather than a card.
+- **A cloned host voice.** ElevenLabs voice cloning so the reads sound like 88Nine rather than a stock voice. Roughly 17¢ a minute against Gemini's 1.5¢, so it is a branding purchase, not a cost saving.
 - **Streaks and a leaderboard across devices.** Needs accounts; local streaks first.
 - **The news-director layer.** Assign reporters, watch the beats, live with the budget.
 - **Other stations' audio inside the stream.** Needs a phone call to each newsroom, not a code change.
