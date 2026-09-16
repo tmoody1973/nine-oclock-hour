@@ -1,0 +1,2225 @@
+{
+ "resources": [
+  {
+   "meta": {
+    "assetInternalLinkDocuments": [],
+    "documentLastModifiedDateTime": "2026-09-16T11:30:33.508Z",
+    "extensionLinks": [],
+    "profiles": [
+     {
+      "href": "/v1/client-profiles/website-core-content"
+     }
+    ]
+   },
+   "id": "nx-s1-5969840",
+   "title": "The Fed is expected to raise interest rates. What it means for consumers?",
+   "profiles": [
+    {
+     "href": "/v1/profiles/publishable",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/document"
+    },
+    {
+     "href": "/v1/profiles/story",
+     "rels": [
+      "type"
+     ]
+    },
+    {
+     "href": "/v1/profiles/has-audio",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/listenable"
+    },
+    {
+     "href": "/v1/profiles/renderable",
+     "rels": [
+      "interface"
+     ]
+    }
+   ],
+   "owners": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "brandings": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "publishDateTime": "2026-09-16T06:48:31.881-04:00",
+   "collections": [
+    {
+     "href": "/v1/documents/1017",
+     "rels": [
+      "topic",
+      "theme",
+      "slug"
+     ]
+    },
+    {
+     "href": "/v1/documents/3",
+     "rels": [
+      "program"
+     ]
+    },
+    {
+     "href": "/v1/documents/nx-s1-5952295",
+     "rels": [
+      "episode"
+     ]
+    },
+    {
+     "href": "/v1/documents/158988722",
+     "rels": [
+      "byline"
+     ]
+    }
+   ],
+   "audio": [
+    {
+     "href": "#/assets/nx-s1-9928207",
+     "rels": [
+      "primary",
+      "headline"
+     ]
+    }
+   ],
+   "authorizedOrgServiceIds": [
+    "s1"
+   ],
+   "bylines": [
+    {
+     "href": "#/assets/nx-s1-5969840-1"
+    }
+   ],
+   "editorialLastModifiedDateTime": "2026-09-16T07:30:32.449-04:00",
+   "isRestrictedToAuthorizedOrgServiceIds": false,
+   "layout": [],
+   "nprDisplayType": "NewsStory",
+   "nprWebsitePath": "/2026/09/16/nx-s1-5969840/the-fed-is-expected-to-raise-interest-rates-what-it-means-for-consumers",
+   "robotsNoIndex": false,
+   "teaser": "Mark Zandi, chief economist with Moody's Analytics, talks about the Federal Reserve's expected decision to raise interest rates and the implications of that move.",
+   "webPages": [
+    {
+     "href": "https://www.npr.org/2026/09/16/nx-s1-5969840/the-fed-is-expected-to-raise-interest-rates-what-it-means-for-consumers",
+     "rels": [
+      "canonical"
+     ]
+    }
+   ],
+   "assets": {
+    "nx-s1-5969840-1": {
+     "bylineDocuments": [
+      {
+       "href": "/v1/documents/158988722",
+       "rels": [
+        "biography"
+       ]
+      }
+     ],
+     "id": "nx-s1-5969840-1",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/reference-byline",
+       "rels": [
+        "type"
+       ]
+      }
+     ]
+    },
+    "nx-s1-9928207": {
+     "duration": 310,
+     "embeddedPlayerLink": {
+      "href": "https://www.npr.org/player/embed/nx-s1-5969840/nx-s1-9928207"
+     },
+     "enclosures": [
+      {
+       "fileSize": 4962474,
+       "href": "https://ondemand.npr.org/anon.npr-mp3/npr/me/2026/09/20260916_me_the_fed_is_expected_to_raise_interest_rates._what_it_means_for_consumers.mp3?t=progseg&e=nx-s1-5952295&p=3&seg=2&d=310&size=4962474",
+       "type": "audio/mpeg"
+      },
+      {
+       "fileSize": 2536491,
+       "href": "https://ondemand.npr.org/npr-mp4/npr/me/2026/09/20260916_me_the_fed_is_expected_to_raise_interest_rates._what_it_means_for_consumers.mp4?t=progseg&e=nx-s1-5952295&p=3&seg=2&d=310&size=2536491",
+       "type": "audio/mp4"
+      },
+      {
+       "href": "https://ondemandhls.npr.org/nprhls/npr/me/2026/09/20260916_me_the_fed_is_expected_to_raise_interest_rates._what_it_means_for_consumers/master.m3u8?t=progseg&e=nx-s1-5952295&p=3&seg=2&d=310",
+       "type": "application/vnd.apple.mpegurl"
+      }
+     ],
+     "id": "nx-s1-9928207",
+     "isAvailable": true,
+     "isDownloadable": true,
+     "isEmbeddable": true,
+     "isStreamable": false,
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/audio",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "source": "ba48c9ca-e438-4138-ace7-7bf455531135",
+     "title": "The Fed is expected to raise interest rates. What it means for consumers?"
+    }
+   }
+  },
+  {
+   "meta": {
+    "assetInternalLinkDocuments": [],
+    "documentLastModifiedDateTime": "2026-09-16T11:30:58.077Z",
+    "extensionLinks": [],
+    "profiles": [
+     {
+      "href": "/v1/client-profiles/website-core-content"
+     }
+    ]
+   },
+   "id": "nx-s1-5969910",
+   "title": "Rep. Thomas Massie moves to impeach Defense Secretary Pete Hegseth over the Iran war",
+   "profiles": [
+    {
+     "href": "/v1/profiles/publishable",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/document"
+    },
+    {
+     "href": "/v1/profiles/story",
+     "rels": [
+      "type"
+     ]
+    },
+    {
+     "href": "/v1/profiles/has-audio",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/listenable"
+    },
+    {
+     "href": "/v1/profiles/renderable",
+     "rels": [
+      "interface"
+     ]
+    }
+   ],
+   "owners": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "brandings": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "publishDateTime": "2026-09-16T06:47:32.924-04:00",
+   "collections": [
+    {
+     "href": "/v1/documents/1014",
+     "rels": [
+      "topic",
+      "theme",
+      "slug"
+     ]
+    },
+    {
+     "href": "/v1/documents/3",
+     "rels": [
+      "program"
+     ]
+    },
+    {
+     "href": "/v1/documents/nx-s1-5952295",
+     "rels": [
+      "episode"
+     ]
+    },
+    {
+     "href": "/v1/documents/630949669",
+     "rels": [
+      "byline"
+     ]
+    }
+   ],
+   "audio": [
+    {
+     "href": "#/assets/nx-s1-9928208",
+     "rels": [
+      "primary",
+      "headline"
+     ]
+    }
+   ],
+   "authorizedOrgServiceIds": [
+    "s1"
+   ],
+   "bylines": [
+    {
+     "href": "#/assets/nx-s1-5969910-1"
+    }
+   ],
+   "editorialLastModifiedDateTime": "2026-09-16T07:30:55.712-04:00",
+   "isRestrictedToAuthorizedOrgServiceIds": false,
+   "layout": [],
+   "nprDisplayType": "NewsStory",
+   "nprWebsitePath": "/2026/09/16/nx-s1-5969910/rep-thomas-massie-moves-to-impeach-defense-secretary-pete-hegseth-over-the-iran-war",
+   "robotsNoIndex": false,
+   "teaser": "Rep. Thomas Massie has moved to impeach Defense Secretary Pete Hegseth. The Kentucky Republican alleges that Hegseth has waged the Iran war illegally, among other \"high crimes and misdemeanors.\"",
+   "webPages": [
+    {
+     "href": "https://www.npr.org/2026/09/16/nx-s1-5969910/rep-thomas-massie-moves-to-impeach-defense-secretary-pete-hegseth-over-the-iran-war",
+     "rels": [
+      "canonical"
+     ]
+    }
+   ],
+   "assets": {
+    "nx-s1-5969910-1": {
+     "bylineDocuments": [
+      {
+       "href": "/v1/documents/630949669",
+       "rels": [
+        "biography"
+       ]
+      }
+     ],
+     "id": "nx-s1-5969910-1",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/reference-byline",
+       "rels": [
+        "type"
+       ]
+      }
+     ]
+    },
+    "nx-s1-9928208": {
+     "duration": 140,
+     "embeddedPlayerLink": {
+      "href": "https://www.npr.org/player/embed/nx-s1-5969910/nx-s1-9928208"
+     },
+     "enclosures": [
+      {
+       "fileSize": 2256187,
+       "href": "https://ondemand.npr.org/anon.npr-mp3/npr/me/2026/09/20260916_me_rep._thomas_massie_moves_to_impeach_defense_secretary_pete_hegseth_over_the_iran_war.mp3?t=progseg&e=nx-s1-5952295&p=3&seg=3&d=140&size=2256187",
+       "type": "audio/mpeg"
+      },
+      {
+       "fileSize": 1154133,
+       "href": "https://ondemand.npr.org/npr-mp4/npr/me/2026/09/20260916_me_rep._thomas_massie_moves_to_impeach_defense_secretary_pete_hegseth_over_the_iran_war.mp4?t=progseg&e=nx-s1-5952295&p=3&seg=3&d=140&size=1154133",
+       "type": "audio/mp4"
+      },
+      {
+       "href": "https://ondemandhls.npr.org/nprhls/npr/me/2026/09/20260916_me_rep._thomas_massie_moves_to_impeach_defense_secretary_pete_hegseth_over_the_iran_war/master.m3u8?t=progseg&e=nx-s1-5952295&p=3&seg=3&d=140",
+       "type": "application/vnd.apple.mpegurl"
+      }
+     ],
+     "id": "nx-s1-9928208",
+     "isAvailable": true,
+     "isDownloadable": true,
+     "isEmbeddable": true,
+     "isStreamable": false,
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/audio",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "source": "f2652c75-351e-4ce7-a08c-41cc2d9fe438",
+     "title": "Rep. Thomas Massie moves to impeach Defense Secretary Pete Hegseth over the Iran war"
+    }
+   }
+  },
+  {
+   "meta": {
+    "assetInternalLinkDocuments": [],
+    "documentLastModifiedDateTime": "2026-09-16T10:48:58.055Z",
+    "extensionLinks": [],
+    "profiles": [
+     {
+      "href": "/v1/client-profiles/website-core-content"
+     }
+    ]
+   },
+   "id": "nx-s1-5969921",
+   "title": "'Machine Gods' explores the latest developments in the world of AI",
+   "profiles": [
+    {
+     "href": "/v1/profiles/publishable",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/document"
+    },
+    {
+     "href": "/v1/profiles/story",
+     "rels": [
+      "type"
+     ]
+    },
+    {
+     "href": "/v1/profiles/has-audio",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/listenable"
+    },
+    {
+     "href": "/v1/profiles/renderable",
+     "rels": [
+      "interface"
+     ]
+    }
+   ],
+   "owners": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "brandings": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "publishDateTime": "2026-09-16T05:56:29.934-04:00",
+   "collections": [
+    {
+     "href": "/v1/documents/1019",
+     "rels": [
+      "topic",
+      "theme",
+      "slug"
+     ]
+    },
+    {
+     "href": "/v1/documents/3",
+     "rels": [
+      "program"
+     ]
+    },
+    {
+     "href": "/v1/documents/nx-s1-5952295",
+     "rels": [
+      "episode"
+     ]
+    },
+    {
+     "href": "/v1/documents/4080709",
+     "rels": [
+      "byline"
+     ]
+    }
+   ],
+   "audio": [
+    {
+     "href": "#/assets/nx-s1-9928174",
+     "rels": [
+      "primary",
+      "headline"
+     ]
+    }
+   ],
+   "authorizedOrgServiceIds": [
+    "s1"
+   ],
+   "bylines": [
+    {
+     "href": "#/assets/nx-s1-5969921-1"
+    }
+   ],
+   "editorialLastModifiedDateTime": "2026-09-16T06:48:56.251-04:00",
+   "isRestrictedToAuthorizedOrgServiceIds": false,
+   "layout": [],
+   "nprDisplayType": "NewsStory",
+   "nprWebsitePath": "/2026/09/16/nx-s1-5969921/machine-gods-explores-the-latest-developments-in-the-world-of-ai",
+   "robotsNoIndex": false,
+   "teaser": "NPR's Steve Inskeep talks to tech journalists Casey Newton and Kevin Roose about their new show 'Machine Gods,' which is coming to NPR.",
+   "webPages": [
+    {
+     "href": "https://www.npr.org/2026/09/16/nx-s1-5969921/machine-gods-explores-the-latest-developments-in-the-world-of-ai",
+     "rels": [
+      "canonical"
+     ]
+    }
+   ],
+   "assets": {
+    "nx-s1-5969921-1": {
+     "bylineDocuments": [
+      {
+       "href": "/v1/documents/4080709",
+       "rels": [
+        "biography"
+       ]
+      }
+     ],
+     "id": "nx-s1-5969921-1",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/reference-byline",
+       "rels": [
+        "type"
+       ]
+      }
+     ]
+    },
+    "nx-s1-9928174": {
+     "duration": 420,
+     "embeddedPlayerLink": {
+      "href": "https://www.npr.org/player/embed/nx-s1-5969921/nx-s1-9928174"
+     },
+     "enclosures": [
+      {
+       "fileSize": 6726261,
+       "href": "https://ondemand.npr.org/anon.npr-mp3/npr/me/2026/09/20260916_me_machine_gods_explores_the_latest_developments_in_the_world_of_ai.mp3?t=progseg&e=nx-s1-5952295&p=3&seg=12&d=420&size=6726261",
+       "type": "audio/mpeg"
+      },
+      {
+       "fileSize": 3437513,
+       "href": "https://ondemand.npr.org/npr-mp4/npr/me/2026/09/20260916_me_machine_gods_explores_the_latest_developments_in_the_world_of_ai.mp4?t=progseg&e=nx-s1-5952295&p=3&seg=12&d=420&size=3437513",
+       "type": "audio/mp4"
+      },
+      {
+       "href": "https://ondemandhls.npr.org/nprhls/npr/me/2026/09/20260916_me_machine_gods_explores_the_latest_developments_in_the_world_of_ai/master.m3u8?t=progseg&e=nx-s1-5952295&p=3&seg=12&d=420",
+       "type": "application/vnd.apple.mpegurl"
+      }
+     ],
+     "id": "nx-s1-9928174",
+     "isAvailable": true,
+     "isDownloadable": true,
+     "isEmbeddable": true,
+     "isStreamable": false,
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/audio",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "source": "01b865db-2a2d-42d8-adb2-ae2ef587cafe",
+     "title": "'Machine Gods' explores the latest developments in the world of AI"
+    }
+   }
+  },
+  {
+   "meta": {
+    "assetInternalLinkDocuments": [],
+    "documentLastModifiedDateTime": "2026-09-16T11:53:21.607Z",
+    "extensionLinks": [],
+    "profiles": [
+     {
+      "href": "/v1/client-profiles/website-core-content"
+     }
+    ]
+   },
+   "id": "nx-s1-5970450",
+   "title": "Vanity Fair feature profiles the political development of JD Vance at Yale",
+   "profiles": [
+    {
+     "href": "/v1/profiles/publishable",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/document"
+    },
+    {
+     "href": "/v1/profiles/story",
+     "rels": [
+      "type"
+     ]
+    },
+    {
+     "href": "/v1/profiles/has-audio",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/listenable"
+    },
+    {
+     "href": "/v1/profiles/renderable",
+     "rels": [
+      "interface"
+     ]
+    }
+   ],
+   "owners": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "brandings": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "publishDateTime": "2026-09-16T05:42:33.793-04:00",
+   "collections": [
+    {
+     "href": "/v1/documents/1014",
+     "rels": [
+      "topic",
+      "theme",
+      "slug"
+     ]
+    },
+    {
+     "href": "/v1/documents/3",
+     "rels": [
+      "program"
+     ]
+    },
+    {
+     "href": "/v1/documents/nx-s1-5952295",
+     "rels": [
+      "episode"
+     ]
+    },
+    {
+     "href": "/v1/documents/158988722",
+     "rels": [
+      "byline"
+     ]
+    }
+   ],
+   "audio": [
+    {
+     "href": "#/assets/nx-s1-9928212",
+     "rels": [
+      "primary",
+      "headline"
+     ]
+    }
+   ],
+   "authorizedOrgServiceIds": [
+    "s1"
+   ],
+   "bylines": [
+    {
+     "href": "#/assets/nx-s1-5970450-1"
+    }
+   ],
+   "editorialLastModifiedDateTime": "2026-09-16T07:53:20.319-04:00",
+   "isRestrictedToAuthorizedOrgServiceIds": false,
+   "layout": [],
+   "nprDisplayType": "NewsStory",
+   "nprWebsitePath": "/2026/09/16/nx-s1-5970450/vanity-fair-feature-profiles-the-political-development-of-jd-vance-at-yale",
+   "robotsNoIndex": false,
+   "teaser": "NPR's Leila Fadel talks with journalist Chris Whipple about his new Vanity Fair feature with revealing details about the political development of JD Vance.",
+   "webPages": [
+    {
+     "href": "https://www.npr.org/2026/09/16/nx-s1-5970450/vanity-fair-feature-profiles-the-political-development-of-jd-vance-at-yale",
+     "rels": [
+      "canonical"
+     ]
+    }
+   ],
+   "assets": {
+    "nx-s1-5970450-1": {
+     "bylineDocuments": [
+      {
+       "href": "/v1/documents/158988722",
+       "rels": [
+        "biography"
+       ]
+      }
+     ],
+     "id": "nx-s1-5970450-1",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/reference-byline",
+       "rels": [
+        "type"
+       ]
+      }
+     ]
+    },
+    "nx-s1-9928212": {
+     "duration": 231,
+     "embeddedPlayerLink": {
+      "href": "https://www.npr.org/player/embed/nx-s1-5970450/nx-s1-9928212"
+     },
+     "enclosures": [
+      {
+       "fileSize": 3698982,
+       "href": "https://ondemand.npr.org/anon.npr-mp3/npr/me/2026/09/20260916_me_vanity_fair_feature_profiles_the_political_development_of_jd_vance_at_yale.mp3?t=progseg&e=nx-s1-5952295&p=3&seg=7&d=231&size=3698982",
+       "type": "audio/mpeg"
+      },
+      {
+       "fileSize": 1891079,
+       "href": "https://ondemand.npr.org/npr-mp4/npr/me/2026/09/20260916_me_vanity_fair_feature_profiles_the_political_development_of_jd_vance_at_yale.mp4?t=progseg&e=nx-s1-5952295&p=3&seg=7&d=231&size=1891079",
+       "type": "audio/mp4"
+      },
+      {
+       "href": "https://ondemandhls.npr.org/nprhls/npr/me/2026/09/20260916_me_vanity_fair_feature_profiles_the_political_development_of_jd_vance_at_yale/master.m3u8?t=progseg&e=nx-s1-5952295&p=3&seg=7&d=231",
+       "type": "application/vnd.apple.mpegurl"
+      }
+     ],
+     "id": "nx-s1-9928212",
+     "isAvailable": true,
+     "isDownloadable": true,
+     "isEmbeddable": true,
+     "isStreamable": false,
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/audio",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "source": "10befd5b-21d5-437b-ae5a-1c6c63e71b82",
+     "title": "Vanity Fair feature profiles the political development of JD Vance at Yale"
+    }
+   }
+  },
+  {
+   "meta": {
+    "assetInternalLinkDocuments": [
+     {
+      "href": "/v1/documents/nx-s1-5955665"
+     },
+     {
+      "href": "/v1/documents/nx-s1-5932491"
+     }
+    ],
+    "documentLastModifiedDateTime": "2026-09-16T12:43:46.413Z",
+    "extensionLinks": [],
+    "profiles": [
+     {
+      "href": "/v1/client-profiles/website-core-content"
+     }
+    ]
+   },
+   "id": "nx-s1-5956869",
+   "title": "New maps reveal massive gaps in access to affordable birth control across the U.S",
+   "profiles": [
+    {
+     "href": "/v1/profiles/publishable",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/document"
+    },
+    {
+     "href": "/v1/profiles/story",
+     "rels": [
+      "type"
+     ]
+    },
+    {
+     "href": "/v1/profiles/has-audio",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/listenable"
+    },
+    {
+     "href": "/v1/profiles/renderable",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/has-images",
+     "rels": [
+      "interface"
+     ]
+    },
+    {
+     "href": "/v1/profiles/buildout",
+     "rels": [
+      "interface"
+     ]
+    }
+   ],
+   "owners": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "brandings": [
+    {
+     "href": "https://organization.api.npr.org/v4/services/s1"
+    }
+   ],
+   "publishDateTime": "2026-09-16T05:00:00-04:00",
+   "collections": [
+    {
+     "href": "/v1/documents/g-s1-139391",
+     "rels": [
+      "series",
+      "slug",
+      "theme"
+     ]
+    },
+    {
+     "href": "/v1/documents/1128",
+     "rels": [
+      "topic"
+     ]
+    },
+    {
+     "href": "/v1/documents/3",
+     "rels": [
+      "program"
+     ]
+    },
+    {
+     "href": "/v1/documents/nx-s1-5952295",
+     "rels": [
+      "episode"
+     ]
+    },
+    {
+     "href": "/v1/documents/1001",
+     "rels": [
+      "topic"
+     ]
+    },
+    {
+     "href": "/v1/documents/g-s1-141",
+     "rels": [
+      "topic"
+     ]
+    },
+    {
+     "href": "/v1/documents/g-s1-62055",
+     "rels": [
+      "topic"
+     ]
+    },
+    {
+     "href": "/v1/documents/1105837622",
+     "rels": [
+      "category"
+     ]
+    },
+    {
+     "href": "/v1/documents/178843750",
+     "rels": [
+      "category"
+     ]
+    },
+    {
+     "href": "/v1/documents/126141354",
+     "rels": [
+      "category"
+     ]
+    },
+    {
+     "href": "/v1/documents/523798010",
+     "rels": [
+      "category"
+     ]
+    },
+    {
+     "href": "/v1/documents/1088064845",
+     "rels": [
+      "collection"
+     ]
+    },
+    {
+     "href": "/v1/documents/1002",
+     "rels": [
+      "topic"
+     ]
+    },
+    {
+     "href": "/v1/documents/349308023",
+     "rels": [
+      "byline"
+     ]
+    }
+   ],
+   "audio": [
+    {
+     "href": "#/assets/nx-s1-9928139",
+     "rels": [
+      "primary",
+      "headline"
+     ]
+    }
+   ],
+   "authorizedOrgServiceIds": [
+    "s1"
+   ],
+   "bylines": [
+    {
+     "href": "#/assets/nx-s1-5956869-1"
+    }
+   ],
+   "editorialLastModifiedDateTime": "2026-09-16T08:43:42.378-04:00",
+   "images": [
+    {
+     "href": "#/assets/g-s1-143452",
+     "rels": [
+      "primary",
+      "promo-image-brick",
+      "promo-image-wide",
+      "promo-image-square",
+      "promo-image-standard"
+     ]
+    },
+    {
+     "href": "#/assets/g-s1-143173"
+    },
+    {
+     "href": "#/assets/g-s1-143542"
+    },
+    {
+     "href": "#/assets/g-s1-143543"
+    },
+    {
+     "href": "#/assets/g-s1-143544"
+    },
+    {
+     "href": "#/assets/g-s1-143545"
+    }
+   ],
+   "isRestrictedToAuthorizedOrgServiceIds": false,
+   "layout": [
+    {
+     "href": "#/assets/g-s1-143452"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1000"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-100"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1001"
+    },
+    {
+     "href": "#/assets/g-s1-143173"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1002"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1003"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1004"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1005"
+    },
+    {
+     "href": "#/assets/g-s1-143542"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1006"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1007"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1008"
+    },
+    {
+     "href": "#/assets/g-s1-143543"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1009"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1010"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1011"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1012"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1013"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1014"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1015"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1016"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1017"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1018"
+    },
+    {
+     "href": "#/assets/g-s1-143544"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1019"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1020"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-101"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1021"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1022"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1023"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1024"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1025"
+    },
+    {
+     "href": "#/assets/g-s1-143545"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1026"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1027"
+    },
+    {
+     "href": "#/assets/nx-s1-5956869-1028"
+    }
+   ],
+   "nprDisplayType": "NewsStory",
+   "nprWebsitePath": "/2026/09/16/nx-s1-5956869/birth-control-contraception-access-clinic",
+   "robotsNoIndex": false,
+   "seoTitle": "New maps reveal birth control access gaps in the U.S.",
+   "teaser": "Because of a data lag, the current reality of access may be even worse.",
+   "webPages": [
+    {
+     "href": "https://www.npr.org/2026/09/16/nx-s1-5956869/birth-control-contraception-access-clinic",
+     "rels": [
+      "canonical"
+     ]
+    }
+   ],
+   "assets": {
+    "g-s1-143173": {
+     "altText": "An interactive map from Power to Decide shows to what degree publicly-funded contraceptive services meet local needs. Counties in red have the highest access, according to this analysis, and the lightest yellow counties have the lowest. In the counties in gray, no publicly-funded clinics offer contraceptive services.",
+     "caption": "An interactive map from <a href=\"https://powertodecide.org/contraceptive-access-gaps\"target=\"_blank\"   >Power to Decide</a> shows to what degree publicly-funded contraceptive services meet local needs. Counties in red have the highest access, according to this analysis, and the lightest yellow counties have the lowest. In the counties in gray, no publicly-funded clinics offer contraceptive services.",
+     "displaySize": "medium",
+     "enclosures": [
+      {
+       "height": 2174,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x2174+0+0/resize/2898x2174!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x2174+0+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "rels": [
+        "image-standard",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2898
+      },
+      {
+       "height": 1630,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x1630+0+268/resize/2898x1630!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x1630+0+268/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "rels": [
+        "image-wide",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2898
+      },
+      {
+       "height": 1795,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1795x1795+1086+172/resize/1795x1795!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1795x1795+1086+172/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "rels": [
+        "image-square",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 1795
+      },
+      {
+       "height": 1932,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x1932+0+11/resize/2898x1932!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x1932+0+11/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "rels": [
+        "image-slide",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2898
+      },
+      {
+       "height": 1333,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x1333+0+310/resize/2898x1333!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x1333+0+310/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "rels": [
+        "image-brick",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2898
+      },
+      {
+       "height": 2281,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1711x2281+470+0/resize/1711x2281!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1711x2281+470+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "rels": [
+        "image-vertical",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 1711
+      },
+      {
+       "height": 2138,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x2138+0+143/resize/2898x2138!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2898x2138+0+143/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F19%2Fb3%2F4840a9bc4d8192519965c13d5b47%2Fcontraceptive-map.jpg",
+       "rels": [
+        "primary",
+        "image-custom",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2898
+      }
+     ],
+     "id": "g-s1-143173",
+     "isRestrictedToAuthorizedOrgServiceIds": false,
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/image",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "provider": "<a   href=\"https://powertodecide.org/contraceptive-access-gaps\" class=\"Link\"  target=\"_blank\"   > Power to Decide</a> / Screenshot by NPR",
+     "title": "contraceptive-map.jpg"
+    },
+    "g-s1-143452": {
+     "altText": "A nurse displays a set of birth control pills at Pima County Health Department's Northwest Clinic, which offers free reproductive health services for all ages through federal funding from Title X, in Tucson, Arizona, on Thursday, September 3, 2026.",
+     "caption": "A nurse displays a set of birth control pills at Pima County Health Department's Northwest Clinic, which offers free reproductive health services for all ages through federal funding from Title X, in Tucson, Ariz., on Thursday, Sept. 3, 2026.",
+     "displaySize": "large",
+     "enclosures": [
+      {
+       "height": 2334,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3112x2334+204+0/resize/3112x2334!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3112x2334+204+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "rels": [
+        "image-standard",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 3112
+      },
+      {
+       "height": 1969,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3500x1969+0+92/resize/3500x1969!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3500x1969+0+92/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "rels": [
+        "image-wide",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 3500
+      },
+      {
+       "height": 2334,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2334x2334+593+0/resize/2334x2334!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2334x2334+593+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "rels": [
+        "image-square",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2334
+      },
+      {
+       "height": 2333,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3500x2333+0+0/resize/3500x2333!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3500x2333+0+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "rels": [
+        "image-slide",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 3500
+      },
+      {
+       "height": 1610,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3500x1610+0+272/resize/3500x1610!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3500x1610+0+272/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "rels": [
+        "image-brick",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 3500
+      },
+      {
+       "height": 2334,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1751x2334+885+0/resize/1751x2334!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1751x2334+885+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "rels": [
+        "image-vertical",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 1751
+      },
+      {
+       "height": 2334,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3500x2334+0+0/resize/3500x2334!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/3500x2334+0+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fdd%2F25%2F7546c78c4370a88292534e60c676%2F260903-watts-nprhealthcareaz-45.jpg",
+       "rels": [
+        "primary",
+        "image-custom",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 3500
+      }
+     ],
+     "id": "g-s1-143452",
+     "isRestrictedToAuthorizedOrgServiceIds": false,
+     "producer": "Anna Watts for NPR",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/image",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "title": "260903_Watts-NPRHealthcareAZ-45.jpg"
+    },
+    "g-s1-143542": {
+     "altText": "The interactive maps from Power to Decide show state- and county-level details about the available clinics and the population in need of subsidized birth control. With only 8% of the need being met in Maricopa County, researchers consider it to have an “extreme” birth control access gap.",
+     "caption": "The interactive maps from <a href=\"https://powertodecide.org/contraceptive-access-gaps\"target=\"_blank\"   >Power to Decide</a> show state- and county-level details about the available clinics and the population in need of subsidized birth control. With only 8% of the need being met in Maricopa County, researchers consider it to have an \"extreme\" birth control access gap.",
+     "displaySize": "large",
+     "enclosures": [
+      {
+       "height": 821,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x821+0+27/resize/1094x821!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x821+0+27/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "rels": [
+        "image-standard",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 1094
+      },
+      {
+       "height": 615,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x615+0+129/resize/1094x615!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x615+0+129/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "rels": [
+        "image-wide",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 1094
+      },
+      {
+       "height": 874,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/874x874+110+0/resize/874x874!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/874x874+110+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "rels": [
+        "image-square",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 874
+      },
+      {
+       "height": 729,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x729+0+72/resize/1094x729!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x729+0+72/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "rels": [
+        "image-slide",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 1094
+      },
+      {
+       "height": 503,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x503+0+185/resize/1094x503!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x503+0+185/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "rels": [
+        "image-brick",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 1094
+      },
+      {
+       "height": 874,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/656x874+219+0/resize/656x874!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/656x874+219+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "rels": [
+        "image-vertical",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 656
+      },
+      {
+       "height": 874,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x874+0+0/resize/1094x874!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1094x874+0+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Faa%2Ffe%2F1575185844aeb81271d560d068c0%2Fimage-4.png",
+       "rels": [
+        "primary",
+        "image-custom",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 1094
+      }
+     ],
+     "id": "g-s1-143542",
+     "isRestrictedToAuthorizedOrgServiceIds": false,
+     "producer": "<a   href=\"https://powertodecide.org/contraceptive-access-gaps\" class=\"Link\"  target=\"_blank\"   >Power to Decide</a> / Screenshot by NPR",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/image",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "title": "image (4).png"
+    },
+    "g-s1-143543": {
+     "altText": "At the Wesley Community & Health Center in Phoenix Golden Gate location, providers have a collection of birth control samples that they can show to patients as they counsel them on the option that might work best for them.",
+     "caption": "At the Wesley Community & Health Center in Phoenix Golden Gate location, providers have a collection of birth control samples that they can show to patients as they counsel them on the option that might work best for them.",
+     "displaySize": "large",
+     "enclosures": [
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2304x1728+223+0/resize/2304x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2304x1728+223+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "rels": [
+        "image-standard",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2304
+      },
+      {
+       "height": 1458,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1458+0+270/resize/2592x1458!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1458+0+270/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "rels": [
+        "image-wide",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2592
+      },
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1728x1728+511+0/resize/1728x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1728x1728+511+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "rels": [
+        "image-square",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 1728
+      },
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1728+0+0/resize/2592x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1728+0+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "rels": [
+        "image-slide",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2592
+      },
+      {
+       "height": 1192,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1192+0+514/resize/2592x1192!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1192+0+514/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "rels": [
+        "image-brick",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2592
+      },
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1296x1728+727+0/resize/1296x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1296x1728+727+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "rels": [
+        "image-vertical",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 1296
+      },
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1728+0+0/resize/2592x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1728+0+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2Fe1%2F87%2Fb785b3a340d3b55d7bdcaa90be0e%2F10160904-selena-tucson-00029.JPG",
+       "rels": [
+        "primary",
+        "image-custom",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2592
+      }
+     ],
+     "id": "g-s1-143543",
+     "isRestrictedToAuthorizedOrgServiceIds": false,
+     "producer": "Selena Simmons-Duffin",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/image",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "provider": "NPR",
+     "title": "10160904_selena_tucson_00029.JPG"
+    },
+    "g-s1-143544": {
+     "altText": "In Arizona, there is at least one publicly-funded clinic in each county that provides family planning services, but all counties also demonstrate an access gap.",
+     "caption": "In Arizona, there is at least one publicly-funded clinic in each county that provides family planning services, but all counties also demonstrate an access gap.",
+     "displaySize": "large",
+     "enclosures": [
+      {
+       "height": 652,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/869x652+68+0/resize/869x652!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/869x652+68+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "rels": [
+        "image-standard",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 869
+      },
+      {
+       "height": 566,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1006x566+0+43/resize/1006x566!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1006x566+0+43/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "rels": [
+        "image-wide",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 1006
+      },
+      {
+       "height": 652,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/652x652+177+0/resize/652x652!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/652x652+177+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "rels": [
+        "image-square",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 652
+      },
+      {
+       "height": 652,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/978x652+14+0/resize/978x652!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/978x652+14+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "rels": [
+        "image-slide",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 978
+      },
+      {
+       "height": 463,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1006x463+0+95/resize/1006x463!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1006x463+0+95/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "rels": [
+        "image-brick",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 1006
+      },
+      {
+       "height": 652,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/489x652+259+0/resize/489x652!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/489x652+259+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "rels": [
+        "image-vertical",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 489
+      },
+      {
+       "height": 652,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1006x652+0+0/resize/1006x652!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1006x652+0+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F18%2Fef%2Fab6be7a04a96bde939a8cca81fa6%2Fimage-3.png",
+       "rels": [
+        "primary",
+        "image-custom",
+        "scalable"
+       ],
+       "type": "image/png",
+       "width": 1006
+      }
+     ],
+     "id": "g-s1-143544",
+     "isRestrictedToAuthorizedOrgServiceIds": false,
+     "producer": "<a   href=\"https://powertodecide.org/contraceptive-access-gaps\" class=\"Link\"  target=\"_blank\"   >Power to Decide</a> / Screenshot by NPR",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/image",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "title": "image (3).png"
+    },
+    "g-s1-143545": {
+     "altText": "Chief Clinical Officer Wendy Redford in an exam room at Wesley Community & Health Center on Sept. 4, 2026. The clinic provides general primary care, she explains, but “contraception is one of the primary things that we do.”",
+     "caption": "Chief Clinical Officer Wendy Redford in an exam room at Wesley Community & Health Center on Sept. 4, 2026. The clinic provides general primary care, she explains, but \"contraception is one of the primary things that we do.\"",
+     "displaySize": "large",
+     "enclosures": [
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2304x1728+144+0/resize/2304x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2304x1728+144+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "rels": [
+        "image-standard",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2304
+      },
+      {
+       "height": 1458,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1458+0+135/resize/2592x1458!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1458+0+135/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "rels": [
+        "image-wide",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2592
+      },
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1728x1728+432+0/resize/1728x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1728x1728+432+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "rels": [
+        "image-square",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 1728
+      },
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1728+0+0/resize/2592x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1728+0+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "rels": [
+        "image-slide",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2592
+      },
+      {
+       "height": 1192,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1192+0+268/resize/2592x1192!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1192+0+268/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "rels": [
+        "image-brick",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2592
+      },
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1296x1728+648+0/resize/1296x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/1296x1728+648+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "rels": [
+        "image-vertical",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 1296
+      },
+      {
+       "height": 1728,
+       "href": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1728+0+0/resize/2592x1728!/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "hrefTemplate": "https://npr.brightspotcdn.com/dims3/default/strip/false/crop/2592x1728+0+0/resize/{width}/quality/{quality}/format/{format}/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F06%2Fe7%2Fc6391bbe43639122104149a3772d%2F10160904-selena-tucson-00043.JPG",
+       "rels": [
+        "primary",
+        "image-custom",
+        "scalable"
+       ],
+       "type": "image/jpeg",
+       "width": 2592
+      }
+     ],
+     "id": "g-s1-143545",
+     "isRestrictedToAuthorizedOrgServiceIds": false,
+     "producer": "Selena Simmons-Duffin",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/image",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "provider": "NPR",
+     "title": "10160904_selena_tucson_00043.JPG"
+    },
+    "nx-s1-5956869-1": {
+     "bylineDocuments": [
+      {
+       "href": "/v1/documents/349308023",
+       "rels": [
+        "biography"
+       ]
+      }
+     ],
+     "id": "nx-s1-5956869-1",
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/reference-byline",
+       "rels": [
+        "type"
+       ]
+      }
+     ]
+    },
+    "nx-s1-5956869-100": {
+     "brandings": [
+      {
+       "href": "https://organization.api.npr.org/v4/services/s1"
+      }
+     ],
+     "cardStyle": "InsetTwoColumn",
+     "displaySize": "large",
+     "documentLink": {
+      "href": "/v1/documents/nx-s1-5955665"
+     },
+     "emphasisLevel": "medium",
+     "id": "nx-s1-5956869-100",
+     "profiles": [
+      {
+       "href": "/v1/profiles/internal-link"
+      },
+      {
+       "href": "/v1/profiles/promo-card",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "teaser": "As a federal appeals court considers Louisiana's lawsuit to end telehealth abortion access, a longtime OB-GYN in Arizona explains how telehealth works in his clinic.",
+     "title": "A Louisiana case could upend telehealth abortion. What exactly is it?"
+    },
+    "nx-s1-5956869-1000": {
+     "id": "nx-s1-5956869-1000",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "There are 21.4 million women in the U.S. who need subsidized birth control living in a county somewhere with limited access. That's the major takeaway from a new analysis of contraception access from two reproductive policy organizations, <a href=\"https://powertodecide.org/\" target=\"_blank\">Power to Decide</a> and the <a href=\"https://www.guttmacher.org/\" target=\"_blank\">Guttmacher Institute</a>, shared exclusively with NPR. Both organizations are nonprofit and nonpartisan, and both support access to reproductive and sexual health services, including abortion."
+    },
+    "nx-s1-5956869-1001": {
+     "id": "nx-s1-5956869-1001",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "The analysis produced two <a href=\"https://powertodecide.org/contraceptive-access-gaps\" target=\"_blank\">interactive, county-level maps</a>. It's an updated version of a map of contraception deserts that Power to Decide first made in 2017. \"We did the best we could with the limited data we had right then,\" says <a href=\"https://powertodecide.org/about-us/leadership/rachel-fey\" target=\"_blank\">Rachel Fey</a>, who runs state and federal policy work at Power to Decide, formerly known as The National Campaign to Prevent Teen Pregnancy. \"[We] used that as a way to talk to policymakers, the press, the average person about what it really looked like for some people — particularly people on the lower end of the income scale, or in rural areas, or who were disproportionately Black and brown — when it comes to contraceptive access.\""
+    },
+    "nx-s1-5956869-1002": {
+     "id": "nx-s1-5956869-1002",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "These new maps draw on research expertise at Guttmacher to develop a different methodology, \"that I think is more accurate and it's a truer picture of the barriers that people face,\" Fey says."
+    },
+    "nx-s1-5956869-1003": {
+     "id": "nx-s1-5956869-1003",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "<h3><strong>What an access gap looks like</strong></h3>"
+    },
+    "nx-s1-5956869-1004": {
+     "id": "nx-s1-5956869-1004",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "In Maricopa County, Ariz., the new analysis shows there are 29 clinics that receive public funding for family planning, and almost 300,000 women in need of subsidized birth control. Researchers estimate that only 8% of the need is being met, which is what they call an \"extreme access gap.\""
+    },
+    "nx-s1-5956869-1005": {
+     "id": "nx-s1-5956869-1005",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "That doesn't surprise Wendy Redford, chief clinical officer of Wesley Community & Health Center in Phoenix. \"I think that largely reflects that certain groups' needs are not being met,\" she says. Even in a big city with a lot of options, \"if you don't have high resources — namely insurance and even Medicaid — if you don't have those things, accessing care is incredibly difficult because doors are shut on you.\""
+    },
+    "nx-s1-5956869-1006": {
+     "id": "nx-s1-5956869-1006",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "Wesley doesn't shut its doors on anyone, she says, and they try hard to make sure their low-income and uninsured patients know that they offer a wide range of birth control options for free, thanks to federal funding from a grant program called Title X."
+    },
+    "nx-s1-5956869-1007": {
+     "id": "nx-s1-5956869-1007",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "\"We talk about it at every single visit,\" Redford says. \"When a patient comes in, we ask them, 'Are you wanting to get pregnant in the next year?' And if they're not, 'How can we help you not do that?'\""
+    },
+    "nx-s1-5956869-1008": {
+     "id": "nx-s1-5956869-1008",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "She's passionate about how important birth control is for her patients. \"If you've got three kids and you don't want four kids because you're already splitting everything three ways and trying to make that stretch, how can we help you keep your family on a more financially stable path?\" she says. \"This can change a woman's life.\""
+    },
+    "nx-s1-5956869-1009": {
+     "id": "nx-s1-5956869-1009",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "<h3><strong>A new methodology</strong></h3>"
+    },
+    "nx-s1-5956869-101": {
+     "brandings": [
+      {
+       "href": "https://organization.api.npr.org/v4/services/s1"
+      }
+     ],
+     "cardStyle": "InsetTwoColumn",
+     "displaySize": "large",
+     "documentLink": {
+      "href": "/v1/documents/nx-s1-5932491"
+     },
+     "emphasisLevel": "medium",
+     "id": "nx-s1-5956869-101",
+     "profiles": [
+      {
+       "href": "/v1/profiles/internal-link"
+      },
+      {
+       "href": "/v1/profiles/promo-card",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "teaser": "A longtime Republican living in California says the Trump administration's continuing actions to target transgender youth take a personal toll.",
+     "title": "'What are we going to do?' The mom of a trans teen grapples with Trump's Medicaid move"
+    },
+    "nx-s1-5956869-1010": {
+     "id": "nx-s1-5956869-1010",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "Figuring out how to measure clinic capacity and demand in each county across the country was a challenge, explains <a href=\"https://www.guttmacher.org/about/staff/megan-l-kavanaugh\" target=\"_blank\">Megan Kavanaugh</a>, principal data researcher at Guttmacher, a nonprofit research and policy think tank."
+    },
+    "nx-s1-5956869-1011": {
+     "id": "nx-s1-5956869-1011",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "They started by focusing on specific health care providers. \"Our maps are showing access to brick-and-mortar clinics that receive federal or state level funds to deliver contraceptive care,\" she says. The team then used patient case loads for those clinics to determine their capacity to see patients."
+    },
+    "nx-s1-5956869-1012": {
+     "id": "nx-s1-5956869-1012",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "Next, they needed to figure out how many women needed access to subsidized birth control at those clinics. \"We draw on nationally representative, publicly available data, including the National Survey of Family Growth, which is a national survey administered every two years to the broad range of reproductive age women in the United States,\" Kavanaugh explains. \"It asks women: 'If cost was not an option, would you want to use contraception?'\" That's how they figured out the population of women who had a \"self-defined need\" for birth control."
+    },
+    "nx-s1-5956869-1013": {
+     "id": "nx-s1-5956869-1013",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "<blockquote><div><p><strong><em>Want the latest stories on the science of healthy living? Subscribe to NPR's </em></strong><a href=\"https://www.npr.org/newsletter/health\"target=\"_blank\"   ><strong>Health newsletter</strong></a><strong><em>.</em></strong></p></div></blockquote>"
+    },
+    "nx-s1-5956869-1014": {
+     "id": "nx-s1-5956869-1014",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "The women in that group who were aged 15-20 were automatically considered in need of subsidized options, she says. \"They are young people; typically [they] are not able to cover their own contraceptive care, they're often on, say, a parent's insurance,\" she says. \"And then everybody else between the ages of 20 and 49 who falls under 250% of the federal poverty level is considered to have a need for low- or no- cost contraception.\""
+    },
+    "nx-s1-5956869-1015": {
+     "id": "nx-s1-5956869-1015",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "<h3><strong>A \"dire\" picture</strong></h3>"
+    },
+    "nx-s1-5956869-1016": {
+     "id": "nx-s1-5956869-1016",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "The topline number they determined was this: \"21.4 million women are living in a county in the United States where they have a need for no or low cost contraception, and availability of care in their counties is not there,\" Kavanaugh says, a number she calls \"dire.\""
+    },
+    "nx-s1-5956869-1017": {
+     "id": "nx-s1-5956869-1017",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "Because the methodology is new, there's no way to compare it to past models to figure out whether access has gotten better or worse over the years. Kavanaugh says they will use this year's analysis as a new baseline going forward."
+    },
+    "nx-s1-5956869-1018": {
+     "id": "nx-s1-5956869-1018",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "In fact, there's reason to believe the current picture is already worse than the maps show. \"The data that informed these maps come from 2020 to 2023,\" she explains. \"Many of these clinics have closed. We know Planned Parenthoods have closed in the past year due to what happened with the defunding with Medicaid.\""
+    },
+    "nx-s1-5956869-1019": {
+     "id": "nx-s1-5956869-1019",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "She expects more closures as more provisions of the One Big Beautiful Bill Act, or H.R. 1, take effect, including <a href=\"https://www.npr.org/2026/06/03/nx-s1-5845097/medicaid-work-requirements-cuts-hiv-cancer\" target=\"_blank\">Medicaid work requirements</a>. Plus, President Trump has been trying to cut or remake the Title X program since his <a href=\"https://www.npr.org/sections/health-shots/2018/06/12/618902785/trumps-redirection-of-family-planning-funds-could-undercut-std-fight\" target=\"_blank\">first term in office</a>. Some of the opposition to Title X is related to opposition to abortion. Some clinics that receive the grants also provide abortion, although Title X funds cannot pay for abortion, only other sexual and reproductive services like birth control, sexually transmitted infection testing and treatment, and pregnancy testing."
+    },
+    "nx-s1-5956869-1020": {
+     "id": "nx-s1-5956869-1020",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "Rachel Fey of Power to Decide says they plan to continue to update the maps as new policies take effect. In the meantime, they will use the maps to make the case for more money for family planning. Title X funding has been <a href=\"https://www.kff.org/womens-health-policy/rebuilding-the-title-x-network-under-the-biden-administration/\" target=\"_blank\">flat for more than a decade</a>; its appropriation for <a href=\"https://opa.hhs.gov/grant-programs/funding-opportunities#TitleX\" target=\"_blank\">next year</a> is less than $300 million."
+    },
+    "nx-s1-5956869-1021": {
+     "id": "nx-s1-5956869-1021",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "\"We need to be funding Title X at $700 million at least to even come close to meeting the need that we know is out there,\" Fey says. She says she will also be advocating for repealing H.R. 1's Medicaid work requirements, making it so more people on private insurance can get birth control without copays, and combating misinformation about birth control, <a href=\"https://www.npr.org/2025/08/11/nx-s1-5494736/hormonal-birth-control-side-effects\" target=\"_blank\">which is widespread</a>."
+    },
+    "nx-s1-5956869-1022": {
+     "id": "nx-s1-5956869-1022",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "\"This is not actually a partisan issue outside the Beltway,\" she argues, noting that Title X has had support through many Republican administrations, starting with President Nixon. \"Americans use and want contraception.\""
+    },
+    "nx-s1-5956869-1023": {
+     "id": "nx-s1-5956869-1023",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "<h3><strong>A need for education, awareness, funding</strong></h3>"
+    },
+    "nx-s1-5956869-1024": {
+     "id": "nx-s1-5956869-1024",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "Wendy Redford at Wesley Community & Health Center in Phoenix thinks there is a range of reasons why Maricopa county is only meeting 8% of the need for subsidized birth control right now."
+    },
+    "nx-s1-5956869-1025": {
+     "id": "nx-s1-5956869-1025",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "To begin with, sex education isn't mandated in school. \"There is a lack of foundational knowledge about how and if and when a person can become pregnant — people don't know what they don't know,\" she says."
+    },
+    "nx-s1-5956869-1026": {
+     "id": "nx-s1-5956869-1026",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "She also says fear in certain communities, including among immigrants, keeps people from coming into the clinic. So does a general lack of awareness about the fact that subsidized birth control for people regardless of insurance is available."
+    },
+    "nx-s1-5956869-1027": {
+     "id": "nx-s1-5956869-1027",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "\"One of the really hard parts is like getting the butts in the seats,\" she says. \"Getting the people to come in, outreaching them — 'We're here, we have this.'\""
+    },
+    "nx-s1-5956869-1028": {
+     "id": "nx-s1-5956869-1028",
+     "profiles": [
+      {
+       "href": "/v1/profiles/text",
+       "rels": [
+        "type"
+       ]
+      },
+      {
+       "href": "/v1/profiles/document"
+      }
+     ],
+     "text": "More funding would certainly help the clinic, she says, noting that right now margins are tight. It would mean they could hire more providers and more staff for marketing to try and reach more people.<br>"
+    },
+    "nx-s1-9928139": {
+     "duration": 301,
+     "embeddedPlayerLink": {
+      "href": "https://www.npr.org/player/embed/nx-s1-5956869/nx-s1-9928139"
+     },
+     "enclosures": [
+      {
+       "fileSize": 4817023,
+       "href": "https://ondemand.npr.org/anon.npr-mp3/npr/me/2026/09/20260916_me_21_million_women_live_in_u.s._counties_with_limited_birth_control_access.mp3?t=progseg&e=nx-s1-5952295&p=3&seg=8&d=301&size=4817023",
+       "type": "audio/mpeg"
+      },
+      {
+       "fileSize": 2462249,
+       "href": "https://ondemand.npr.org/npr-mp4/npr/me/2026/09/20260916_me_21_million_women_live_in_u.s._counties_with_limited_birth_control_access.mp4?t=progseg&e=nx-s1-5952295&p=3&seg=8&d=301&size=2462249",
+       "type": "audio/mp4"
+      },
+      {
+       "href": "https://ondemandhls.npr.org/nprhls/npr/me/2026/09/20260916_me_21_million_women_live_in_u.s._counties_with_limited_birth_control_access/master.m3u8?t=progseg&e=nx-s1-5952295&p=3&seg=8&d=301",
+       "type": "application/vnd.apple.mpegurl"
+      }
+     ],
+     "id": "nx-s1-9928139",
+     "isAvailable": true,
+     "isDownloadable": true,
+     "isEmbeddable": true,
+     "isStreamable": false,
+     "profiles": [
+      {
+       "href": "/v1/profiles/document"
+      },
+      {
+       "href": "/v1/profiles/audio",
+       "rels": [
+        "type"
+       ]
+      }
+     ],
+     "source": "4a999ab7-3ff7-4f0a-8aed-b1665e14590d",
+     "title": "21 million women live in U.S. counties with limited birth control access"
+    }
+   }
+  }
+ ]
+}
