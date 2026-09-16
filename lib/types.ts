@@ -24,6 +24,11 @@ export type DayFile = {
   network: WireItem[];
   stations: Record<string, { name: string; city: string; neighbour: string; local: WireItem[] }>;
   mostCarried: { title: string; url: string; stations: number };
+  // Feeds that failed this morning, by label. Absent on a healthy day. Without this, a
+  // total outage produces a perfectly well-formed file — empty network, six stations with
+  // nothing in them — that is indistinguishable from a day when nobody filed. A file that
+  // looks like success is worse than no file, because nothing downstream can tell.
+  degraded?: string[];
 };
 
 // One thing scheduled in the hour. Wire items become blocks; so do the fixed pieces

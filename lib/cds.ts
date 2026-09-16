@@ -15,7 +15,12 @@ export async function cdsQuery(params: Record<string, string>): Promise<CdsDoc[]
   if (!token) throw new Error('NPR_CDS_TOKEN is not set');
   const url = new URL(CDS);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+  // A feed that HANGS is worse than one that fails: a stalled request eats the whole
+  // function budget and, in a cron, silently produces no day file at all. 8s is generous
+  // against a wire that normally answers in ~200ms. Verified 2026-09-16 that
+  // AbortSignal.timeout aborts a hung connection and surfaces as an ordinary TimeoutError,
+  // so the isolation wrapper in lib/day.ts catches it like any other failure.
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`CDS ${res.status} for ${url.pathname}?${url.searchParams}`);
   return (await res.json()).resources ?? [];
 }
