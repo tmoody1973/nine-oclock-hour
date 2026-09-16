@@ -1244,6 +1244,22 @@ export function weightsFor(picks: Topic[]): Partial<Record<Topic, number>> {
 
 In `lib/hour.ts`, where the retention walk subtracts for a heavy topic, replace the fixed `2` with `weights[b.topic] ?? 2`.
 
+> **The meter only personalises the heavy half of the desks, and Tarik should know that.**
+> `weightsFor` returns a weight for all ten topics, but `score()` consults it inside one
+> branch: `hold -= heavy ? (weights[b.topic] ?? 2) + ... : 1` (lib/hour.ts:242), where
+> `heavy` is `HEAVY_TOPICS.includes(b.topic)` and
+> `HEAVY_TOPICS = ['politics', 'world', 'economy', 'health', 'news']`.
+>
+> So a listener who picks **tech, culture, climate, local or music** gets a meter identical to
+> the generic one — measured, not inferred: picking any of those five moves `Hold` by exactly
+> zero. Only politics, world, economy, health and news change anything.
+>
+> That is the prototype's behaviour and R5 says port it. But the product claim is "the meter is
+> you", and for half the desks it currently is not. Two honest options when Tarik decides:
+> extend the penalty to every topic (a light story a listener did not choose still costs
+> attention, just less), or say plainly in the UI that the meter tracks the heavy news load.
+> Not this task's call — recorded so it is a decision rather than an accident.
+
 - [ ] **Step 4b: Test the thing this task exists for**
 
 `weightsFor` has a test. **The integration does not, and the integration is the feature.** Revert
@@ -1255,14 +1271,25 @@ Add this to `lib/taste.test.ts`:
 
 ```ts
 test('the meter actually responds to the listener — this is the whole feature', () => {
-  const hour = [seg('pol', 600, { topic: 'politics' }), seg('mus', 600, { topic: 'music' })];
+  // Six heavy stories: an hour that punishes a generic listener and rewards one who chose
+  // these subjects. Verified against the real engine before being written here — generic
+  // scores Hold 5 with the curve bottoming at 58; a listener who picked politics/world/
+  // economy scores 8, bottoming at 70.
+  //
+  // **The picks must be HEAVY topics and the hour must contain them.** An earlier draft of
+  // this test used an hour of politics + music and picks of music/local/world, and produced
+  // an identical score for both listeners — see the note below on why.
+  const hour = [
+    seg('a', 300, { topic: 'politics' }), seg('b', 300, { topic: 'world' }), seg('c', 300, { topic: 'economy' }),
+    seg('d', 300, { topic: 'politics' }), seg('e', 300, { topic: 'world' }), seg('f', 300, { topic: 'economy' }),
+  ];
   const opts = { pledge: false, flash: 'now' as const, drift: 0 };
   const generic = score(hour, { ...opts, weights: {} });
-  const mine = score(hour, { ...opts, weights: weightsFor(['music', 'local', 'world']) });
-  assert.notEqual(mine.scores.Hold, generic.scores.Hold,
-    'a listener who chose music must not be scored the same as one who chose nothing');
+  const mine = score(hour, { ...opts, weights: weightsFor(['politics', 'world', 'economy']) });
   assert.ok(mine.scores.Hold > generic.scores.Hold,
-    'and choosing music should make a music-heavy hour hold better, not worse');
+    'a listener who chose these subjects must hold this hour better than one who chose nothing');
+  assert.ok(mine.low > generic.low,
+    'and their retention curve must bottom out higher');
 });
 ```
 
