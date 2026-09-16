@@ -1045,7 +1045,7 @@ git add lib/hour.ts lib/hour.test.ts && git commit -m "feat: pure rules engine p
 
 **Interfaces:**
 - Consumes: `Block[]` from the hour.
-- Produces: `toPlaylist(hour: Block[]): PlayItem[]` where `PlayItem = { id, title, src, audio?, seconds }`; `<Player hour={...} station={...} />`.
+- Produces: `toPlaylist(hour: Block[]): PlayItem[]` where `PlayItem = { id, title, src, audio?, seconds }`; `<Player list={...} station={...} onDone={...} />` — **`onDone` is not optional decoration.** When the hour runs out the component unmounts itself, and without a callback nothing downstream learns it ended: no aircheck, no end card, the player simply vanishes.
 
 - [ ] **Step 1: Write the failing test** in `lib/playlist.test.ts`
 
@@ -1126,7 +1126,7 @@ The three things that make or break this on a phone: one audio element for the w
 import { useEffect, useRef, useState } from 'react';
 import type { PlayItem } from '@/lib/playlist';
 
-export function Player({ list, station }: { list: PlayItem[]; station: string }) {
+export function Player({ list, station, onDone }: { list: PlayItem[]; station: string; onDone?: () => void }) {
   // One element for the session. iOS unlocks audio on the element the user tapped;
   // creating a new one per track loses that unlock and playback silently stops.
   const el = useRef<HTMLAudioElement>(null);
@@ -1152,7 +1152,19 @@ export function Player({ list, station }: { list: PlayItem[]; station: string })
     navigator.mediaSession.metadata = new MediaMetadata({ title: item.title, artist: item.src, album: `${station} · the nine o'clock hour` });
     navigator.mediaSession.setActionHandler('nexttrack', () => setI((n) => Math.min(n + 1, list.length - 1)));
     navigator.mediaSession.setActionHandler('previoustrack', () => setI((n) => Math.max(n - 1, 0)));
+    // Clear them on unmount. Without this the lock screen keeps this hour's title and its
+    // next/previous buttons after the player is gone, and those buttons call into a component
+    // that no longer exists.
+    return () => {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.setActionHandler('nexttrack', null);
+      navigator.mediaSession.setActionHandler('previoustrack', null);
+    };
   }, [item, list.length, station]);
+
+  // The hour has run out. Say so, once, in an effect rather than during render — the page
+  // needs this to swap the player for the aircheck.
+  useEffect(() => { if (!item && list.length) onDone?.(); }, [item, list.length, onDone]);
 
   if (!item) return null;
   return (
@@ -1348,6 +1360,12 @@ git commit -m "feat: the retention meter follows the listener's own three subjec
 
 **Interfaces:**
 - Consumes: everything above.
+
+**The page owns the ending.** `<Player>` unmounts itself when the hour runs out and calls
+`onDone`. Nothing else notices. So the page holds a `done` state, passes `onDone={() => setDone(true)}`,
+and renders `<Aircheck>` in the player's place when it fires. Without that wiring a listener
+reaches the end of their hour and the screen simply goes blank — no scores, no retention line,
+no end card, which is the payoff the whole build exists for.
 
 - [ ] **Step 1: Wire the page** — `app/page.tsx` reads today's file with `getDay(new Date().toISOString().slice(0,10))`, falls back to the most recent day in Blob when the cron has not run, and renders the station picker, wire, rail, player and aircheck. The wire is a flat list at this point; Task 10 replaces it with the desk view, so do not build section grouping here.
 
