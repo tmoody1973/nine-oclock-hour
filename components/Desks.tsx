@@ -15,11 +15,22 @@ export function Wire({ items, hour, degraded, onAdd, onOpen }: {
   onAdd: (item: WireItem, mode: 'tape' | 'read') => void;
   onOpen: (item: WireItem) => void;
 }) {
+  // `degraded` carries two different kinds of marker (see lib/types.ts): a feed label like
+  // "Morning Edition" when a newsroom didn't answer, and a `voice:<id>` entry when a read
+  // was voiced. They read very differently to a producer, so they get two different lines
+  // rather than one list that names a station and a cache key in the same breath.
+  const feedFailures = degraded?.filter((d) => !d.startsWith('voice:')) ?? [];
+  const voiceFailures = degraded?.filter((d) => d.startsWith('voice:')) ?? [];
   return (
     <>
-      {degraded && degraded.length > 0 && (
+      {feedFailures.length > 0 && (
         <p className={styles.degraded}>
-          We couldn&rsquo;t reach {new Intl.ListFormat('en').format(degraded)} this morning, so there&rsquo;s less here than usual.
+          We couldn&rsquo;t reach {new Intl.ListFormat('en').format(feedFailures)} this morning, so there&rsquo;s less here than usual.
+        </p>
+      )}
+      {voiceFailures.length > 0 && (
+        <p className={styles.degraded}>
+          {voiceFailures.length} {voiceFailures.length === 1 ? 'read' : 'reads'} didn&rsquo;t get voiced this morning, so {voiceFailures.length === 1 ? 'it' : 'they'} will play silently if you use {voiceFailures.length === 1 ? 'it' : 'them'} today.
         </p>
       )}
       {byDesk(items).map((desk) => (
@@ -78,15 +89,23 @@ export function MixBar({ hour }: { hour: Block[] }) {
             key={s.topic}
             className={styles.mixSeg}
             style={{ width: `${s.share * 100}%`, background: DESK_COLOR[s.topic] }}
-            title={`${s.name}: ${Math.round(s.seconds / 60)} min`}
           >
             {s.share > 0.12 ? s.name : ''}
           </span>
         ))}
       </div>
-      <ul className={styles.srOnly}>
+      {/* The legend, not the bar, is what actually tells two desks apart — the validated
+          palette only has 8 hues for 10 desks, so a couple of swatches repeat, and hue alone
+          can't disambiguate those. Every swatch here is paired with its own name and numbers,
+          which is what a colour collision can't break. This is also plain visible text, not
+          `aria-hidden`, so it's what a screen reader announces — no separate hidden list to
+          keep in sync. */}
+      <ul className={styles.mixLegend}>
         {mix.shares.map((s) => (
-          <li key={s.topic}>{s.name}: {Math.round(s.seconds / 60)} minutes, {Math.round(s.share * 100)}% of the hour</li>
+          <li key={s.topic}>
+            <span className={styles.swatch} style={{ background: DESK_COLOR[s.topic] }} aria-hidden="true" />
+            {s.name}: {Math.round(s.seconds / 60)} min ({Math.round(s.share * 100)}%)
+          </li>
         ))}
       </ul>
       {/* A note, never a blocker — a producer is allowed to build a politics hour on purpose. */}

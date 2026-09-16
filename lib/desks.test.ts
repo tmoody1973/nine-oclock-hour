@@ -58,10 +58,11 @@ test('untimed tape that ran long counts what it actually ran', () => {
   assert.equal(mixOf([{ ...block('a', 'politics', 120), realLen: 300 }]).total, 300);
 });
 
-// Pinned after review found two desks sharing a color — the bar's whole job is telling desks
-// apart at a glance, so a duplicate defeats it even though the srOnly list keeps the real
-// numbers knowable either way.
-test('every desk on the mix bar has its own color', () => {
-  const colors = DESK_ORDER.map((t) => DESK_COLOR[t]);
-  assert.equal(new Set(colors).size, colors.length);
+// Pinned after review: two desks sharing a colour looked like a bug, but the fix isn't a
+// 9th and 10th invented hue — it's MixBar's legend, which names every desk regardless of its
+// colour. This pins the palette to exactly the dataviz skill's validated 8-hue set, so nobody
+// "fixes" the collision later by adding unvalidated colours instead.
+test('DESK_COLOR stays the validated 8-hue set, not invented extras', () => {
+  const colors = new Set(DESK_ORDER.map((t) => DESK_COLOR[t]));
+  assert.equal(colors.size, 8);
 });

@@ -9,21 +9,19 @@ export const DESK_NAME: Record<Topic, string> = {
   tech: 'Science & Tech', climate: 'Climate', culture: 'Arts & Culture', music: 'Music', local: 'Around town',
 };
 
-// The mix bar's segment colors — decorative, never the only encoding (every segment also
-// carries its name in text or a `title`, and MixBar's srOnly list gives the real numbers), but
-// still worth ten distinct hues rather than a repeat a producer could mistake for one desk.
-// The first eight are the dataviz skill's validated dark-mode categorical set
-// (references/palette.md); the last two extend it to all ten desks. Checked with the skill's
-// own validator against the adjacent-pairs list — the check it specifies for a stacked bar,
-// and the same test the reference 8-hue set was validated against — on this component's
-// actual dark surface (#1e2430): all ten pass lightness band, chroma floor, CVD separation
-// and normal-vision separation. `node scripts/validate_palette.js
-// "#3987e5,#d95926,#199e70,#c98500,#d55181,#008300,#9085e9,#e66767,#2f8fc9,#b5652f"
-// --mode dark --pairs adjacent --surface "#1e2430"` → ALL CHECKS PASS.
+// The mix bar's segment colors. This is the dataviz skill's validated 8-hue dark-mode
+// categorical set (references/palette.md), unmodified — it exists precisely so nobody has to
+// invent a 9th and 10th hue and hope it holds up, so this doesn't. Ten desks, eight hues means
+// music repeats news's blue and local repeats politics's orange; the two collided pairs are
+// disambiguated on screen by MixBar's legend (a name and numbers beside every swatch), which
+// is the mechanism the skill actually specifies for identity beyond hue — not a border or a
+// texture, both of which the skill rules out for this ("never draw a border to separate a
+// mark"; texture is opt-in for an accessibility setting/print/forced-colors, "never on by
+// default").
 export const DESK_COLOR: Record<Topic, string> = {
   news: '#3987e5', politics: '#d95926', world: '#199e70', economy: '#c98500',
   health: '#d55181', tech: '#008300', climate: '#9085e9', culture: '#e66767',
-  music: '#2f8fc9', local: '#b5652f',
+  music: '#3987e5', local: '#d95926',
 };
 
 export type Desk = { topic: Topic; name: string; items: WireItem[] };
