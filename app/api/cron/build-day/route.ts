@@ -5,8 +5,16 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
-  const secret = req.headers.get('authorization');
-  if (secret !== `Bearer ${process.env.CRON_SECRET}`) return new Response('no', { status: 401 });
+  // Refuse when the secret is UNSET, before comparing anything. Without this the comparison
+  // is against the literal string "Bearer undefined" — and this repo is public, so the route
+  // path and that exact string are readable by anyone. A deploy that skips
+  // `vercel env add CRON_SECRET` would leave the endpoint open to the world, and every
+  // unauthorised hit runs nine CDS queries against our station credentials and writes to our
+  // Blob store. 503 rather than 401 because the fault is ours, not the caller's, and it
+  // reads differently in the logs.
+  const expected = process.env.CRON_SECRET;
+  if (!expected) return new Response('no', { status: 503 });
+  if (req.headers.get('authorization') !== `Bearer ${expected}`) return new Response('no', { status: 401 });
   const day = await buildDay();
   const url = await putDay(day);
   // `degraded` names any feed that failed this morning. It is the only machine-readable
