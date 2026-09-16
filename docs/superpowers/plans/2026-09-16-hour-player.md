@@ -1047,7 +1047,7 @@ git commit -m "feat: the retention meter follows the listener's own three subjec
 ### Task 8: Ship it
 
 **Files:**
-- Create: `README.md`, `docs/decisions/001-stream-never-store.md`
+- Create: `README.md` (it already exists — **update it, do not rewrite it**; it was written at Tarik's request during Task 2 and describes the rights rules, the six newsrooms and the desks), `docs/decisions/001-stream-never-store.md`, `docs/decisions/002-attribute-at-station-level.md`, `.github/workflows/ci.yml`
 - Modify: `app/page.tsx`
 
 **Interfaces:**
@@ -1062,11 +1062,23 @@ Expected: all pass. Report the exact test count.
 
 - [ ] **Step 3: Deploy**
 
+**Stop here and ask Tarik before running any of this.** A deploy puts a public URL on the
+internet, it is awkward to walk back, and two of these commands write secrets into an account
+that is not yours. `vercel link` and the two `env add` calls are safe to prepare; **`vercel
+deploy` is not yours to run on your own initiative.** Get an explicit go-ahead in the thread
+first, and say in your report that you got it.
+
+Also: **CI lands before the deploy, not after.** Add `.github/workflows/ci.yml` running
+`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` and
+`pnpm build` on every push and pull request. Prove it works by breaking one test, watching
+the check go red, then reverting. Branch protection on `main` requiring that check is a
+GitHub settings change only Tarik can make — hand it to them, do not skip it silently.
+
 ```bash
 vercel link
 vercel env add NPR_CDS_TOKEN production preview   # paste from ~/.config/npr-cds/token, never echo it
 vercel env add CRON_SECRET production
-vercel deploy
+vercel deploy                                     # only after Tarik says go
 ```
 
 Add Blob storage in the Vercel dashboard, which sets `BLOB_READ_WRITE_TOKEN` automatically. Then run the job once by hand: `curl -H "Authorization: Bearer $CRON_SECRET" https://<deployment>/api/cron/build-day`.
@@ -1080,9 +1092,24 @@ Add Blob storage in the Vercel dashboard, which sets `BLOB_READ_WRITE_TOKEN` aut
 - [ ] **Step 6: Commit and push**
 
 ```bash
-git add -A && git commit -m "feat: ship the hour player on vercel"
-git push -u origin main
+git add README.md docs/decisions/ app/page.tsx .github/workflows/ci.yml
+git commit -m "feat: ship the hour player on vercel"
+git push origin feat/hour-player
 ```
+
+**Do not push to `main` and do not use `git add -A`.** This repo is public and `main` is its
+default branch. The whole build lives on `feat/hour-player`, and `main` gets there through a
+pull request that Tarik merges — not through a direct push that walks straight past the CI
+this very task adds. `git add -A` would also sweep up unrelated modified files; name what
+you are committing, as every other task in this plan does.
+
+- [ ] **Step 7: Open the pull request**
+
+```bash
+gh pr create --base main --head feat/hour-player --title "The Nine O'Clock Hour" --fill
+```
+
+Then stop. **Tarik merges.** Say in your report that the PR is open and what its CI status is.
 
 ---
 
