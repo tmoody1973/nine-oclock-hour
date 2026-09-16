@@ -1976,7 +1976,13 @@ git commit -m "feat: the wire as a front page, with a mix bar over the hour"
 
 **Files:**
 - Create: `lib/clock.ts`, `lib/clock.test.ts`, `components/HotClock.tsx`
-- Modify: `app/page.tsx`
+- Modify: `components/HourBuilder.tsx`, `components/HourBuilder.module.css`
+
+> **The file list said `app/page.tsx`. Wrong, same as Task 10's did.** `app/page.tsx` reads a
+> day file and hands it to `<HourBuilder>`; it renders no hour and calls `layout()` nowhere.
+> The rail — the thing the ring sits beside — is in `components/HourBuilder.tsx`, under the
+> `THE HOUR` heading, and `<MixBar>` is already mounted there from Task 10. Corrected
+> 2026-09-16 after checking the source.
 
 **Interfaces:**
 - Consumes: `layout()` from Task 5 (which already returns `rows` of `{ b, at }` — the block and the second it starts).
