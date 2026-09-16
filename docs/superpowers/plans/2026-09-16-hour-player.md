@@ -16,7 +16,7 @@
 - **The day file refreshes daily and is not an archive.** One file per date; delete files older than 7 days.
 - **The CDS token never reaches the browser.** `NPR_CDS_TOKEN` is a server-only Vercel environment variable. Locally it lives at `~/.config/npr-cds/token` (mode 600) — read it, never print it, never commit it.
 - **Every item on screen carries its source and a link back.** That is what "attribute via url" requires.
-- **Reads are spoken, not skipped.** An item with no tape becomes a 30-second read voiced by Gemini 2.5 Flash TTS (about 1.5¢ per minute of audio; a six-minute day costs roughly 9¢). The script is **our own summary with attribution** — never a publisher's copy read aloud, which display-only rights do not permit. Cache each read in Blob and regenerate only when the script changes.
+- **Reads are spoken, not skipped.** An item with no tape becomes a 30-second read. Tarik already pays for ElevenLabs, so that voice is the default and its credits are already bought; Gemini 2.5 Flash TTS is the fallback when credits run out (about 1.5¢ a minute against ElevenLabs' ~17¢, so a six-minute day costs roughly 9¢ on Gemini). The script is **our own summary with attribution** — never a publisher's copy read aloud, which display-only rights do not permit. Cache each read in Blob and regenerate only when the script changes.
 - **Other stations' audio links out to their player in v1.** Only NPR network audio and 88Nine's own audio play inside our stream, until Tarik has asked the other stations.
 - **Port the prototype's rules verbatim:** 59 minutes of programming plus a 1:00 legal ID; weather window 45s at 19:00; traffic window 45s at 49:00; underwriting credit 30s that must start before 30:00 (60s in pledge week, plus two 2:00 pitch breaks at 12:00 and 42:00); bulletin 75s at 34:00; a read is 30s.
 - **Scoring weights, unchanged from the prototype:** Clock 30, On air 25, Freshness 15, Mix 15, Hold 15.
@@ -797,7 +797,13 @@ git push -u origin main
 - Consumes: `WireItem` (Task 1), `putDay` (Task 4), `toPlaylist` (Task 6).
 - Produces: `scriptPrompt(item: WireItem): string`, `readKey(item: WireItem, script: string): string`, `voiceRead(item: WireItem): Promise<string>` returning the cached mp3 URL.
 
-**Why this shape.** A read has to be in our own words: display-only rights let us summarise and link, not perform a publisher's text. So the job writes a short script from the headline and the feed's summary, attributes the source out loud ("NPR reports..."), and only then voices it. Both calls go to Gemini: text for the script, `gemini-2.5-flash-preview-tts` for the audio at $10 per million audio tokens, where 25 tokens is one second.
+**Why this shape.** A read has to be in our own words: display-only rights let us summarise and link, not perform a publisher's text. So the job writes a short script from the headline and the feed's summary, names the source out loud ("NPR reports..."), and only then voices it.
+
+**Two voices behind one function.** `speak()` picks a backend from the environment: ElevenLabs when `ELEVENLABS_API_KEY` is set, otherwise Gemini. Tarik has an ElevenLabs subscription, so those credits are already paid for and the voice is better; Gemini is the overflow valve and the zero-subscription path.
+
+- **The sums.** A 30-second read is roughly 75 words, about 450 characters. ElevenLabs bills 1 credit per character, so a dozen reads a day is about 5,400 credits a day and **162,000 a month** — more than the Creator tier's 121k, comfortably inside Pro's 600k. Gemini bills $10 per million audio tokens at 25 tokens a second: about 1.5¢ a minute, near 9¢ for that same day.
+- **Default voice:** `onwK4e9ZLuTAKqWW03F9` ("Daniel — Steady Broadcaster"), already in Tarik's library. A cloned 88Nine host voice is a later swap of that one id.
+- **Known snag:** the API key behind the ElevenLabs MCP connector lacks the `user_read` permission, so credit balance cannot be read programmatically (401, `missing_permissions`). Either issue a key with usage permission or watch the dashboard.
 
 - [ ] **Step 1: Write the failing test** in `lib/reads.test.ts`
 
@@ -851,6 +857,21 @@ export const scriptPrompt = (item: WireItem) => [
 
 export const readKey = (item: WireItem, script: string) =>
   `reads/${item.id}-${createHash('sha256').update(script).digest('hex').slice(0, 12)}.mp3`;
+
+type Voice = 'elevenlabs' | 'gemini';
+export const backend = (): Voice => (process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'gemini');
+
+const ELEVEN_VOICE = 'onwK4e9ZLuTAKqWW03F9'; // Daniel — Steady Broadcaster
+
+async function elevenSpeak(script: string): Promise<{ audio: Buffer; type: string }> {
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`, {
+    method: 'POST',
+    headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY!, 'content-type': 'application/json' },
+    body: JSON.stringify({ text: script, model_id: 'eleven_turbo_v2_5' }),
+  });
+  if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${await res.text()}`);
+  return { audio: Buffer.from(await res.arrayBuffer()), type: 'audio/mpeg' };
+}
 
 async function gemini(model: string, body: unknown) {
   const res = await fetch(`${API}/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
