@@ -28,18 +28,48 @@ const SITE: Record<string, string> = {
   s150: 'https://www.kqed.org',
 };
 
+// Verified live that an NPR News Now newscast document carries no `webPages` and no
+// `nprWebsitePath` at all — only an org-API href and image assets. Without a fallback,
+// `airable` was dropping every single newscast, and the newscast is core furniture in the
+// hour (it is the subject of the prototype's expiry trap), not incidental content. So
+// network items get the same publisher-level fallback stations already have, keyed by
+// `src` instead of station id. Targets verified 200 on 2026-09-16.
+const NETWORK_SITE: Record<string, string> = {
+  'NPR': 'https://www.npr.org/podcasts/500005/npr-news-now',
+  'Morning Edition': 'https://www.npr.org/programs/morning-edition',
+  'All Things Considered': 'https://www.npr.org/programs/all-things-considered',
+};
+
 const STOP = new Set(['the','a','an','of','in','on','to','for','and','at','is','are','as','its','after','with','from']);
 const keywords = (title: string) => title.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3 && !STOP.has(w));
 
-// Two newsrooms are on the same story when their headlines share two significant words.
+// Two newsrooms are on the same story when their headlines share three significant words —
+// not two. Measured against 16 September's real wire (52 headlines): the two-word bar
+// called WBEZ's "Washington Park mass shooting rattles community from Chicago's former
+// Robert Taylor Homes" and WABE's "Federal case against man accused of plotting mass
+// shooting at ..." the same story, on the strength of "mass" and "shooting" alone — a
+// Chicago neighbourhood shooting and an Atlanta federal case, falsely paired. Raising the
+// bar to three words produced no match that day, which is correct: most days, no two of
+// these six newsrooms are genuinely on the same story. Weighting by rarity does not rescue
+// the two-word version either — both offending words appeared in only 2 of the 52
+// headlines, so they were already rare; word overlap alone cannot tell a shared subject
+// from a shared phrase on a corpus this small. The upgrade path, when the feature earns it,
+// is sentence embeddings, not a cleverer word rule. `stations: 0` means no answer, not a
+// weak one, so a lone headline matching only itself must never become the answer — that is
+// why promotion below requires at least two distinct newsrooms, not just a nonzero count.
 export function mostCarried(items: WireItem[]): DayFile['mostCarried'] {
-  let best = { title: items[0]?.title ?? '', url: items[0]?.url ?? '', stations: 0 };
+  let best = { title: '', url: '', stations: 0 };
   for (const item of items) {
     const words = new Set(keywords(item.title));
     const stations = new Set(
-      items.filter((other) => keywords(other.title).filter((w) => words.has(w)).length >= 2).map((o) => o.src),
+      items.filter((other) => keywords(other.title).filter((w) => words.has(w)).length >= 3).map((o) => o.src),
     );
-    if (stations.size > best.stations) best = { title: item.title, url: item.url, stations: stations.size };
+    // An item always matches itself, so a lone story scores 1, never 0. Only a genuine
+    // cross-newsroom match is ever recorded — which is what makes `stations: 0` mean
+    // "no answer" rather than "a weak answer", without every caller having to remember it.
+    if (stations.size >= 2 && stations.size > best.stations) {
+      best = { title: item.title, url: item.url, stations: stations.size };
+    }
   }
   return best;
 }
@@ -74,7 +104,7 @@ export async function buildDay(now = new Date()): Promise<DayFile> {
       expires: d.recommendUntilDateTime ?? d.expirationDateTime, old: i > 0 })),
     ...me.map((d) => toWireItem(d, 'satellite', 'Morning Edition')),
     ...atc.map((d) => toWireItem(d, 'satellite', 'All Things Considered')),
-  ]);
+  ].map((i) => (i.url ? i : { ...i, url: NETWORK_SITE[i.src] ?? '' })));
 
   const stations: DayFile['stations'] = {} as DayFile['stations'];
   for (const [id, s] of Object.entries(STATIONS)) {
