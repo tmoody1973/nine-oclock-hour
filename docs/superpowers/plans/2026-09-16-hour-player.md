@@ -1168,9 +1168,48 @@ that is not yours. `vercel link` and the two `env add` calls are safe to prepare
 deploy` is not yours to run on your own initiative.** Get an explicit go-ahead in the thread
 first, and say in your report that you got it.
 
-Also: **CI lands before the deploy, not after.** Add `.github/workflows/ci.yml` running
-`pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` and
-`pnpm build` on every push and pull request. Prove it works by breaking one test, watching
+Also: **CI lands before the deploy, not after.** Write `.github/workflows/ci.yml` exactly as
+below — do not improvise it. Two tasks in this build have already lost a round to the
+`server-only` trap, and a CI job that hits it fails for a reason nobody recognises.
+
+```yaml
+name: ci
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.19.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      # --frozen-lockfile is the point of CI here: it fails if package.json and the
+      # lockfile ever drift, which is how a dependency silently goes missing in production.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm exec tsc --noEmit
+      # The test script already carries --conditions=react-server. Do not add it here and
+      # do not override the script: four modules open with `import 'server-only'`, which
+      # throws under any other resolution condition.
+      - run: pnpm test
+      - run: pnpm build
+```
+
+**No secrets are required, and that is worth protecting.** The suite runs entirely on the
+recorded fixture — no test calls `cdsQuery` or `buildDay`, so nothing reaches the network and
+`NPR_CDS_TOKEN` never needs to exist in GitHub. If a future test needs live CDS, it does not
+belong in this workflow: make it a separate, manually-triggered job, so a fork's pull request
+can never be a route to the token. Confirm this still holds before you commit the file.
+
+**Node 24 here, not 26.** `actions/setup-node` tracks released LTS lines; local development is
+on 26.8.1. If `pnpm build` or `tsc` behaves differently between the two, that difference is
+itself worth knowing before a deploy — report it rather than pinning CI to match local. Prove it works by breaking one test, watching
 the check go red, then reverting. Branch protection on `main` requiring that check is a
 GitHub settings change only Tarik can make — hand it to them, do not skip it silently.
 
