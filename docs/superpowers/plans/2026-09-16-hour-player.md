@@ -271,10 +271,16 @@ const BY_WORD: [Topic, RegExp][] = [
   ['health',   /\b(hospital|patient|doctor|vaccine|medicaid|medicare|mental health|opioid|clinic|disease|birth control)/i],
   ['tech',     /\b(\bai\b|artificial intelligence|software|chip|startup|semiconductor|algorithm|data centre|data center|nasa|researchers)/i],
   // These two are proper nouns whose lower-case forms are ordinary English words, so they
-  // deliberately OMIT the /i flag. That is the entire mechanism: it is what separates
+  // deliberately OMIT the /i flag. The lookahead on Fed handles the one case case-sensitivity
+  // cannot: headlines are sentence-initial capitalised, so "Fed up with delays, riders demand
+  // a bus fix" would otherwise file under business. Measured 8/9 — it removes "Fed up with
+  // delays", "Fed up with potholes" and "Fed by volunteers, the shelter served 300" while
+  // keeping "Fed holds rates steady", "Fed hikes rates again", "Fed chief testifies before
+  // congress", "The Fed is expected to raise interest rates" and "Fed officials signal a
+  // pause". The single miss is a contrived stress case no newsroom would file. That is the entire mechanism: it is what separates
   // "Fed holds rates steady" from "volunteers fed 300 people at the shelter". Do not add
   // /i to these two lines, and do not fold them into the case-insensitive lines below.
-  ['economy',  /\bFed\b/],
+  ['economy',  /\bFed\b(?! (up|by)\b)/],
   ['world',    /\bEU\b/],
   ['economy',  /\b(econom|inflation|tariff|unemploy|wages?|rent|housing market|budget|tax(es|payer)?|layoff|federal reserve|interest rate)/i],
   ['politics', /\b(mayor|alderman|city council|governor|senat|congress|legislat|election|campaign|reelection|ballot|impeach|court|lawsuit|immigration|ice\b)/i],
@@ -311,6 +317,15 @@ test('a programme id is not a desk', () => {
 test('station copy with no topic collection is classified from its words', () => {
   assert.equal(classify(['319418027'], 'Chicago Mayor Brandon Johnson launches reelection campaign', 'ours'), 'politics');
   assert.equal(classify(['319418027'], "How does Chicago's arts spending stack up with other major cities", 'ours'), 'culture');
+});
+
+test('a sentence-initial "Fed up" is not economics', () => {
+  // Case-sensitivity separates Fed the institution from fed the verb — except at the start
+  // of a headline, where everything is capitalised. This is the gap the lookahead closes.
+  assert.notEqual(classify(['319418027'], 'Fed up with delays, riders demand a bus fix', 'ours'), 'economy');
+  assert.notEqual(classify(['319418027'], 'Fed by volunteers, the shelter served 300 last night', 'ours'), 'economy');
+  assert.equal(classify(['319418027'], 'Fed holds rates steady', 'ours'), 'economy');
+  assert.equal(classify(['319418027'], 'Fed chief testifies before congress', 'ours'), 'economy');
 });
 
 test('a station story about nothing on the list falls back to local', () => {
