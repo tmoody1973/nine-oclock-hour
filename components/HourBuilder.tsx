@@ -12,12 +12,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
 import { BULLETIN, HEAVY_TOPICS, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
-import { block, buildWire, HOW_LABEL, LEGAL_ID, placementNote, rollable, used, WHY_NOT } from '@/lib/wire';
+import { block, buildWire, LEGAL_ID, placementNote } from '@/lib/wire';
 import { toPlaylist } from '@/lib/playlist';
 import { ALL_TOPICS, weightsFor } from '@/lib/taste';
 import { VOICES, DEFAULT_VOICE } from '@/lib/voices';
 import { Player } from '@/components/Player';
 import { Aircheck } from '@/components/Aircheck';
+import { Wire, MixBar } from '@/components/Desks';
 import styles from './HourBuilder.module.css';
 
 const VOICE_KEY = 'nine-oclock-hour:voice';
@@ -247,46 +248,14 @@ export function HourBuilder({ day }: { day: DayFile }) {
           </div>
 
           <div className={styles.board}>
-            <section>
-              <div className={styles.rackLabel}><span>What came in</span><span>{wire.length} items</span></div>
-              <div className={styles.wire}>
-                {wire.map((w) => {
-                  const est = !w.len && w.est;
-                  const canRoll = rollable(w);
-                  const lenText = w.len ? clock(w.len) : est ? `≈ ${clock(w.est!)} untimed` : 'text only';
-                  return (
-                    <article key={w.id} className={`${styles.item} ${used(hour, w) ? styles.itemUsed : ''}`}>
-                      <div>
-                        <h3><button type="button" onClick={() => setSheetItem(w)}>{w.title}</button></h3>
-                        <p className={styles.meta}>
-                          <span className={styles.src}>{w.src}</span>
-                          <span>{w.when}</span>
-                          <span>{lenText}</span>
-                          <span className={`${styles.flag} ${w.how === 'satellite' || w.how === 'ours' ? styles.flagOk : styles.flagHold}`}>{HOW_LABEL[w.how]}</span>
-                          {w.expires && <span>good until {w.expires}</span>}
-                        </p>
-                      </div>
-                      <div className={styles.acts}>
-                        <button type="button" disabled={!canRoll} onClick={() => addToHour(w, 'tape')}>
-                          {w.len ? `Roll tape ${clock(w.len)}` : est ? `Roll it ≈ ${clock(w.est!)}` : 'No tape'}
-                        </button>
-                        <button type="button" onClick={() => addToHour(w, 'read')}>{w.how === 'station' ? 'Read with credit 0:30' : 'Read 0:30'}</button>
-                        {!canRoll && <span className={styles.why}>{w.len || est ? WHY_NOT[w.how] : 'text only, nothing to roll'}</span>}
-                      </div>
-                      {w.url && (
-                        <div className={styles.listen}>
-                          <a href={w.url} target="_blank" rel="noreferrer">Audition at {w.src}</a>
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
+            <div>
+              <Wire items={wire} hour={hour} degraded={day.degraded} onAdd={addToHour} onOpen={setSheetItem} />
+            </div>
 
             <section>
               <div className={styles.railShell}>
                 <div className={styles.rackLabel}><span>The hour</span><span>9:00 – 9:59</span></div>
+                <MixBar hour={hour} />
                 <div className={styles.readout}>
                   <span className={`${styles.big} ${left < 0 ? styles.bigOver : Math.abs(left) <= 5 ? styles.bigTight : ''}`}>
                     {left < 0 ? '+' : ''}{clock(Math.abs(left))}

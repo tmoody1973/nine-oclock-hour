@@ -43,7 +43,11 @@
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
   border-bottom: 1px solid var(--rule); padding-bottom: 6px; margin-bottom: 10px; }
 
-.wire { display: flex; flex-direction: column; }
+.degraded { border: 1px solid var(--rule); border-left: 3px solid var(--red); border-radius: 3px;
+  padding: 10px 12px; margin-bottom: 16px; font-size: 13px; color: var(--fgSoft); }
+
+.wire { display: flex; flex-direction: column; margin-bottom: 18px; }
+.wire:last-child { margin-bottom: 0; }
 .item { display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
 .itemUsed { opacity: 0.5; }
 .item h3 { font-weight: 600; font-size: 14px; line-height: 1.35; margin: 0; }
@@ -64,6 +68,17 @@
 .why { font-size: 11px; color: var(--fgSoft); text-align: right; max-width: 180px; }
 
 .railShell { background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; padding: 14px; position: sticky; top: 12px; }
+.mixWrap { margin-bottom: 12px; }
+.mixBar { display: flex; height: 26px; border-radius: 3px; overflow: hidden; background: var(--panel2); }
+.mixSeg { display: flex; align-items: center; justify-content: center; overflow: hidden;
+  color: #fff; font-size: 11px; font-weight: 600; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+  border-right: 2px solid var(--panel); }
+.mixSeg:last-child { border-right: 0; }
+.mixNote { margin: 6px 0 0; font-size: 12px; color: var(--amber); }
+/* Visually hidden but present to assistive tech — the numbers a sighted user reads off
+   segment width and color, a screen reader gets from this list instead. */
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .readout { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
 .big { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 30px; font-variant-numeric: tabular-nums; }
 .bigOver { color: var(--red); }
