@@ -1136,9 +1136,13 @@ export function Player({ list, station }: { list: PlayItem[]; station: string })
   useEffect(() => {
     const a = el.current;
     if (!a || !item) return;
+    // Warm the next file FIRST. This line used to sit below the branch, where a spoken read's
+    // `return () => clearTimeout(t)` exited the effect before reaching it — so the track after
+    // every read started cold. Reads are 30 seconds; an un-warmed mp3 on a phone is exactly
+    // where a gap opens in the hour. Traced through the real control flow, not spotted by eye.
+    if (next.current && list[i + 1]?.audio) next.current.src = list[i + 1].audio!;
     if (item.audio) { a.src = item.audio; if (playing) void a.play().catch(() => setPlaying(false)); }
     else if (playing) { const t = setTimeout(() => setI((n) => n + 1), item.seconds * 1000); return () => clearTimeout(t); }
-    if (next.current && list[i + 1]?.audio) next.current.src = list[i + 1].audio!;  // warm the next file
   }, [i, playing, item, list]);
 
   useEffect(() => {
