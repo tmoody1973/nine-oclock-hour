@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { byDesk, mixOf, DESK_ORDER, DESK_COLOR } from './desks';
-import type { Block, WireItem } from './types';
+import { byDesk, mixOf, DESK_ORDER, DESK_NAME, DESK_COLOR } from './desks';
+import type { Block, Topic, WireItem } from './types';
 
 const item = (id: string, topic: WireItem['topic']): WireItem =>
   ({ id, src: 'NPR', how: 'satellite', kind: 'seg', title: id, teaser: '', url: 'https://npr.org/' + id, topic, when: '2026-09-16', len: 120 });
@@ -65,4 +65,13 @@ test('untimed tape that ran long counts what it actually ran', () => {
 test('DESK_COLOR stays the validated 8-hue set, not invented extras', () => {
   const colors = new Set(DESK_ORDER.map((t) => DESK_COLOR[t]));
   assert.equal(colors.size, 8);
+});
+
+// Pinned after review: DESK_NAME and DESK_COLOR are Record<Topic, string>, so adding a topic
+// without both is a type error — but DESK_ORDER is just a Topic[], so adding a topic without
+// adding it HERE compiles fine and the desk silently never renders (byDesk only ever maps
+// over DESK_ORDER). This is the one place that omission isn't caught by the compiler.
+test('DESK_ORDER covers every desk in DESK_NAME — a topic missing here never renders', () => {
+  const missing = (Object.keys(DESK_NAME) as Topic[]).filter((t) => !DESK_ORDER.includes(t));
+  assert.deepEqual(missing, []);
 });
