@@ -97,10 +97,16 @@ export async function GET(req: Request) {
   // today's reads safe (it doesn't: a cache hit can set item.audio to a blob from a day file
   // that putDay's own 7-day sweep just evicted earlier in this very call, orphaning it in
   // storage before today's file is ever written), but because the sweep's referenced set is
-  // built from STORED day files and today's isn't stored yet. Every item.audio this run
-  // actually holds — freshly voiced or a cache hit — is referenced by definition, regardless
-  // of what's on disk yet. Publisher tape URLs in `items` are harmless: they can never match
-  // a reads/ object.
+  // built from STORED day files, and today's stored copy predates voicing — the pessimistic
+  // write at the top of this handler put it there before any item.audio was assigned, so it
+  // carries none of this run's audio. Every item.audio this run actually holds — freshly
+  // voiced or a cache hit — is referenced by definition, regardless of what's on disk yet.
+  // Publisher tape URLs in `items` are harmless: they can never match a reads/ object.
+  //
+  // Known assumption, alongside the 1000-per-page one in lib/store.ts: this protection works
+  // by URL string equality between what voiceRead()/head() returns and what list() reports
+  // for the same object. Holds against the real store today (confirmed live) — if Blob ever
+  // changed the form of one but not the other, alsoReferenced would silently stop protecting.
   try {
     const swept = await sweepReads(new Date(), undefined, items.map((item) => item.audio).filter((a): a is string => !!a));
     if (swept.length) console.log(`swept ${swept.length} expired read(s): ${swept.join(', ')}`);
