@@ -989,6 +989,13 @@ Copy `layout()` and the scoring body from the prototype committed in this repo a
 2. Replace the `Math.random()` untimed-tape drift with the `drift` argument, so tests are deterministic. The UI passes `Math.round((Math.random() * 2 - 1) * 40)`.
 3. Return `{ scores, notes, curve, low }` rather than writing to the DOM.
 
+**`notes` contain inline HTML, and that is deliberate.** Each note's text carries
+`<span class="figure">…</span>` around its numbers — `` `The credit ran at <span
+class="figure">${clock(creditAt)}</span>, past its half-hour window.` `` and so on. That markup
+is part of the note's own wording, so R5 says port it verbatim rather than stripping it. The
+consequence lands in Task 7, which renders these: the component must render them as HTML, not
+as text, or the listener sees the tags. Flagged there too.
+
 Keep every constant and every note's wording exactly as the prototype has them.
 
 - [ ] **Step 4: Run the tests**
@@ -1224,6 +1231,21 @@ did not take effect and the test has caught exactly what it is for.
 
 Run: `pnpm test`
 Expected: PASS, including Task 5's four.
+
+**Before you build this: the notes carry HTML.** `score()` returns `notes` whose text contains
+inline `<span class="figure">…</span>` around every number — ported verbatim from the prototype
+because the markup is part of the note's wording. Render them as text and the listener reads
+`<span class="figure">7:12</span>` on their end card.
+
+So render them as HTML, with `dangerouslySetInnerHTML`, and **state in a comment why that is
+safe here**: every note is a string this codebase writes, interpolating only values from
+`clock()` — formatted numbers. No publisher copy, no listener input, nothing from the wire
+reaches a note's text. If that ever stops being true — if a story's headline or teaser is ever
+interpolated into a note — this becomes an injection hole and the note text must be sanitised
+or the markup dropped. Write that condition down next to the call.
+
+Style `.figure` in CSS to match the prototype: it is what makes the timings read as figures
+rather than prose.
 
 - [ ] **Step 6: Build the end card** in `components/Aircheck.tsx`
 
