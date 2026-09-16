@@ -11,6 +11,18 @@ const SAMPLE = "Good morning. Here's what's happening in the news this hour.";
 // Takes `{ voice }` straight from the browser and feeds it into a paid API call and a
 // request to Google — reject anything not in VOICES before either happens, not after.
 export async function POST(req: Request) {
+  // This route is public, unauthenticated, and spends real money — the repo is public, so
+  // its path is readable by anyone, and voice validation only stops an INVALID voice;
+  // nothing stops a million VALID ones. The 5 a.m. cron voices reads through this same
+  // Gemini quota, so a sustained loop here doesn't just cost fractions of a cent — it can
+  // break the morning build, which is the actual product. Off by default, same
+  // refuse-when-unset instinct as CRON_SECRET in the cron route: a producer flips it on for
+  // the afternoon they're choosing a voice, then off again. Checked first, before parsing
+  // the body, before voice validation, before any chance of reaching speak().
+  if (process.env.AUDITION_ENABLED !== '1') {
+    return new Response('not found', { status: 404 });
+  }
+
   const body = await req.json().catch(() => null);
   const voice = body && typeof body === 'object' ? (body as { voice?: unknown }).voice : undefined;
   if (typeof voice !== 'string' || !(VOICES as readonly string[]).includes(voice)) {
