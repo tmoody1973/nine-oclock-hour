@@ -56,3 +56,27 @@ test("clearing a marker on success never loses a concurrent sibling's marker", a
   });
   assert.deepEqual(degraded.slice().sort(), ['voice:3', 'voice:5']);
 });
+
+// The real bug found in app/api/cron/build-day/route.ts: two items sharing an id produce
+// two IDENTICAL `voice:${id}` marker strings, and `filter` removes every occurrence of a
+// string, not one. Run genuinely through pool() (not asserted hypothetically) to prove it:
+// if twin A succeeds while twin B (same id) fails, A's clear wipes out B's marker too — B's
+// failure goes invisible, exactly the silence the pessimistic write exists to prevent.
+test('two items sharing an id share one marker string, so a success clears both (the bug duplicate ids cause)', async () => {
+  const twins = [{ id: 'shared', ok: true }, { id: 'shared', ok: false }];
+  let degraded = twins.map((t) => `voice:${t.id}`); // ['voice:shared', 'voice:shared']
+  await pool(twins, 2, async (t) => {
+    if (t.ok) degraded = degraded.filter((d) => d !== `voice:${t.id}`);
+  });
+  assert.deepEqual(degraded, [], 'both markers vanished even though one twin genuinely failed');
+});
+
+// The actual fix, proven in isolation: route.ts now dedupes its to-voice list by id before
+// pre-marking, so there is only ever one marker per id — nothing left for a sibling's
+// success to collide with.
+test('deduping by id before pre-marking leaves exactly one entry per id', () => {
+  const raw = [{ id: 'shared' }, { id: 'shared' }, { id: 'solo' }];
+  const seen = new Set<string>();
+  const deduped = raw.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
+  assert.deepEqual(deduped.map((r) => r.id), ['shared', 'solo']);
+});

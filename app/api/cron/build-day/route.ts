@@ -48,7 +48,20 @@ export async function GET(req: Request) {
   // day that simply had no reads to voice. Each item's own marker is cleared the moment it
   // actually succeeds, so a clean run still ends with an empty (or absent) degraded list.
   const items = [...day.network, ...Object.values(day.stations).flatMap((s) => s.local)];
-  const toVoice = items.filter((item) => !item.audio);
+  // Deduped by id, not just filtered by !item.audio: the three network queries in
+  // lib/day.ts are concatenated with no dedupe, so the same CDS story can in principle
+  // appear twice with the same id. Two entries sharing an id would pre-mark two IDENTICAL
+  // `voice:${id}` strings — and the clear below uses `filter`, which removes every matching
+  // occurrence in one call, not one. If the twins ever got different outcomes (one succeeds,
+  // one fails), the successful clear would wipe out the failing twin's marker too, and that
+  // failure would go invisible — exactly the silence the pessimistic write exists to
+  // prevent. Deduping here also means the same story never gets voiced (and paid for) twice.
+  const seenIds = new Set<string>();
+  const toVoice = items.filter((item) => {
+    if (item.audio || seenIds.has(item.id)) return false;
+    seenIds.add(item.id);
+    return true;
+  });
   if (toVoice.length) {
     day.degraded = [...(day.degraded ?? []), ...toVoice.map((item) => `voice:${item.id}`)];
   }
