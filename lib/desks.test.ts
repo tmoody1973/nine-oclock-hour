@@ -74,4 +74,7 @@ test('DESK_COLOR stays the validated 8-hue set, not invented extras', () => {
 test('DESK_ORDER covers every desk in DESK_NAME — a topic missing here never renders', () => {
   const missing = (Object.keys(DESK_NAME) as Topic[]).filter((t) => !DESK_ORDER.includes(t));
   assert.deepEqual(missing, []);
+  // Added after re-review: the check above computes only what is MISSING, and the palette test
+  // uses a Set — so a duplicated entry passes both, while byDesk would render that desk twice.
+  assert.equal(new Set(DESK_ORDER).size, DESK_ORDER.length, 'DESK_ORDER has a duplicate — that desk renders twice');
 });
