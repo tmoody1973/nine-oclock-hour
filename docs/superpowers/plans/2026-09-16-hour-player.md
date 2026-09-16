@@ -1045,6 +1045,35 @@ export function weightsFor(picks: Topic[]): Partial<Record<Topic, number>> {
 
 In `lib/hour.ts`, where the retention walk subtracts for a heavy topic, replace the fixed `2` with `weights[b.topic] ?? 2`.
 
+- [ ] **Step 4b: Test the thing this task exists for**
+
+`weightsFor` has a test. **The integration does not, and the integration is the feature.** Revert
+Step 4's one-line change and every test in this project still passes while the personalisation
+silently disappears — the meter goes back to scoring every listener identically, and the
+product claim "the meter is you" becomes false with nothing going red.
+
+Add this to `lib/taste.test.ts`:
+
+```ts
+test('the meter actually responds to the listener — this is the whole feature', () => {
+  const hour = [seg('pol', 600, { topic: 'politics' }), seg('mus', 600, { topic: 'music' })];
+  const opts = { pledge: false, flash: 'now' as const, drift: 0 };
+  const generic = score(hour, { ...opts, weights: {} });
+  const mine = score(hour, { ...opts, weights: weightsFor(['music', 'local', 'world']) });
+  assert.notEqual(mine.scores.Hold, generic.scores.Hold,
+    'a listener who chose music must not be scored the same as one who chose nothing');
+  assert.ok(mine.scores.Hold > generic.scores.Hold,
+    'and choosing music should make a music-heavy hour hold better, not worse');
+});
+```
+
+**Prove it bites before you move on.** Temporarily revert Step 4 — put the fixed `2` back —
+run this test alone, and confirm it **FAILS**. Then restore the change and confirm it passes.
+Report both results. A modelled figure: an hour of ten minutes politics and ten minutes music
+scores a generic listener around 60 and a music picker around 80, so the gap is roughly
+twenty points and not a rounding artefact. If your numbers come out equal, the integration
+did not take effect and the test has caught exactly what it is for.
+
 - [ ] **Step 5: Run the tests**
 
 Run: `pnpm test`
