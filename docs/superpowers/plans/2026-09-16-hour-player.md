@@ -139,7 +139,7 @@ export type Hour = Block[];
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { WireItem } from './types.ts';
+import type { WireItem } from './types';
 
 test('a wire item with no tape is a read', () => {
   const item: WireItem = { id: 'x', src: 'WNYC', how: 'station', kind: 'seg', title: 't', teaser: '', url: 'https://example.org', topic: 'local', when: 'today', len: 0 };
@@ -446,7 +446,7 @@ not in the parser.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mostCarried } from './day';
-import type { WireItem } from './types.ts';
+import type { WireItem } from './types';
 
 const item = (id: string, src: string, title: string): WireItem =>
   ({ id, src, how: 'station', kind: 'seg', title, teaser: '', url: 'https://example.org/' + id, topic: 'news', when: '2026-09-16', len: 60 });
@@ -914,7 +914,7 @@ the meter would still produce numbers, just not personal ones. Both pure: no DOM
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { layout, score } from './hour';
-import type { Block } from './types.ts';
+import type { Block } from './types';
 
 const seg = (id: string, len: number, extra: Partial<Block> = {}): Block =>
   ({ id, label: id, len, how: 'satellite', kind: 'seg', mode: 'tape', topic: 'news', ...extra });
@@ -1564,7 +1564,7 @@ Then stop. **Tarik merges.** Say in your report that the PR is open and what its
 
 **Files:**
 - Create: `lib/reads.ts`, `lib/reads.test.ts`
-- Modify: `app/api/cron/build-day/route.ts`, `lib/playlist.ts`, `.env.example`
+- Modify: `app/api/cron/build-day/route.ts`, `lib/playlist.ts`, `lib/types.ts`, `.env.example`
 
 **Interfaces:**
 - Consumes: `WireItem` (Task 1), `putDay` (Task 4), `toPlaylist` (Task 6).
@@ -1584,7 +1584,7 @@ Then stop. **Tarik merges.** Say in your report that the PR is open and what its
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { scriptPrompt, readKey } from './reads';
-import type { WireItem } from './types.ts';
+import type { WireItem } from './types';
 
 const item: WireItem = { id: 'g-s308-6913', src: 'WBEZ', how: 'station', kind: 'seg',
   title: "How Chicago's arts spending compares with other cities", teaser: 'The mayor wants his arts investments to define the administration.',
@@ -1749,7 +1749,7 @@ git commit -m "feat: voice the reads with gemini tts, in our own words"
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { byDesk, mixOf, DESK_ORDER } from './desks';
-import type { Block, WireItem } from './types.ts';
+import type { Block, WireItem } from './types';
 
 const item = (id: string, topic: WireItem['topic']): WireItem =>
   ({ id, src: 'NPR', how: 'satellite', kind: 'seg', title: id, teaser: '', url: 'https://npr.org/' + id, topic, when: '2026-09-16', len: 120 });
