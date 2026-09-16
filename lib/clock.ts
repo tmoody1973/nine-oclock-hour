@@ -30,23 +30,31 @@ export type Arc = {
 
 // First match wins, per the brief's reading of the reference key. `silence` and `promo`
 // aren't fields Block carries today (our hour has no billboard/promo furniture — see the
-// plan's "parked for later" note), so they're read loosely rather than added to lib/types.ts
-// for a case nothing yet produces; the order still holds for the day something does.
+// plan's "parked for later" note), so this one local type adds them as optional rather than
+// widening Block itself for a case nothing yet produces. `as Record<string, unknown>` was the
+// wrong tool here: it switched off name checking for `credit`, `window` and `music` too, which
+// are real Block fields — a typo in any of them would have compiled, silently classified
+// everything as 'segment', and still passed every test that doesn't specifically exercise it.
+type ClockBlock = Block & { silence?: boolean; promo?: boolean };
 function classify(b: LayoutRow['b']): ArcKind {
-  const flags = b as Record<string, unknown>;
-  if (flags.silence) return 'silence';
-  if (flags.credit) return 'credit';
-  if (flags.window) return 'window';
-  if (flags.music) return 'bed';
-  if (flags.promo) return 'promo';
-  if ((b as Block).kind === 'newscast') return 'newscast';
+  const f = b as ClockBlock;
+  if (f.silence) return 'silence';
+  if (f.credit) return 'credit';
+  if (f.window) return 'window';
+  if (f.music) return 'bed';
+  if (f.promo) return 'promo';
+  if (f.kind === 'newscast') return 'newscast';
   return 'segment';
 }
 
 export function arcs(rows: LayoutRow[]): Arc[] {
   return rows.map(({ b, at }) => {
     const seconds = b.len;
-    const drawnSeconds = Math.max(seconds, MIN_ARC_SECONDS);
+    // Floored so a tiny element is still visible, and capped so a block at or past the top of
+    // the hour still draws a normal wedge instead of vanishing (endpoints coincide at exactly
+    // HOUR) or wrapping backwards (past HOUR). HOUR - 1, not HOUR: capping at HOUR exactly
+    // reproduces the same vanishing wedge this is fixing.
+    const drawnSeconds = Math.min(Math.max(seconds, MIN_ARC_SECONDS), HOUR - 1);
     const a0 = (at / HOUR) * 360;
     const a1 = a0 + (drawnSeconds / HOUR) * 360;
     return {

@@ -6,11 +6,17 @@
 // screen reader can read by nature, and it is not a control (no click handlers, no
 // tabindex; the rail beside it is the only interactive surface). The same data renders a
 // second way, as a visually-hidden <ol> of plain sentences, which is what assistive tech
-// actually gets. A third, VISIBLE list -- the numbered running order -- is what a sighted
-// person uses to resolve a bare number on a narrow wedge back to a name; it is not
-// `aria-hidden` and not the hidden <ol>'s duplicate, it is its own compact, on-screen index.
-// The fourth list, the class key, is the "what does this color/pattern mean" legend, one row
-// per kind, not one row per element.
+// actually gets. A third list, visible but ALSO `aria-hidden` -- the compact running order --
+// is what a sighted person reads instead of the picture; without hiding it too, a screen
+// reader would announce the whole hour twice, once compactly and once in full sentences. The
+// fourth list, the class key, is the "what does this colour/pattern mean" legend, one row per
+// kind, not one row per element.
+//
+// The ring itself carries no text at all -- not even a number per wedge. `.ring` renders its
+// 320-unit viewBox at 200 CSS px, a 0.625x shrink that lands any on-ring font size under 6 CSS
+// px regardless of a wedge's angular width; a "wide enough" angle threshold was never actually
+// testing legibility in rendered pixels. Shape, colour and pattern carry "what kind of element
+// is this and how big"; the visible list beside the ring carries every name.
 import type { Arc, ArcKind } from '@/lib/clock';
 import styles from './HotClock.module.css';
 
@@ -19,11 +25,6 @@ const CY = 160;
 const R_OUTER = 140;
 const R_INNER = 78;
 const TICK_R = 142;
-// Wedges at least this wide get their name written directly on the ring, horizontally --
-// never curved around the arc (WCAG 2.5.3 territory: text that only reads correctly rotated
-// is text most people can't read at all). Narrower wedges get a number instead, resolved in
-// the running-order list beside the ring.
-const WIDE_DEG = 20;
 
 // Color AND pattern together are the second channel color alone can't provide (never colour
 // alone). Ordered here from lightest to darkest so KIND_ORDER below reads as a real luminance
@@ -33,7 +34,10 @@ const KIND_META: Record<ArcKind, { name: string; color: string; pattern: string 
   silence: { name: 'Silence', color: '#f0ede6', pattern: 'hc-fine-dot' },
   promo: { name: 'Promo', color: '#8fc3e6', pattern: 'hc-hatch' },
   segment: { name: 'Segment', color: '#8b93a3', pattern: 'hc-solid' },
-  window: { name: 'Weather or traffic window', color: '#3f7f7a', pattern: 'hc-open' },
+  // Not just weather/traffic: lib/hour.ts types pitch breaks (pledge week) as the same fixed
+  // window shape, so this name has to cover all three or the hidden list misreports a pitch
+  // break as a weather window. Fixed here, not in lib/hour.ts, which stays untouched.
+  window: { name: 'Fixed window (weather, traffic, or pitch break)', color: '#3f7f7a', pattern: 'hc-open' },
   bed: { name: 'Music bed', color: '#45506b', pattern: 'hc-dot' },
   credit: { name: 'Funding credit', color: '#6e1f1f', pattern: 'hc-hatch-rev' },
   newscast: { name: 'Newscast', color: '#1b1f27', pattern: 'hc-cross' },
@@ -116,42 +120,31 @@ export function HotClock({ arcs }: { arcs: Arc[] }) {
         })}
         <text x={CX} y={24} textAnchor="middle" fontSize="10" letterSpacing="0.08em" fill="var(--fgSoft, #98a1b1)">START</text>
 
-        {arcs.map((a, i) => {
-          const meta = KIND_META[a.kind];
-          const wide = a.a1 - a.a0 >= WIDE_DEG;
-          const mid = polar((R_OUTER + R_INNER) / 2, (a.a0 + a.a1) / 2);
-          return (
-            <g key={a.id} className={styles.arc}>
-              <path
-                d={wedgePath(a.a0, a.a1)}
-                fill={`url(#${meta.pattern})`}
-                stroke="var(--panel, #171b24)"
-                strokeWidth={1}
-                strokeDasharray={a.minWidthApplied ? '3 2' : undefined}
-              />
-              {/* Horizontal, never rotated to follow the arc -- a wide wedge gets its own
-                  name because it fits without curving; a narrow one gets only its number,
-                  resolved in the visible running-order list. */}
-              <text
-                x={mid.x}
-                y={mid.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize={wide ? 9 : 8}
-                fill="#fff"
-                stroke="rgba(0,0,0,0.6)"
-                strokeWidth={2}
-                paintOrder="stroke"
-              >
-                {wide ? a.label : i + 1}
-              </text>
-            </g>
-          );
-        })}
+        {/* Shape, colour and pattern only -- no on-wedge text. `.ring` renders this 320-unit
+            viewBox at 200 CSS px (0.625x), so any font size here lands under 6 CSS px
+            regardless of the wedge's angular width: a "wide enough to fit" threshold on the
+            angle was never actually testing whether the text would be legible in rendered
+            pixels. The visible numbered running-order list beside the ring, and the reference
+            key below it, carry every name instead -- nothing here is unreachable information,
+            just relocated to where it's actually readable. */}
+        {arcs.map((a) => (
+          <path
+            key={a.id}
+            className={styles.arc}
+            d={wedgePath(a.a0, a.a1)}
+            fill={`url(#${KIND_META[a.kind].pattern})`}
+            stroke="var(--panel, #171b24)"
+            strokeWidth={1}
+            strokeDasharray={a.minWidthApplied ? '3 2' : undefined}
+          />
+        ))}
       </svg>
 
       <div className={styles.side}>
-        <ol className={styles.order}>
+        {/* Visible, for sighted users -- but aria-hidden, because the srOnly <ol> below is the
+            one assistive tech actually gets. Without this, a screen reader announced the whole
+            hour twice: once compactly here, then again in full sentences down there. */}
+        <ol className={styles.order} aria-hidden="true">
           {arcs.map((a, i) => (
             <li key={a.id}>
               <span className={styles.num}>{i + 1}</span>

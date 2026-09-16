@@ -40,3 +40,19 @@ test('every arc is classified, and the classes match the reference key', () => {
   const out = arcs([row('wx', 19 * 60, 45, { window: true }), row('uw', 21 * 60, 30, { credit: true }), row('cast', 0, 179, { kind: 'newscast' })]);
   assert.deepEqual(out.map((a) => a.kind), ['window', 'credit', 'newscast']);
 });
+
+test('a block of exactly HOUR seconds still draws a visible wedge, not a vanished one', () => {
+  // At seconds === HOUR the naive floor (max only, no ceiling) puts a1 - a0 at exactly 360:
+  // the wedge's start and end point coincide, and SVG draws nothing.
+  const [a] = arcs([row('full', 0, HOUR)]);
+  assert.equal(a.seconds, HOUR, 'the number never lies, even when the drawn arc is capped');
+  assert.ok(a.a1 - a.a0 > 0 && a.a1 - a.a0 < 360, 'a real, non-degenerate wedge');
+});
+
+test('a block longer than the hour does not wrap the arc backwards', () => {
+  // Past HOUR, the naive floor draws a1 - a0 > 360, which wraps around to a *shorter*
+  // apparent wedge (sweep - 360) instead of the longest one on the ring.
+  const [a] = arcs([row('over', 0, HOUR + 300)]);
+  assert.equal(a.seconds, HOUR + 300, 'the number never lies');
+  assert.equal(a.a1 - a.a0, ((HOUR - 1) / HOUR) * 360, 'clamped to just under a full turn, not wrapped');
+});
