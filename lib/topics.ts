@@ -17,7 +17,7 @@ const BY_ID: Record<string, Topic> = {
 // Station copy carries no topic collection, so the desk comes from the headline and the
 // teaser. First match wins, so the most specific pattern goes first.
 const BY_WORD: [Topic, RegExp][] = [
-  ['music',    /\b(album|band|musician|song|concert|jazz|hip.?hop|orchestra|record label|singer)/i],
+  ['music',    /\b(album|band|musician|song|concert|jazz|hip.?hop|orchestra|record label|singer|music\b|vinyl|rapper|choir|symphony|record shop|setlist|headliner)/i],
   ['climate',  /\b(climate|emissions|drought|wildfire|flooding|heat wave|solar|coal|pipeline|carbon)/i],
   ['health',   /\b(hospital|patient|doctor|vaccine|medicaid|medicare|mental health|opioid|clinic|disease|birth control)/i],
   ['tech',     /\b(\bai\b|artificial intelligence|software|chip|startup|semiconductor|algorithm|data centre|data center|nasa|researchers)/i],

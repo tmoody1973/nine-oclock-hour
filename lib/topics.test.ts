@@ -22,3 +22,17 @@ test('station copy with no topic collection is classified from its words', () =>
 test('a station story about nothing on the list falls back to local', () => {
   assert.equal(classify(['319418027'], 'El Grito returns to the neighbourhood', 'ours'), 'local');
 });
+
+test('the keyword pass covers every desk it claims to, from realistic station headlines', () => {
+  assert.equal(classify(['319418027'], 'Summerfest announces the lineup for its music stages', 'ours'), 'music');
+  assert.equal(classify(['319418027'], 'City breaks ground on a new solar array as drought concerns grow', 'ours'), 'climate');
+  assert.equal(classify(['319418027'], 'New clinic opens to serve patients without insurance', 'ours'), 'health');
+  assert.equal(classify(['319418027'], 'Local startup raises funding for a new AI chip', 'ours'), 'tech');
+  assert.equal(classify(['319418027'], 'Inflation pushes rents higher across the metro area', 'ours'), 'economy');
+  assert.equal(classify(['319418027'], 'Local Ukrainian community holds a vigil for the war in Ukraine', 'ours'), 'world');
+});
+
+test('the music pattern keeps matching plurals and does not match "musical"', () => {
+  assert.equal(classify(['319418027'], 'The record store highlights new albums this week', 'ours'), 'music', 'a trailing boundary would break the plural "albums"');
+  assert.notEqual(classify(['319418027'], 'A musical adaptation opens downtown next month', 'ours'), 'music', 'the bare "music" alternative must not match inside "musical"');
+});
