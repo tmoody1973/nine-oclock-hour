@@ -80,11 +80,9 @@ export function HourBuilder({ day }: { day: DayFile }) {
   }
 
   function togglePledge() {
-    setPledge((p) => {
-      const next = !p;
-      setHour((prev) => prev.map((b) => (b.credit ? { ...b, len: next ? 60 : 30, label: next ? 'Underwriting credit (doubled)' : 'Underwriting credit' } : b)));
-      return next;
-    });
+    const next = !pledge;
+    setPledge(next);
+    setHour((prev) => prev.map((b) => (b.credit ? { ...b, len: next ? 60 : 30, label: next ? 'Underwriting credit (doubled)' : 'Underwriting credit' } : b)));
   }
 
   // Splice the bulletin into the hour (unless skipped) and roll the one drift number the
@@ -106,7 +104,6 @@ export function HourBuilder({ day }: { day: DayFile }) {
 
   function handleAir() {
     if (hour.length < 3) return;
-    if (flash) return finalizeAir(flash);
     setFlashPending(true);
   }
 
@@ -251,13 +248,22 @@ export function HourBuilder({ day }: { day: DayFile }) {
         Headlines, runtimes, teasers and audio links come from each newsroom&rsquo;s own feed and play from their servers; nothing is copied or stored here.
       </p>
 
-      <BulletinModal open={flashPending} onChoose={chooseFlash} />
+      <BulletinModal open={flashPending} onChoose={chooseFlash} onDismiss={() => setFlashPending(false)} />
       <StorySheet item={sheetItem} onClose={() => setSheetItem(null)} />
     </div>
   );
 }
 
-function BulletinModal({ open, onChoose }: { open: boolean; onChoose: (c: FlashChoice) => void }) {
+// A native <dialog> opened with showModal() closes itself on Esc — no React state change
+// requested it. Without `onClose` here, `flashPending` stayed true after Esc while the
+// dialog's own `open` went false: pressing "Put it on air" again asked React to set
+// `flashPending` to the value it already held, which bails out of the re-render, so the
+// `[open]` effect never re-fires and showModal() never runs again. One keystroke, and the
+// most important button in the product goes dead with no visible sign. `onDismiss` mirrors
+// `StorySheet`'s existing `onClose` wiring below, and returns the producer to the desk with
+// the air button still live — the bulletin is not decided by leaving it (see hour.ts: 'skip'
+// costs 6 on-air and 4 freshness points, which Esc must never charge silently).
+function BulletinModal({ open, onChoose, onDismiss }: { open: boolean; onChoose: (c: FlashChoice) => void; onDismiss: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -266,7 +272,7 @@ function BulletinModal({ open, onChoose }: { open: boolean; onChoose: (c: FlashC
     if (!open && el.open) el.close();
   }, [open]);
   return (
-    <dialog ref={ref} className={styles.sheet} aria-labelledby="flash-title">
+    <dialog ref={ref} className={styles.sheet} aria-labelledby="flash-title" onClose={onDismiss}>
       <p style={{ color: 'var(--red)' }}>Bulletin · 9:34 · 1:15</p>
       <h2 id="flash-title">The Fed has announced its decision.</h2>
       <p>Washington is up live in seventy-five seconds. Every station on the network is taking it. Your hour is already built, so something has to give.</p>

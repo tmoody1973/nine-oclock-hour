@@ -39,6 +39,7 @@
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
   border-bottom: 1px solid var(--rule); padding-bottom: 6px; margin-bottom: 10px; }
 
+.wire { display: flex; flex-direction: column; }
 .item { display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
 .itemUsed { opacity: 0.5; }
 .item h3 { font-weight: 600; font-size: 14px; line-height: 1.35; margin: 0; }

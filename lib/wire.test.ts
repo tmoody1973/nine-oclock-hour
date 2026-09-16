@@ -68,6 +68,16 @@ test('buildWire mixes network, the home station\'s own local items, and only the
   assert.deepEqual(wire.map((w) => w.id), ['net1', 'h1', 'h2', 'nb-n1', 'nb-n2']);
 });
 
+// Not reachable through lib/day.ts today (it always writes all six stations), but the
+// score() call site already treats a missing neighbour as possible, so this guards against
+// the two disagreeing — and against a future caller that isn't lib/day.ts.
+test('a station whose neighbour is missing from the day file gets network and its own items, no throw', () => {
+  const broken = day();
+  broken.stations.home.neighbour = 'does-not-exist';
+  const wire = buildWire(broken, 'home');
+  assert.deepEqual(wire.map((w) => w.id), ['net1', 'h1', 'h2']);
+});
+
 test('borrowed neighbour items are relabeled "station" so they cannot be rolled', () => {
   const wire = buildWire(day(), 'home');
   const borrowed = wire.find((w) => w.id === 'nb-n1')!;

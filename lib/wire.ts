@@ -32,7 +32,10 @@ export const LEGAL_ID: Block = { ...FIXED_ID, how: 'podcast', kind: 'seg', mode:
 export function buildWire(day: DayFile, home: string): WireItem[] {
   const station = day.stations[home];
   const neighbour = day.stations[station.neighbour];
-  const borrowed: WireItem[] = neighbour.local.slice(0, 2).map((item) => ({ ...item, id: `nb-${item.id}`, how: 'station' }));
+  // Not currently reachable — lib/day.ts always writes all six stations — but the score()
+  // call site in HourBuilder already treats this lookup as possibly missing (`neighbour?.name`),
+  // so this one matches it rather than the two call sites silently disagreeing about it.
+  const borrowed: WireItem[] = (neighbour?.local ?? []).slice(0, 2).map((item) => ({ ...item, id: `nb-${item.id}`, how: 'station' }));
   return [...day.network, ...station.local, ...borrowed];
 }
 
