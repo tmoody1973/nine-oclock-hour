@@ -1162,9 +1162,21 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
     };
   }, [item, list.length, station]);
 
-  // The hour has run out. Say so, once, in an effect rather than during render — the page
-  // needs this to swap the player for the aircheck.
-  useEffect(() => { if (!item && list.length) onDone?.(); }, [item, list.length, onDone]);
+  // The hour has run out. Say so in an effect rather than during render — the page needs this
+  // to swap the player for the aircheck.
+  //
+  // The latch is not belt-and-braces. `onDone` is in the dependency array, so a parent passing
+  // an inline arrow — which is exactly what Task 8 does — hands this effect a fresh dependency
+  // on every parent render. Without the latch, once the hour has ended ANY unrelated re-render
+  // of the page would call `onDone` again. Harmless for `setDone(true)`, wrong for anything
+  // that counts. Re-arming on `item` matters too: a listener who builds a second hour must get
+  // a second ending. Simulated across four sequences before being written here — a latch that
+  // never re-arms gets the second-hour case wrong.
+  const doneFired = useRef(false);
+  useEffect(() => {
+    if (item) { doneFired.current = false; return; }
+    if (list.length && !doneFired.current) { doneFired.current = true; onDone?.(); }
+  }, [item, list.length, onDone]);
 
   if (!item) return null;
   return (
