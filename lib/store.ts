@@ -42,3 +42,50 @@ export async function getLatestDay(): Promise<DayFile | null> {
     return await fetch(latest.url, { cache: 'no-store' }).then((r) => r.json());
   } catch { return null; }
 }
+
+// Same fail-safe shape as isStale above, for the same reason: a malformed upload timestamp
+// compares false and is KEPT, never deleted. A separate constant and function, not a
+// parameterized isStale, because days/ and reads/ have genuinely different windows (7 days,
+// 3 days) — collapsing them into one shared knob risks changing one when someone means the
+// other. See sweepReads for why 3 days doesn't mean "delete anything 3 days old".
+const READ_RETENTION_DAYS = 3;
+export const isOldRead = (uploadedAt: Date, now = Date.now()) => uploadedAt.getTime() < now - READ_RETENTION_DAYS * 864e5;
+
+// Narrower than @vercel/blob's own types — only the fields sweepReads actually reads or
+// calls — so a test double doesn't have to fake a whole ListBlobResultBlob. Same seam
+// pattern as voiceRead's `blob` parameter in lib/reads.ts: real callers never pass this and
+// get the real @vercel/blob functions via the default.
+type SweepBlob = { url: string; pathname: string; uploadedAt: Date };
+export type StoreBlobDeps = {
+  list: (options: { prefix: string }) => Promise<{ blobs: SweepBlob[] }>;
+  del: (url: string) => Promise<void>;
+};
+const defaultStoreBlobDeps: StoreBlobDeps = { list, del };
+
+// Deletes a voiced read only when it is BOTH older than the retention window AND not
+// referenced by any surviving day file. Day files sweep at 7 days (isStale, above); reads
+// sweep at 3 — and that gap is the whole trap this function exists to avoid. Deleting purely
+// by age would leave day files aged 4-7 pointing at audio that no longer exists: Player loads
+// that URL directly, with no error anywhere when it 404s. So every surviving day file's
+// item.audio values are collected first, and anything still referenced survives regardless
+// of age. Returns what it deleted rather than logging and swallowing — the caller (the cron)
+// is what makes a sweep failure visible, by recording it into day.degraded.
+export async function sweepReads(now = new Date(), blob: StoreBlobDeps = defaultStoreBlobDeps): Promise<string[]> {
+  const { blobs: days } = await blob.list({ prefix: 'days/' });
+  const referenced = new Set<string>();
+  for (const day of days) {
+    try {
+      const file: DayFile = await fetch(day.url, { cache: 'no-store' }).then((r) => r.json());
+      for (const item of [...file.network, ...Object.values(file.stations).flatMap((s) => s.local)]) {
+        if (item.audio) referenced.add(item.audio);
+      }
+    } catch { /* an unreadable day file references nothing it would have kept alive anyway */ }
+  }
+
+  // Same volume assumption as putDay's own sweep, one order of magnitude more generous:
+  // ~26 reads/day × a 3-day window is ~78 objects, nowhere near list()'s 1000-per-page cap.
+  const { blobs: reads } = await blob.list({ prefix: 'reads/' });
+  const toDelete = reads.filter((r) => isOldRead(r.uploadedAt, now.getTime()) && !referenced.has(r.url));
+  await Promise.all(toDelete.map((r) => blob.del(r.url)));
+  return toDelete.map((r) => r.pathname);
+}
