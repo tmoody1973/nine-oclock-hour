@@ -818,6 +818,27 @@ Copy `layout()` and the scoring body from the prototype committed in this repo a
 
 > The earlier draft of this step pointed at a session scratchpad under `/private/tmp/claude-502/...`. That path is temporary and belongs to a different session; it happens to still exist today and is byte-identical to the repo copy (54,065 bytes each), but it will be cleaned up and then this step would have had no source at all. Use the repo copy — it is the one under version control.
 
+**Where everything is, so you are not hunting through 54KB of HTML.** Line numbers in `prototype/index.html`:
+
+| what | line | note |
+|---|---|---|
+| `const HOUR = 3540, READ = 30` | 226 | **the hour is 3540s, not 3600** — 59 minutes of programming; the 1:00 legal ID is a block, not slack |
+| `const WINDOWS` | 228 | `wx` at `19*60` len 45, `tx` at `49*60` len 45 |
+| `const UNDERWRITING_BY = 30 * 60` | 229 | |
+| `const BULLETIN` | 230 | len 75, `at: 34*60`, topic `economy` |
+| `const PITCHES` | 235 | `12*60` and `42*60`, len 120 each — pledge week only |
+| `let pledge = false` | 236 | the module state change 1 replaces with an argument |
+| `function layout(blocks)` | **238–262** | one argument today; export it as `layout(blocks, pledge)` |
+| `const FIXED_ID` | 415 | legal ID, len 60, `fixed: true` |
+| `function air()` | **542–~672** | the scoring body lives inside this; it is not a `score()` function |
+| `let clockScore` | 596 | |
+| the five weights | **652** | `[['Clock',clockScore,30],['On air',onair,25],['Freshness',fresh,15],['Mix',mix,15],['Hold',holdScore,15]]` |
+| `drawHold(curve)` | 661, 674 | the retention line — `score()` returns `curve`, it does not draw |
+
+**There is no `score()` function to copy.** The scoring is inline inside `air()`, which also writes to the DOM (`$('#scores').innerHTML`, `$('#lamp')`) and touches `localStorage`. Change 3 is therefore an extraction, not a rename: lift the calculation out of `air()`, return `{ scores, notes, curve, low }`, and leave every DOM write behind in the component that calls it.
+
+**The clock arithmetic checks out, in case it looks wrong.** With `HOUR = 3540`, this task's test — a 60s fixed legal ID plus a 3390s segment plus the two 45s windows — totals exactly 3540 and correctly scores full marks. It is not an off-by-sixty.
+
 1. Export `layout(blocks, pledge)` and `score(hour, { pledge, flash, drift, weights })` instead of reading module-level state.
 2. Replace the `Math.random()` untimed-tape drift with the `drift` argument, so tests are deterministic. The UI passes `Math.round((Math.random() * 2 - 1) * 40)`.
 3. Return `{ scores, notes, curve, low }` rather than writing to the DOM.
