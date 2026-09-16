@@ -40,25 +40,37 @@ export async function GET(req: Request) {
   // fell back to yesterday via getLatestDay(). Now a timeout costs reads, never the day —
   // still true even at 300s and 6-way concurrency, since nothing about raising the budget
   // changes what happens if it's still not enough some morning.
-  await putDay(day);
-  // Voice every item with no tape so it can go on air read, in our own words, up to
-  // READ_CONCURRENCY at a time. A read that fails to voice becomes a card in the player, not
-  // a failed cron — but the failure itself must be visible. Without `degraded`, a dead or
-  // missing GEMINI_API_KEY (rejected by Gemini, swallowed here) looks exactly like a healthy
-  // morning with fewer reads than usual. Items are mutated in place (`item.audio = ...`),
-  // never collected and reassigned — day.network and each station's .local array keep their
-  // original order regardless of which item finishes voicing first.
+  //
+  // The first write is PESSIMISTIC: every item about to be attempted is pre-marked
+  // `voice:${id}` in `degraded`, before any of them run. Without this, a run killed by the
+  // timeout mid-loop leaves behind the file from this same putDay() call — but written
+  // BEFORE voicing, carrying no degraded markers at all, indistinguishable from a healthy
+  // day that simply had no reads to voice. Each item's own marker is cleared the moment it
+  // actually succeeds, so a clean run still ends with an empty (or absent) degraded list.
   const items = [...day.network, ...Object.values(day.stations).flatMap((s) => s.local)];
-  await pool(items, READ_CONCURRENCY, async (item) => {
-    if (item.audio) return;
+  const toVoice = items.filter((item) => !item.audio);
+  if (toVoice.length) {
+    day.degraded = [...(day.degraded ?? []), ...toVoice.map((item) => `voice:${item.id}`)];
+  }
+  await putDay(day);
+
+  await pool(toVoice, READ_CONCURRENCY, async (item) => {
     try {
       item.audio = await voiceRead(item, READ_VOICE);
       item.spoken = true;
+      // Clear only this item's own marker — never anyone else's. Safe under concurrency:
+      // the read of `day.degraded` and the write back happen on the same line, with no
+      // `await` between them, so this whole statement runs to completion before the event
+      // loop can hand control to any other worker. Two workers finishing "at the same time"
+      // still clear one at a time, each against the array the other just left behind — see
+      // lib/pool.test.ts for the same pattern proven under real staggered concurrency.
+      day.degraded = (day.degraded ?? []).filter((d) => d !== `voice:${item.id}`);
     } catch (e) {
       console.error(`voice ${item.id} failed, leaving it as a card — ${(e as Error).message}`);
-      day.degraded = [...(day.degraded ?? []), `voice:${item.id}`];
+      // Its marker is already sitting in day.degraded from the pessimistic write above.
     }
   });
+  if (day.degraded?.length === 0) delete day.degraded; // absent on a healthy day — see lib/types.ts
   const url = await putDay(day);
   // `degraded` names any feed that failed this morning. It is the only machine-readable
   // signal that the wire is thin because something broke rather than because nobody filed,

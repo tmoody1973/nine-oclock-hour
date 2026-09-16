@@ -37,3 +37,22 @@ test('one item throwing does not stop the rest from being processed', async () =
   });
   assert.deepEqual(seen.slice().sort((a, b) => a - b), [1, 3]);
 });
+
+// Proves the exact pattern app/api/cron/build-day/route.ts uses to track per-item voicing
+// failures under concurrency: an array pre-filled pessimistically, with each success
+// clearing only its own marker via read-filter-reassign. That reassignment has no `await`
+// between reading the array and writing it back, so even with several workers finishing at
+// genuinely overlapping times (staggered by a random delay here, not a same-tick
+// coincidence), JS's run-to-completion semantics mean only one worker's clear executes at a
+// time against the array the one before it just left — no lost updates.
+test("clearing a marker on success never loses a concurrent sibling's marker", async () => {
+  const ids = [1, 2, 3, 4, 5, 6];
+  let degraded = ids.map((id) => `voice:${id}`); // pessimistic: everyone starts marked failed
+  const neverSucceeds = new Set([3, 5]);
+  await pool(ids, 6, async (id) => {
+    await new Promise((r) => setTimeout(r, Math.random() * 15));
+    if (neverSucceeds.has(id)) return; // marker stays, as if voicing had failed
+    degraded = degraded.filter((d) => d !== `voice:${id}`);
+  });
+  assert.deepEqual(degraded.slice().sort(), ['voice:3', 'voice:5']);
+});
