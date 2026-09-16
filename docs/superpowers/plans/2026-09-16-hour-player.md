@@ -21,6 +21,8 @@
 - **Port the prototype's rules verbatim:** 59 minutes of programming plus a 1:00 legal ID; weather window 45s at 19:00; traffic window 45s at 49:00; underwriting credit 30s that must start before 30:00 (60s in pledge week, plus two 2:00 pitch breaks at 12:00 and 42:00); bulletin 75s at 34:00; a read is 30s.
 - **Scoring weights, unchanged from the prototype:** Clock 30, On air 25, Freshness 15, Mix 15, Hold 15.
 - **Run from the repo root.** Checks are `pnpm test`, `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build`.
+- **Test files import siblings WITHOUT the `.ts` extension** — `from './day'`, never `from './day.ts'`. A *value* import ending in `.ts` fails typecheck with TS5097 under this tsconfig; a `import type` does not, because it erases. Every test snippet in this plan originally got this wrong and three separate tasks hit it before it was fixed everywhere.
+- **No `as any` in test fixtures.** `@typescript-eslint/no-explicit-any` is an error here, not a warning. Fixture literals that satisfy a type's required fields do not need a cast; where a helper needs one, give the helper a return type instead.
 - **`server-only` is a real dependency and the test runner needs a flag to survive it.** Four modules below open with `import 'server-only'` — `lib/cds.ts`, `lib/day.ts`, `lib/store.ts`, `lib/reads.ts` — and each has a test that imports it directly. That package is a marker whose exports map resolves to an empty module under the `react-server` condition and **throws unconditionally otherwise**, so a plain `node --test` run crashes on it. Two things follow, both settled in Task 2 and true for every later task: it must be installed (`pnpm add server-only`), and the test script is `node --conditions=react-server --import tsx --test "lib/**/*.test.ts"`. Keep the guard — it is what turns "the CDS token never reaches the browser" into a build error rather than a convention — and do not delete the import to make a test pass.
 - Commit messages end, after a blank line, with:
   `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`
@@ -193,7 +195,7 @@ Expected: `lib/fixtures/me.json` exists and contains five Morning Edition docume
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { toWireItem } from './cds.ts';
+import { toWireItem } from './cds';
 
 const doc = JSON.parse(readFileSync(new URL('./fixtures/me.json', import.meta.url), 'utf8')).resources[0];
 
@@ -300,7 +302,7 @@ Write `lib/topics.test.ts` alongside it, and run `pnpm test` after:
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classify } from './topics.ts';
+import { classify } from './topics';
 
 test('an NPR topic collection id sets the desk', () => {
   assert.equal(classify(['1014', '3'], 'Rep. Massie moves to impeach', 'satellite'), 'politics');
@@ -443,7 +445,7 @@ not in the parser.
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mostCarried } from './day.ts';
+import { mostCarried } from './day';
 import type { WireItem } from './types.ts';
 
 const item = (id: string, src: string, title: string): WireItem =>
@@ -911,7 +913,7 @@ the meter would still produce numbers, just not personal ones. Both pure: no DOM
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layout, score } from './hour.ts';
+import { layout, score } from './hour';
 import type { Block } from './types.ts';
 
 const seg = (id: string, len: number, extra: Partial<Block> = {}): Block =>
@@ -1050,13 +1052,13 @@ git add lib/hour.ts lib/hour.test.ts && git commit -m "feat: pure rules engine p
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toPlaylist } from './playlist.ts';
+import { toPlaylist } from './playlist';
 
 test('items without tape stay in the playlist as cards, not as audio', () => {
   const list = toPlaylist([
     { id: 'a', label: 'With tape', len: 120, audio: 'https://example.org/a.mp3', how: 'satellite', kind: 'seg', mode: 'tape', topic: 'news' },
     { id: 'b', label: 'A read', len: 30, how: 'ours', kind: 'seg', mode: 'read', topic: 'local' },
-  ] as any);
+  ]);
   assert.equal(list.length, 2);
   assert.equal(list[1].audio, undefined);
   assert.equal(list[1].seconds, 30);
@@ -1068,12 +1070,12 @@ test('items without tape stay in the playlist as cards, not as audio', () => {
 // ever looked at. Deleting the guard would have streamed another station's audio out of our
 // player with nothing going red. Every case below therefore uses `mode: 'tape'`.
 test("another station's tape is a card, never a stream", () => {
-  const list = toPlaylist([{ id: 'c', label: 'Theirs', len: 200, audio: 'https://kcrw.example/x.mp3', how: 'station', kind: 'seg', mode: 'tape', topic: 'local' }] as any);
+  const list = toPlaylist([{ id: 'c', label: 'Theirs', len: 200, audio: 'https://kcrw.example/x.mp3', how: 'station', kind: 'seg', mode: 'tape', topic: 'local' }]);
   assert.equal(list[0].audio, undefined, 'display-only: link out, never stream it ourselves');
 });
 
 test('podcast audio is not cleared for broadcast', () => {
-  const list = toPlaylist([{ id: 'p', label: 'Pod', len: 200, audio: 'https://pod.example/x.mp3', how: 'podcast', kind: 'seg', mode: 'tape', topic: 'culture' }] as any);
+  const list = toPlaylist([{ id: 'p', label: 'Pod', len: 200, audio: 'https://pod.example/x.mp3', how: 'podcast', kind: 'seg', mode: 'tape', topic: 'culture' }]);
   assert.equal(list[0].audio, undefined);
 });
 
@@ -1081,7 +1083,7 @@ test('network and our own tape DO stream — the guard must not block everything
   const list = toPlaylist([
     { id: 'n', label: 'Net', len: 200, audio: 'https://npr.example/n.mp3', how: 'satellite', kind: 'seg', mode: 'tape', topic: 'news' },
     { id: 'o', label: 'Ours', len: 200, audio: 'https://ours.example/o.mp3', how: 'ours', kind: 'seg', mode: 'tape', topic: 'local' },
-  ] as any);
+  ]);
   assert.equal(list[0].audio, 'https://npr.example/n.mp3');
   assert.equal(list[1].audio, 'https://ours.example/o.mp3');
 });
@@ -1210,7 +1212,7 @@ git commit -m "feat: play the hour through one audio element with lock-screen co
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { weightsFor } from './taste.ts';
+import { weightsFor } from './taste';
 
 test('a topic you picked costs nothing; one you did not costs double', () => {
   const w = weightsFor(['music', 'local', 'world']);
@@ -1444,7 +1446,7 @@ Then stop. **Tarik merges.** Say in your report that the PR is open and what its
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scriptPrompt, readKey } from './reads.ts';
+import { scriptPrompt, readKey } from './reads';
 import type { WireItem } from './types.ts';
 
 const item: WireItem = { id: 'g-s308-6913', src: 'WBEZ', how: 'station', kind: 'seg',
@@ -1609,7 +1611,7 @@ git commit -m "feat: voice the reads with gemini tts, in our own words"
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { byDesk, mixOf, DESK_ORDER } from './desks.ts';
+import { byDesk, mixOf, DESK_ORDER } from './desks';
 import type { Block, WireItem } from './types.ts';
 
 const item = (id: string, topic: WireItem['topic']): WireItem =>
@@ -1811,10 +1813,10 @@ Its key: grey = segment, black = newscast, light blue = promo, slate = music bed
 ```ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { arcs, HOUR } from './clock.ts';
+import { arcs, HOUR } from './clock';
 
-const row = (id: string, at: number, len: number, extra = {}) =>
-  ({ at, b: { id, label: id, len, how: 'satellite', kind: 'seg', mode: 'tape', topic: 'news', ...extra } }) as any;
+const row = (id: string, at: number, len: number, extra: Partial<Block> = {}): { at: number; b: Block } =>
+  ({ at, b: { id, label: id, len, how: 'satellite', kind: 'seg', mode: 'tape', topic: 'news', ...extra } });
 
 test('the hour starts at twelve o clock and runs clockwise', () => {
   const [a] = arcs([row('a', 0, 900)]);
