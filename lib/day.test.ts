@@ -33,3 +33,23 @@ test('a lone story does not count itself as a newsroom', () => {
 test('an empty wire returns no answer rather than throwing', () => {
   assert.deepEqual(mostCarried([]), { title: '', url: '', stations: 0 });
 });
+
+test('generic connectives are not evidence of a shared story', () => {
+  // Use these headlines verbatim. An earlier draft shortened the second one, dropping the
+  // trailing "over" and leaving only two shared words — below the bar, so the test passed
+  // whether or not the STOP list was fixed. A test built from a paraphrased headline proves
+  // nothing. Under the short STOP list these share exactly "have", "their", "over".
+  const out = mostCarried([
+    item('a', 'KQED', 'Over Half a Million Californians Have Signed Up to Delete Their Info From Data Brokers. Here’s How You Can, Too'),
+    item('b', 'All Things Considered', 'A record number of Israelis have been leaving their country over the last 3 years'),
+  ]);
+  assert.equal(out.stations, 0, '"have", "their" and "over" are not a shared subject');
+});
+
+test('two newsrooms on one story, sharing its proper nouns, IS a real match', () => {
+  const out = mostCarried([
+    item('a', 'WBEZ', 'Chicago Mayor Brandon Johnson launches reelection campaign'),
+    item('b', 'WNYC', 'Mayor Brandon Johnson kicks off reelection bid in Chicago'),
+  ]);
+  assert.equal(out.stations, 2);
+});

@@ -40,7 +40,20 @@ const NETWORK_SITE: Record<string, string> = {
   'All Things Considered': 'https://www.npr.org/programs/all-things-considered',
 };
 
-const STOP = new Set(['the','a','an','of','in','on','to','for','and','at','is','are','as','its','after','with','from']);
+// The short version of this list WAS the bug. Words like "have", "their", "over", "this"
+// and "said" survive the length>3 filter and carry no subject, so two unrelated headlines
+// sharing three of them looked like two newsrooms on one story. Measured on a real wire:
+// with the short list, KQED's data-broker story paired with an All Things Considered story
+// about Israeli emigration on "have"/"their"/"over".
+const STOP = new Set([
+  'the','a','an','of','in','on','to','for','and','at','is','are','as','its','after','with','from',
+  'have','has','had','been','being','their','them','they','this','that','these','those',
+  'than','then','over','under','out','into','about','more','most','some','many','much',
+  'new','how','why','what','who','when','where','will','would','could','should',
+  'says','said','say','make','made','take','takes','back','down','just','also','still',
+  'before','during','while','year','years','week','weeks','day','days',
+  'first','last','next','other','another','because','through','against','between','among',
+]);
 const keywords = (title: string) => title.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3 && !STOP.has(w));
 
 // Two newsrooms are on the same story when their headlines share three significant words —
