@@ -37,7 +37,7 @@ test('the meter actually responds to the listener — this is the whole feature'
   // Pinned, not merely ordered. `>` alone still passes if the effect SHRINKS - a personalised
   // listener scoring 6 instead of 8 is a degraded feature that still sorts the right way round.
   // These four are the numbers the comment above claims, verified against the real engine.
-  assert.equal(generic.scores.Hold, 999, 'DELIBERATE BREAK - proving CI catches a failing test');
+  assert.equal(generic.scores.Hold, 5, 'generic listener must still score exactly 5');
   assert.equal(generic.low, 58, 'and bottom out at exactly 58');
   assert.equal(mine.scores.Hold, 8, 'personalised listener must still score exactly 8');
   assert.equal(mine.low, 70, 'and bottom out at exactly 70');
