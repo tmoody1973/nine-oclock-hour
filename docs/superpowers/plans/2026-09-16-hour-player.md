@@ -1776,8 +1776,8 @@ they are tied to that day's wire items. Tarik chose a **three-day** window.
 
 **The trap, and it is the whole reason this is its own task.** A voiced read's URL is only ever
 referenced from a day file (the cron writes it onto `item.audio`, and `Player` loads that URL
-directly). Day files are swept at **? days** (`isStale`, `lib/store.ts`). Deleting reads
-blindly at three days leaves day files aged 4-? pointing at audio that no longer exists —
+directly). Day files are swept at **7 days** (`isStale`, `lib/store.ts`). Deleting reads
+blindly at three days leaves day files aged 4-7 pointing at audio that no longer exists —
 the player would silently fail to load, with no error anywhere. This project has spent a whole
 session eliminating exactly that kind of silent failure; do not add one here.
 
