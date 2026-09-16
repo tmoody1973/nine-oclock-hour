@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PlayItem } from '@/lib/playlist';
 
-export function Player({ list, station }: { list: PlayItem[]; station: string }) {
+export function Player({ list, station, onDone }: { list: PlayItem[]; station: string; onDone?: () => void }) {
   // One element for the session. iOS unlocks audio on the element the user tapped;
   // creating a new one per track loses that unlock and playback silently stops.
   const el = useRef<HTMLAudioElement>(null);
@@ -28,7 +28,19 @@ export function Player({ list, station }: { list: PlayItem[]; station: string })
     navigator.mediaSession.metadata = new MediaMetadata({ title: item.title, artist: item.src, album: `${station} · the nine o'clock hour` });
     navigator.mediaSession.setActionHandler('nexttrack', () => setI((n) => Math.min(n + 1, list.length - 1)));
     navigator.mediaSession.setActionHandler('previoustrack', () => setI((n) => Math.max(n - 1, 0)));
+    // Clear them on unmount. Without this the lock screen keeps this hour's title and its
+    // next/previous buttons after the player is gone, and those buttons call into a component
+    // that no longer exists.
+    return () => {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.setActionHandler('nexttrack', null);
+      navigator.mediaSession.setActionHandler('previoustrack', null);
+    };
   }, [item, list.length, station]);
+
+  // The hour has run out. Say so, once, in an effect rather than during render — the page
+  // needs this to swap the player for the aircheck.
+  useEffect(() => { if (!item && list.length) onDone?.(); }, [item, list.length, onDone]);
 
   if (!item) return null;
   return (
