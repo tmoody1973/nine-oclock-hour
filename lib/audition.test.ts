@@ -76,3 +76,32 @@ test('when enabled, a valid voice reaches speak() and returns audio/wav', async 
     delete process.env.AUDITION_ENABLED;
   }
 });
+
+// The route has no auth, so its own error text is the only thing standing between a curious
+// caller and Google's real error body (which can include the model name and quota detail).
+// The real message must still be logged somewhere a producer can find it — just not on the
+// wire.
+test('a downstream failure returns a generic message on the wire; the real one only reaches the console', async () => {
+  process.env.AUDITION_ENABLED = '1';
+  const realFetch = globalThis.fetch;
+  const realConsoleError = console.error;
+  let loggedTheRealError = false;
+  console.error = (...args: unknown[]) => {
+    if (args.some((a) => String(a).includes('quota exceeded for model xyz'))) loggedTheRealError = true;
+  };
+  globalThis.fetch = (async () => {
+    throw new Error('Gemini 429: quota exceeded for model xyz');
+  }) as unknown as typeof fetch;
+  try {
+    const res = await POST(request({ voice: 'Orus' }));
+    assert.equal(res.status, 502);
+    const body = await res.text();
+    assert.equal(body, 'audition failed');
+    assert.ok(!body.includes('quota exceeded'), 'the real error text must never reach the wire');
+    assert.ok(loggedTheRealError, 'the real error must still be logged for a producer to find');
+  } finally {
+    globalThis.fetch = realFetch;
+    console.error = realConsoleError;
+    delete process.env.AUDITION_ENABLED;
+  }
+});

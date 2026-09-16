@@ -36,6 +36,10 @@ export async function POST(req: Request) {
     // with the DOM lib's BodyInit typing, even though the bytes are identical at runtime.
     return new Response(new Uint8Array(wav), { headers: { 'content-type': 'audio/wav' } });
   } catch (err) {
-    return new Response(err instanceof Error ? err.message : 'audition failed', { status: 502 });
+    // The real message (Google's error body, the model name) goes to the console, not the
+    // wire — this route has no auth, so anyone who can reach it would otherwise get it too.
+    // The key itself already moved off the URL to a header; this closes the other leak.
+    console.error('audition failed:', err);
+    return new Response('audition failed', { status: 502 });
   }
 }
