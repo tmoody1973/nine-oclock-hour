@@ -25,6 +25,7 @@
 
 .voicePicker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; width: 100%; }
 .voicePicker .picker { margin-left: 0; }
+.auditionError { font-size: 12px; color: var(--red); }
 
 .rules { display: grid; gap: 10px 22px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   border: 1px solid var(--rule); border-left: 3px solid var(--amber); border-radius: 3px;

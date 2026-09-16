@@ -77,6 +77,13 @@ export function HourBuilder({ day }: { day: DayFile }) {
     try { localStorage.setItem(VOICE_KEY, v); } catch { /* nothing to persist to; the picker still works this session */ }
   }
 
+  // Kept outside React state on purpose: `audio.play()` resolves once playback STARTS, not
+  // once it ends, so the button re-enables while the sample is still talking. A ref (not
+  // state) is how the next click finds and stops the previous Audio before starting a new
+  // one — without it, a second click plays two voices at once, and the first one's object
+  // URL never gets revoked until the tab closes.
+  const auditionAudio = useRef<HTMLAudioElement | null>(null);
+
   // Voices one fixed sample line for a fraction of a cent — never the day's actual reads,
   // which are already voiced and cached by the 5 a.m. cron and can't be changed from here.
   async function audition() {
@@ -88,10 +95,22 @@ export function HourBuilder({ day }: { day: DayFile }) {
       });
       if (!res.ok) throw new Error(await res.text());
       const url = URL.createObjectURL(await res.blob());
+      if (auditionAudio.current) {
+        auditionAudio.current.pause();
+        URL.revokeObjectURL(auditionAudio.current.src);
+      }
       const audio = new Audio(url);
-      audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+      auditionAudio.current = audio;
+      // Both events, not just 'ended': a sample that errors out mid-playback (a bad decode,
+      // the tab losing focus, whatever) must still release its object URL.
+      const cleanup = () => URL.revokeObjectURL(url);
+      audio.addEventListener('ended', cleanup, { once: true });
+      audio.addEventListener('error', cleanup, { once: true });
       await audio.play();
-    } catch {
+    } catch (err) {
+      // The friendly string is what a producer sees; the real one (an unknown-voice 400, a
+      // Gemini 502, whatever) goes to the console so it's still reportable.
+      console.error('audition failed:', err);
       setAuditionError('Could not audition that voice.');
     } finally {
       setAuditioning(false);
@@ -184,8 +203,8 @@ export function HourBuilder({ day }: { day: DayFile }) {
         </p>
         <div className={styles.voicePicker}>
           <label className={styles.picker}>
-            Read voice{' '}
-            <select value={voice} onChange={(e) => chooseVoice(e.target.value)} aria-label="Choose a voice to audition">
+            Audition voice{' '}
+            <select value={voice} onChange={(e) => chooseVoice(e.target.value)}>
               {VOICES.map((v) => (
                 <option key={v} value={v}>{v}</option>
               ))}
@@ -194,7 +213,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
           <button type="button" className={styles.ghost} onClick={audition} disabled={auditioning}>
             {auditioning ? 'Auditioning…' : 'Audition'}
           </button>
-          {auditionError && <span className={styles.why} role="alert">{auditionError}</span>}
+          {auditionError && <span className={styles.auditionError} role="alert">{auditionError}</span>}
           <span className={styles.hint}>Preview only — the morning cron uses its own voice, set on the server.</span>
         </div>
       </header>
