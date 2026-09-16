@@ -95,11 +95,26 @@ export async function speak(text: string, voice: string = DEFAULT_VOICE): Promis
   return pcmToWav(Buffer.from(b64, 'base64'));
 }
 
-export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE): Promise<string> {
+// The only part of head()/put() that voiceRead reads or writes — narrower than
+// @vercel/blob's own return types on purpose, so a test double doesn't have to fake fields
+// nothing here uses. Real `head`/`put` satisfy this structurally with no cast.
+type BlobLike = { url: string };
+type BlobDeps = {
+  head: (key: string) => Promise<BlobLike>;
+  put: (key: string, body: Buffer, opts: { access: 'public'; contentType: string; addRandomSuffix: boolean }) => Promise<BlobLike>;
+};
+const defaultBlobDeps: BlobDeps = { head, put };
+
+// `blob` is a seam, not a config option: real callers never pass it and get the real
+// @vercel/blob functions via the default, exactly like `now = Date.now()` in lib/wire.ts.
+// It exists so a test can prove "a cache hit makes zero API calls" with a counting stub,
+// instead of mocking the @vercel/blob module itself — no experimental Node flag, no global
+// test-command change, nothing that can break on a future Node's module-mocking API.
+export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE, blob: BlobDeps = defaultBlobDeps): Promise<string> {
   // Cache check first, before either Gemini call — a cache hit now costs zero API calls,
   // not the one script-generation call it used to spend even when the TTS step was skipped.
   const key = readKey(item, voice);
-  try { return (await head(key)).url; } catch { /* not voiced yet */ }
+  try { return (await blob.head(key)).url; } catch { /* not voiced yet */ }
 
   const written = await gemini(SCRIPT_MODEL, { contents: [{ parts: [{ text: scriptPrompt(item) }] }] });
   const script: string = stripPreamble(written.candidates?.[0]?.content?.parts?.[0]?.text ?? '', item.src);
@@ -109,6 +124,6 @@ export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE): 
   }
 
   const wav = await speak(script, voice);
-  const { url } = await put(key, wav, { access: 'public', contentType: 'audio/wav', addRandomSuffix: false });
+  const { url } = await blob.put(key, wav, { access: 'public', contentType: 'audio/wav', addRandomSuffix: false });
   return url;
 }

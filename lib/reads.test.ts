@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scriptPrompt, readKey, stripPreamble } from './reads';
+import { scriptPrompt, readKey, stripPreamble, voiceRead } from './reads';
 import type { WireItem } from './types';
 
 const item: WireItem = { id: 'g-s308-6913', src: 'WBEZ', how: 'station', kind: 'seg',
@@ -34,6 +34,35 @@ test('the cache key changes when the voice changes', () => {
 
 test('the same item and voice always produce the same key', () => {
   assert.equal(readKey(item), readKey(item));
+});
+
+// A cache hit must cost zero API calls, not one — the property Important 3 exists to
+// protect. Proved with a seam (voiceRead's third `blob` parameter, defaulting to the real
+// @vercel/blob functions — see lib/reads.ts) rather than mocking the @vercel/blob module:
+// no experimental Node flag, no change to the project's test command, and a fetch spy
+// throws if a script or TTS call is ever attempted, so this fails loudly rather than
+// quietly passing on luck.
+test('a cache hit skips the script call and the TTS call entirely', async () => {
+  const fakeUrl = 'https://blob.example/reads/already-cached.wav';
+  let headCalls = 0;
+  const blob = {
+    head: async () => { headCalls++; return { url: fakeUrl }; },
+    put: async () => { throw new Error('put should never run on a cache hit'); },
+  };
+  const realFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls++;
+    throw new Error('no network call should happen on a cache hit');
+  }) as unknown as typeof fetch;
+  try {
+    const url = await voiceRead(item, 'Kore', blob);
+    assert.equal(url, fakeUrl);
+    assert.equal(headCalls, 1);
+    assert.equal(fetchCalls, 0, 'a cache hit must make zero script or TTS calls');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 // The exact lead-in observed live from gemini-2.5-flash on 2026-09-16, despite the prompt
