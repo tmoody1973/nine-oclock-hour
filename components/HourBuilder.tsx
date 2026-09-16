@@ -15,9 +15,12 @@ import { BULLETIN, HEAVY_TOPICS, HOUR, layout, score, type FlashChoice } from '@
 import { block, buildWire, HOW_LABEL, LEGAL_ID, placementNote, rollable, used, WHY_NOT } from '@/lib/wire';
 import { toPlaylist } from '@/lib/playlist';
 import { ALL_TOPICS, weightsFor } from '@/lib/taste';
+import { VOICES, DEFAULT_VOICE } from '@/lib/voices';
 import { Player } from '@/components/Player';
 import { Aircheck } from '@/components/Aircheck';
 import styles from './HourBuilder.module.css';
+
+const VOICE_KEY = 'nine-oclock-hour:voice';
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
@@ -33,6 +36,9 @@ export function HourBuilder({ day }: { day: DayFile }) {
   const [drift, setDrift] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const [sheetItem, setSheetItem] = useState<WireItem | null>(null);
+  const [voice, setVoice] = useState<string>(DEFAULT_VOICE);
+  const [auditioning, setAuditioning] = useState(false);
+  const [auditionError, setAuditionError] = useState<string | null>(null);
 
   const station = day.stations[home];
   const wire = useMemo(() => buildWire(day, home), [day, home]);
@@ -51,6 +57,45 @@ export function HourBuilder({ day }: { day: DayFile }) {
   function changeStation(id: string) {
     setHome(id);
     resetHour();
+  }
+
+  // localStorage doesn't exist during SSR, so the initial render (and the server's HTML)
+  // must use DEFAULT_VOICE; this syncs from the real preference right after mount, once
+  // `window` exists. That's a genuine one-time sync with an external system, not derived
+  // state — the lint rule wants `useSyncExternalStore` for this, which is real overkill for
+  // a single string nobody else's code depends on reading reactively.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VOICE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved && (VOICES as readonly string[]).includes(saved)) setVoice(saved);
+    } catch { /* private window or blocked storage — stick with DEFAULT_VOICE */ }
+  }, []);
+
+  function chooseVoice(v: string) {
+    setVoice(v);
+    try { localStorage.setItem(VOICE_KEY, v); } catch { /* nothing to persist to; the picker still works this session */ }
+  }
+
+  // Voices one fixed sample line for a fraction of a cent — never the day's actual reads,
+  // which are already voiced and cached by the 5 a.m. cron and can't be changed from here.
+  async function audition() {
+    setAuditioning(true);
+    setAuditionError(null);
+    try {
+      const res = await fetch('/api/audition', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ voice }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+      await audio.play();
+    } catch {
+      setAuditionError('Could not audition that voice.');
+    } finally {
+      setAuditioning(false);
+    }
   }
 
   function togglePick(t: Topic) {
@@ -137,6 +182,21 @@ export function HourBuilder({ day }: { day: DayFile }) {
           From the network feed on <span>{day.date}</span>.
           {day.degraded?.length ? ` (${day.degraded.join(', ')} did not answer this morning.)` : ''}
         </p>
+        <div className={styles.voicePicker}>
+          <label className={styles.picker}>
+            Read voice{' '}
+            <select value={voice} onChange={(e) => chooseVoice(e.target.value)} aria-label="Choose a voice to audition">
+              {VOICES.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className={styles.ghost} onClick={audition} disabled={auditioning}>
+            {auditioning ? 'Auditioning…' : 'Audition'}
+          </button>
+          {auditionError && <span className={styles.why} role="alert">{auditionError}</span>}
+          <span className={styles.hint}>Preview only — the morning cron uses its own voice, set on the server.</span>
+        </div>
       </header>
 
       {!airedHour && (

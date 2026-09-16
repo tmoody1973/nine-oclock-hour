@@ -2,6 +2,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { put, head } from '@vercel/blob';
 import type { WireItem } from './types';
+import { DEFAULT_VOICE } from './voices';
 
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -28,7 +29,8 @@ export function stripPreamble(text: string): string {
 // one named constant each makes the next swap a one-line change instead of a grep.
 export const SCRIPT_MODEL = 'gemini-2.5-flash';
 export const TTS_MODEL = 'gemini-3.1-flash-tts-preview';
-export const DEFAULT_VOICE = 'Kore';
+// DEFAULT_VOICE itself lives in lib/voices.ts — the pure module both this file and the
+// client picker import, so there's exactly one place a new voice or a new default is set.
 
 // Real output is a WAV we build ourselves (see voiceRead), never mp3 — the brief's own
 // naming was wrong here. Voice is part of the key: the same script in two voices must cache
@@ -49,6 +51,34 @@ async function gemini(model: string, body: unknown) {
 // that out — fail fast, before the network round trip.
 const MAX_TTS_BYTES = 4000;
 
+// Gemini returns raw PCM (16-bit, 24kHz) — never mp3 — so it has to be wrapped in a WAV
+// container before a browser will play it. No ffmpeg/audio-lib dependency for a 44-byte
+// header. Extracted so app/api/audition/route.ts can reuse it instead of pasting a second
+// copy — a duplicated header is the kind of thing that gets fixed in one place and not
+// the other.
+export function pcmToWav(pcm: Buffer): Buffer {
+  const wav = Buffer.alloc(44 + pcm.length);
+  wav.write('RIFF', 0); wav.writeUInt32LE(36 + pcm.length, 4); wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(24000, 24); wav.writeUInt32LE(48000, 28); wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(pcm.length, 40);
+  pcm.copy(wav, 44);
+  return wav;
+}
+
+// Calls the TTS model for one piece of text and returns a playable WAV. Also extracted so
+// the audition route shares the exact request shape that's confirmed to return 200 — a
+// second hand-typed copy of the body is exactly the kind of thing that drifts.
+export async function speak(text: string, voice: string = DEFAULT_VOICE): Promise<Buffer> {
+  const spoken = await gemini(TTS_MODEL, {
+    contents: [{ parts: [{ text }] }],
+    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
+  });
+  const b64 = spoken.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!b64) throw new Error('no audio in TTS response');
+  return pcmToWav(Buffer.from(b64, 'base64'));
+}
+
 export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE): Promise<string> {
   const written = await gemini(SCRIPT_MODEL, { contents: [{ parts: [{ text: scriptPrompt(item) }] }] });
   const script: string = stripPreamble(written.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
@@ -60,22 +90,7 @@ export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE): 
   const key = readKey(item, script, voice);
   try { return (await head(key)).url; } catch { /* not voiced yet */ }
 
-  const spoken = await gemini(TTS_MODEL, {
-    contents: [{ parts: [{ text: script }] }],
-    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
-  });
-  const b64 = spoken.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!b64) throw new Error(`no audio for ${item.id}`);
-  // Gemini returns raw PCM (16-bit, 24kHz) — never mp3 — so it has to be wrapped in a WAV
-  // container before a browser will play it. No ffmpeg/audio-lib dependency for a 44-byte header.
-  const pcm = Buffer.from(b64, 'base64');
-  const wav = Buffer.alloc(44 + pcm.length);
-  wav.write('RIFF', 0); wav.writeUInt32LE(36 + pcm.length, 4); wav.write('WAVEfmt ', 8);
-  wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
-  wav.writeUInt32LE(24000, 24); wav.writeUInt32LE(48000, 28); wav.writeUInt16LE(2, 32);
-  wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(pcm.length, 40);
-  pcm.copy(wav, 44);
-
+  const wav = await speak(script, voice);
   const { url } = await put(key, wav, { access: 'public', contentType: 'audio/wav', addRandomSuffix: false });
   return url;
 }
