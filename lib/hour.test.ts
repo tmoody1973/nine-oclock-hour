@@ -74,3 +74,47 @@ test('the "in proportion" note still fires even when the later grim-run penalty 
   assert.ok(out.notes.some(([, text]) => text.includes('in proportion')), 'the proportion note must still fire');
   assert.ok(out.notes.some(([, text]) => text.includes('grim stories ran back to back')), 'and the grim-run warning must also fire');
 });
+
+// Same shape of bug as Mix, in the same function: `onair`'s floor sits at line ~157, but the
+// window-crash loop (-5 per crash), the missed-credit case (-8), and the late-credit case
+// (-6) all fire after it. One long block with no windows dodged and no credit at all produces
+// three crash entries (a block that overruns a window is recorded as an "over" crash when the
+// overrun is first detected, then again as a "late" crash when the window is actually placed)
+// plus the missed-credit penalty, on top of skipping the bulletin — comfortably enough to go
+// negative. Confirmed on the pre-fix code: On air: -4 (25 - 6 skip - 15 three crashes - 8
+// missed credit = -4), matching the shape of the -4/15 Mix bug exactly.
+test('a badly crashed hour still cannot push On air negative', () => {
+  const out = score([seg('a', 3200)], { pledge: false, flash: 'skip', drift: 0, weights: {} });
+  assert.ok(out.scores['On air'] >= 0, 'no score may be negative');
+});
+
+// The bug class, not just this one instance: every headline score is built the same way
+// (start high, subtract, floor somewhere) and nothing stops a future deduction from landing
+// after a floor again. Pinning this across a few adversarial hours catches the next instance
+// without anyone needing to find -N/M on screen first.
+test('no score goes negative across several adversarial hours', () => {
+  const cases: { label: string; blocks: Block[]; opts: Parameters<typeof score>[1] }[] = [
+    { label: 'empty hour', blocks: [], opts: { pledge: false, flash: 'now', drift: 0, weights: {} } },
+    {
+      label: 'all four Mix penalties',
+      blocks: [
+        seg('a', 200, { how: 'station', topic: 'politics' }),
+        seg('b', 200, { how: 'station', topic: 'world' }),
+        seg('c', 200, { how: 'station', topic: 'economy' }),
+      ],
+      opts: { pledge: false, flash: 'now', drift: 0, weights: {} },
+    },
+    { label: 'crashed windows, skipped bulletin, no credit', blocks: [seg('a', 3200)], opts: { pledge: false, flash: 'skip', drift: 0, weights: {} } },
+    {
+      label: 'stale newscast, pledge week, and a badly crashed hour',
+      blocks: [seg('cast', 280, { kind: 'newscast', mode: 'tape', expired: true }), seg('long', 3200)],
+      opts: { pledge: true, flash: 'skip', drift: 0, weights: {} },
+    },
+  ];
+  for (const { label, blocks, opts } of cases) {
+    const out = score(blocks, opts);
+    for (const [key, value] of Object.entries(out.scores)) {
+      assert.ok(value >= 0, `${label}: ${key} went negative (${value})`);
+    }
+  }
+});

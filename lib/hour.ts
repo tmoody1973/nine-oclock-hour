@@ -154,7 +154,11 @@ export function score(hour: Block[], opts: ScoreOpts): ScoreResult {
     mix -= 4;
     notes.push(['warn', `A full show ran inside the hour (<span class="figure">${clock(longBlocks[0].len)}</span>).`, 'A whole episode inside a news hour leaves no room to come back to the audience.']);
   }
-  onair = Math.max(0, onair);
+  // No floor on `onair` here, matching Mix: the window-crash loop, and the missed/late-credit
+  // cases below, all deduct from `onair` after this point. Flooring here only clamped the
+  // first two of its five deductions (bulletin-skip and stale-newscast) and did nothing for
+  // the rest, which is how a badly crashed hour rendered On air as a negative number just like
+  // Mix did. The single floor now lives at the `scores` assembly, same as Mix.
   fresh = Math.max(0, fresh);
 
   // The windows nobody may move.
@@ -264,7 +268,7 @@ export function score(hour: Block[], opts: ScoreOpts): ScoreResult {
 
   const scores: Record<ScoreLabel, number> = {
     Clock: clockScore,
-    'On air': onair,
+    'On air': Math.max(0, onair),
     Freshness: fresh,
     Mix: Math.max(0, mix),
     Hold: holdScore,
