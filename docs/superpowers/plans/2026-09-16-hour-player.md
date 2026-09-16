@@ -1367,7 +1367,47 @@ and renders `<Aircheck>` in the player's place when it fires. Without that wirin
 reaches the end of their hour and the screen simply goes blank — no scores, no retention line,
 no end card, which is the payoff the whole build exists for.
 
+> **This task is two pieces of work, and they are dispatched separately.** Phase 1 builds the
+> page — which is the entire interactive hour-builder and the largest single job left in this
+> plan. Phase 2 ships it. **Commit, report, and stop after Phase 1.** The controller will have
+> the page reviewed on its own before anything is deployed; a large UI bundled into a deploy
+> commit gets reviewed as an afterthought, and the deploy needs Tarik's explicit approval
+> anyway. Do not run any `vercel` command in Phase 1.
+
+### Phase 1 — the page
+
 - [ ] **Step 1: Wire the page** — `app/page.tsx` reads today's file with `getDay(new Date().toISOString().slice(0,10))`, falls back to the most recent day in Blob when the cron has not run, and renders the station picker, wire, rail, player and aircheck. The wire is a flat list at this point; Task 10 replaces it with the desk view, so do not build section grouping here.
+
+**Where the interaction already exists, so this is a port and not an invention.** The prototype
+in `prototype/index.html` (735 lines) has all of it. Line numbers, as with Task 5:
+
+| what | line | note |
+|---|---|---|
+| `clock()`, `$()` | 413, 414 | seconds → `m:ss`, and the query helper |
+| `FIXED_ID` | 415 | the legal ID block the hour always starts with |
+| `home`, `wire`, `hour` | 417 | the three pieces of state: chosen station, available stories, the hour being built |
+| `buildWire()` | 419 | turns the day's items into the pickable list |
+| `byId()` | 425 | |
+| `block(item, mode)` | 427 | makes a schedulable block from a wire item — **this is where tape-vs-read is decided** |
+| `used()` | 434 | whether an item is already in the hour |
+| `start()` | 436 | initial state for a station |
+| `renderWire()` | 446 | the available-stories list |
+| `renderRail()` | 476 | **the hour being built** — add, remove, reorder |
+| `render()` | 496 | both of the above |
+| `placementNote(w)` | 500 | the line explaining why an item can or cannot be rolled |
+| `openSheet(id)` | 511 | the story detail view |
+| `CAN_ROLL`, `WHY_NOT`, `HOW_LABEL` | 263–265 | **the rights vocabulary the UI shows** — which audio may be rolled and the plain-English reason when it may not |
+
+`CAN_ROLL` and `WHY_NOT` are the rights rules made visible to the producer. Port their wording
+verbatim: "another station's tape — read it with credit" is the sentence that teaches the rule.
+
+- [ ] **Step 1b: Commit, report, and stop**
+
+Commit the page. Report what you built, what you ported, and anything in the prototype that
+surprised you. **Then stop and wait.** Phase 2 is dispatched separately after the page is
+reviewed.
+
+### Phase 2 — ship it
 
 - [ ] **Step 2: Local check**
 
