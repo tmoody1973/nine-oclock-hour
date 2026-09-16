@@ -21,6 +21,7 @@
 - **Port the prototype's rules verbatim:** 59 minutes of programming plus a 1:00 legal ID; weather window 45s at 19:00; traffic window 45s at 49:00; underwriting credit 30s that must start before 30:00 (60s in pledge week, plus two 2:00 pitch breaks at 12:00 and 42:00); bulletin 75s at 34:00; a read is 30s.
 - **Scoring weights, unchanged from the prototype:** Clock 30, On air 25, Freshness 15, Mix 15, Hold 15.
 - **Run from the repo root.** Checks are `pnpm test`, `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build`.
+- **`server-only` is a real dependency and the test runner needs a flag to survive it.** Four modules below open with `import 'server-only'` — `lib/cds.ts`, `lib/day.ts`, `lib/store.ts`, `lib/reads.ts` — and each has a test that imports it directly. That package is a marker whose exports map resolves to an empty module under the `react-server` condition and **throws unconditionally otherwise**, so a plain `node --test` run crashes on it. Two things follow, both settled in Task 2 and true for every later task: it must be installed (`pnpm add server-only`), and the test script is `node --conditions=react-server --import tsx --test "lib/**/*.test.ts"`. Keep the guard — it is what turns "the CDS token never reaches the browser" into a build error rather than a convention — and do not delete the import to make a test pass.
 - Commit messages end, after a blank line, with:
   `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`
   `Claude-Session: https://claude.ai/code/session_01JipzCzK5wGnEtupZP1na2E`
@@ -209,7 +210,7 @@ Expected: FAIL — `toWireItem` is not exported.
 
 - [ ] **Step 3b: Write the desk classifier** in `lib/topics.ts`
 
-**Verified on 2026-09-16 against live CDS, and this is why the naive version fails.** A CDS document's `collections` array comes back as `[{ id: "1014" }, { id: "3" }]` — **there is no `name` field on it**. Any classifier that reads `c.name` assigns nothing and every story falls into `news`, which would leave the Mix score (15 points) scoring noise and the taste meter (Task 7) with nothing to grip. Those numeric ids are NPR's own topic collections — the sections of the paper — and they were resolved by fetching each id:
+**Verified on 2026-09-16 against live CDS, and this is why the naive version fails.** A CDS document's `collections` array carries **neither a `name` nor a plain `id`**: each entry is `{ href: "/v1/documents/1017", rels: [...] }`, and the topic id is the last path segment of that href. (An earlier draft of this plan said the entries were `{ id: "1014" }` — that was wrong, and came from a probe script that had already derived the id from the href before printing it. The `id ?? href.split('/').pop()` fallback in `toWireItem` below is therefore load-bearing, not defensive padding: the `id` branch never fires on live data.) Any classifier that reads `c.name` assigns nothing and every story falls into `news`, which would leave the Mix score (15 points) scoring noise and the taste meter (Task 7) with nothing to grip. Those numeric ids are NPR's own topic collections — the sections of the paper — and they were resolved by fetching each id:
 
 | id | NPR topic | our desk | | id | NPR topic | our desk |
 |---|---|---|---|---|---|---|
@@ -255,14 +256,24 @@ const BY_ID: Record<string, Topic> = {
 
 // Station copy carries no topic collection, so the desk comes from the headline and the
 // teaser. First match wins, so the most specific pattern goes first.
+// Three regex details are load-bearing and were each verified against real headlines:
+// `coal\b` carries a trailing boundary so it does not also claim "coalition";
+// the leading \b with NO trailing \b is what lets `album` match "albums"; and the \b is
+// attached to `music\b` alone so the bare word does not also swallow "musical".
 const BY_WORD: [Topic, RegExp][] = [
-  ['music',    /\b(album|band|musician|song|concert|jazz|hip.?hop|orchestra|record label|singer)/i],
-  ['climate',  /\b(climate|emissions|drought|wildfire|flooding|heat wave|solar|coal|pipeline|carbon)/i],
+  ['music',    /\b(album|band|musician|song|concert|jazz|hip.?hop|orchestra|record label|singer|music\b|vinyl|rapper|choir|symphony|record shop|setlist|headliner)/i],
+  ['climate',  /\b(climate|emissions|drought|wildfire|flooding|heat wave|solar|coal\b|pipeline|carbon)/i],
   ['health',   /\b(hospital|patient|doctor|vaccine|medicaid|medicare|mental health|opioid|clinic|disease|birth control)/i],
   ['tech',     /\b(\bai\b|artificial intelligence|software|chip|startup|semiconductor|algorithm|data centre|data center|nasa|researchers)/i],
-  ['economy',  /\b(econom|inflation|tariff|unemploy|wages?|rent|housing market|budget|tax(es|payer)?|layoff|the fed\b|interest rate)/i],
+  // These two are proper nouns whose lower-case forms are ordinary English words, so they
+  // deliberately OMIT the /i flag. That is the entire mechanism: it is what separates
+  // "Fed holds rates steady" from "volunteers fed 300 people at the shelter". Do not add
+  // /i to these two lines, and do not fold them into the case-insensitive lines below.
+  ['economy',  /\bFed\b/],
+  ['world',    /\bEU\b/],
+  ['economy',  /\b(econom|inflation|tariff|unemploy|wages?|rent|housing market|budget|tax(es|payer)?|layoff|federal reserve|interest rate)/i],
   ['politics', /\b(mayor|alderman|city council|governor|senat|congress|legislat|election|campaign|reelection|ballot|impeach|court|lawsuit|immigration|ice\b)/i],
-  ['world',    /\b(ukraine|gaza|israel|china|russia|nato|the eu\b|migrants?|border|foreign minister|united nations)/i],
+  ['world',    /\b(ukraine|gaza|israel|china|russia|nato|migrants?|border|foreign minister|united nations)/i],
   ['culture',  /\b(museum|festival|artist|theatre|theater|film|novel|exhibit|restaurant|chef|arts spending|mural)/i],
 ];
 
@@ -336,7 +347,8 @@ const primaryAudio = (doc: CdsDoc) => {
 
 export function toWireItem(doc: CdsDoc, how: How, src: string): WireItem {
   const audio = primaryAudio(doc);
-  // collections come back as { id } with no name — see Step 3b.
+  // collections arrive as { href, rels } — no name, no plain id. The id is the last
+  // path segment of the href; the `id ??` branch is a belt-and-braces fallback. See Step 3b.
   const ids: string[] = (doc.collections ?? []).map((c: any) => c.id ?? String(c.href ?? '').split('/').pop()).filter(Boolean);
   const topic = classify(ids, `${doc.title ?? ''} ${strip(doc.teaser ?? '')}`, how);
   const day = String(doc.publishDateTime ?? '').slice(0, 10);
@@ -390,6 +402,15 @@ git commit -m "feat: server-side CDS reads and a desk classifier over NPR topic 
 - Consumes: `cdsQuery`, `toWireItem` from Task 2.
 - Produces: `buildDay(now: Date): Promise<DayFile>` and `mostCarried(items: WireItem[]): DayFile['mostCarried']`.
 
+**Every item in the day file must be linkable.** `toWireItem` falls back to `url: ''` when a
+document carries neither `webPages[0].href` nor `nprWebsitePath`. That is fine as a parsing
+default but not as something to publish: the plan's own constraint is that every item on
+screen carries its source and a link back, because NPR's display-only terms are "attribute
+via url". So `buildDay` filters unlinkable items out before they reach the day file — see
+`airable` below. This was caught in Task 2's review as a plan defect rather than an
+implementer defect; the fix belongs here, in the task that assembles what gets published,
+not in the parser.
+
 **The six newsrooms**, each with the neighbour whose tape may not be rolled: 88Nine `s921` (Milwaukee, neighbour `s55`), KCRW `s55` (Los Angeles, `s552`), WBEZ `s308` (Chicago, `s295`), WNYC `s552` (New York, `s308`), WABE `s295` (Atlanta, `s150`), KQED `s150` (the Bay Area, `s921`).
 
 - [ ] **Step 1: Write the failing test** in `lib/day.test.ts`
@@ -435,6 +456,23 @@ export const STATIONS = {
   s150: { name: 'KQED', city: 'the Bay Area', neighbour: 's921' },
 } as const;
 
+// **WBEZ files no web link on any story.** Verified against live CDS on 2026-09-16 by
+// walking every string in a WBEZ document: there is no `webPages`, no `nprWebsitePath`,
+// no canonical page anywhere — only CDS internal paths and the audio enclosure. WNYC omits
+// it occasionally too. Dropping those items would empty Chicago out of a six-newsroom
+// product, so instead we attribute at station level: the item links to the newsroom that
+// filed it. That is weaker than a story link and it is a deliberate trade — see the
+// decision record in Task 8. These six resolved on 2026-09-16 (KCRW answered 429 and WABE
+// 403 to a bare curl, which is anti-bot behaviour, not a bad domain).
+const SITE: Record<string, string> = {
+  s921: 'https://radiomilwaukee.org',
+  s55:  'https://www.kcrw.com',
+  s308: 'https://www.wbez.org',
+  s552: 'https://www.wnyc.org',
+  s295: 'https://www.wabe.org',
+  s150: 'https://www.kqed.org',
+};
+
 const STOP = new Set(['the','a','an','of','in','on','to','for','and','at','is','are','as','its','after','with','from']);
 const keywords = (title: string) => title.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3 && !STOP.has(w));
 
@@ -451,6 +489,21 @@ export function mostCarried(items: WireItem[]): DayFile['mostCarried'] {
   return best;
 }
 
+// NPR's display-only terms are "attribute via url". An item we cannot link back to
+// cannot lawfully go on screen, so it never enters the day file. Dropping one story is
+// harmless; showing an unattributed one is a rights problem. Station items have already
+// been given their newsroom's own site as a fallback by this point, so anything reaching
+// here with no url is network copy that arrived genuinely unattributable. The warning matters because
+// this runs in a cron with nobody watching: a feed that changes shape should be visible
+// in the logs rather than silently thinning the wire.
+function airable(items: WireItem[]): WireItem[] {
+  return items.filter((i) => {
+    if (i.url) return true;
+    console.warn(`dropped ${i.id} from ${i.src}: no url to attribute it to`);
+    return false;
+  });
+}
+
 export async function buildDay(now = new Date()): Promise<DayFile> {
   const date = now.toISOString().slice(0, 10);
   const q = (params: Record<string, string>) => cdsQuery({ sort: 'publishDateTime:desc', ...params });
@@ -461,17 +514,20 @@ export async function buildDay(now = new Date()): Promise<DayFile> {
     q({ collectionIds: '500005', limit: '2' }),
   ]);
 
-  const network: WireItem[] = [
+  const network: WireItem[] = airable([
     ...casts.map((d, i) => ({ ...toWireItem(d, 'satellite', 'NPR'), kind: 'newscast' as const,
       expires: d.recommendUntilDateTime ?? d.expirationDateTime, old: i > 0 })),
     ...me.map((d) => toWireItem(d, 'satellite', 'Morning Edition')),
     ...atc.map((d) => toWireItem(d, 'satellite', 'All Things Considered')),
-  ];
+  ]);
 
   const stations: DayFile['stations'] = {} as DayFile['stations'];
   for (const [id, s] of Object.entries(STATIONS)) {
     const docs = await q({ collectionIds: '319418027', ownerHrefs: `https://organization.api.npr.org/v4/services/${id}`, limit: '6' });
-    stations[id] = { ...s, local: docs.map((d) => toWireItem(d, 'ours', s.name)) };
+    stations[id] = { ...s, local: airable(docs.map((d) => {
+      const item = toWireItem(d, 'ours', s.name);
+      return item.url ? item : { ...item, url: SITE[id] };   // new object, never mutated
+    })) };
   }
 
   const locals = Object.values(stations).flatMap((s) => s.local);
@@ -489,7 +545,7 @@ Expected: PASS.
 ```bash
 NPR_CDS_TOKEN=$(cat ~/.config/npr-cds/token) pnpm exec tsx -e "import('./lib/day.ts').then(async m => { const d = await m.buildDay(); console.log(d.date, d.network.length, Object.keys(d.stations).length, d.mostCarried.stations); })"
 ```
-Expected: today's date, at least 10 network items, 6 stations, and a most-carried count of 2 or more. If a station returns nothing, note it in the report — some newsrooms file rarely — but do not hard-code substitutes.
+Expected: today's date, at least 10 network items, 6 stations, and a most-carried count of 2 or more. If a station returns nothing, note it in the report — some newsrooms file rarely — but do not hard-code substitutes. Also report **how many items `airable` dropped for having no url**, and from which sources: its `console.warn` lines appear in this run's output. Zero is the expected answer and a healthy one; a non-zero count is worth naming, because it means part of the wire is arriving unlinkable.
 
 - [ ] **Step 6: Commit**
 
@@ -866,6 +922,8 @@ vercel deploy
 ```
 
 Add Blob storage in the Vercel dashboard, which sets `BLOB_READ_WRITE_TOKEN` automatically. Then run the job once by hand: `curl -H "Authorization: Bearer $CRON_SECRET" https://<deployment>/api/cron/build-day`.
+
+- [ ] **Step 3b: Write the second decision record** `docs/decisions/002-attribute-at-station-level.md`. WBEZ files no web link on any story and WNYC sometimes omits one, so an item that cannot be linked to its own page is instead linked to the newsroom that filed it. Cover: what NPR's display-only terms actually require ("attribute via url"); that a station-level link is weaker than a story link and whether it satisfies those terms is **a question for NPR Member Partnership, not something this project settled on its own**; the alternative that was rejected (dropping unlinkable items, which would have emptied Chicago out of a six-newsroom product); and what would change it (WBEZ starting to file `webPages`, or written guidance either way). Leave "What actually happened" blank for Tarik.
 
 - [ ] **Step 4: Write the decision record** `docs/decisions/001-stream-never-store.md` covering: why audio streams from each publisher instead of being cached (NPR premium audio is play-or-link; other stations' content is display-only), what that costs (a tunnel on the drive is silence, and no offline mode), and what would change it (written permission from NPR Member Partnership and from each station).
 
