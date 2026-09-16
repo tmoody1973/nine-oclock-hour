@@ -1444,6 +1444,23 @@ reviewed.
 
 ### Phase 2 — ship it
 
+**Two constraints the Esc fix depends on — do not break these while shipping.** They came out
+of a re-review after a bug that made the product's most important button die silently, and
+neither is visible to `tsc`, to any test, or to a casual reading of the component.
+
+1. **`BulletinModal` must stay unconditionally mounted** (`components/HourBuilder.tsx:251`) —
+   outside the `!airedHour &&` block, and with **no `key`**. That is what guarantees its
+   `[open]` effect never re-runs holding a stale `open === true`. Move it inside a conditional,
+   or give it a key, and a remount re-fires the effect and re-opens the bulletin *over the
+   playing hour*.
+2. **`onDismiss` must stay idempotent.** Since the fix, it fires on *programmatic* closes too
+   (the `el.close()` at `:272`), not only when a producer presses Esc — so it runs on the happy
+   path as well. That is harmless while it does exactly one idempotent thing. It stops being
+   harmless the moment it gains an analytics ping, a toast, or any score consequence, which
+   would then fire every time anyone chooses a bulletin option. An `if (open)` guard inside it
+   would pin this permanently if you would rather not rely on the convention.
+
+
 - [ ] **Step 2: Local check**
 
 Run: `pnpm lint && pnpm exec tsc --noEmit && pnpm test && pnpm build`
