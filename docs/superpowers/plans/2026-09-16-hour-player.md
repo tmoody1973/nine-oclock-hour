@@ -1344,12 +1344,9 @@ or the markup dropped. Write that condition down next to the call.
 Style `.figure` in CSS to match the prototype: it is what makes the timings read as figures
 rather than prose.
 
-**Always pass `city` and `neighbour` to `score()`.** They are optional on `ScoreOpts` only
-because `lib/hour.ts` must stay pure and cannot import `STATIONS` from `lib/day.ts`, which is
-behind `import 'server-only'`. Omit them and two notes lose their explanatory text silently —
-"Fewer than two local items" ends with an empty *why*, which reads as a bug to a listener and
-looks like nothing at all to a test. Take both from `day.stations[home]` and pass them on every
-call. A reviewer flagged this on Task 5 precisely because the failure is quiet.
+**This component does not call `score()`** — it receives a `ScoreResult`. Everything about how
+that result was produced, including the `city`/`neighbour` requirement, belongs to whoever calls
+`score()`, which is the page in Task 8.
 
 - [ ] **Step 6: Build the end card** in `components/Aircheck.tsx`
 
@@ -1387,6 +1384,15 @@ no end card, which is the payoff the whole build exists for.
 > anyway. Do not run any `vercel` command in Phase 1.
 
 ### Phase 1 — the page
+
+**Always pass `city` and `neighbour` to `score()`.** This page is the only thing that calls it.
+They are optional on `ScoreOpts` only because `lib/hour.ts` must stay pure and cannot import
+`STATIONS` from `lib/day.ts`, which sits behind `import 'server-only'`. Omit them and two notes
+lose their explanatory text silently — "Fewer than two local items" ends with an empty *why*,
+which reads as a bug to a listener and looks like nothing at all to a test. Take both from
+`day.stations[home]`. A reviewer flagged this on Task 5 precisely because the failure is quiet,
+and it was first written into Task 7 by mistake — `<Aircheck>` receives a result, it never
+produces one.
 
 - [ ] **Step 1: Wire the page** — `app/page.tsx` reads today's file with `getDay(new Date().toISOString().slice(0,10))`, falls back to the most recent day in Blob when the cron has not run, and renders the station picker, wire, rail, player and aircheck. The wire is a flat list at this point; Task 10 replaces it with the desk view, so do not build section grouping here.
 
