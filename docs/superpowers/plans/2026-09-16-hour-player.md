@@ -1759,6 +1759,48 @@ Google names no default and publishes no personality descriptions. **Audition fo
 
 - [ ] **Step 5: report the real cost** — how many auditions you ran and what they cost.
 
+### Task 9c: Throw away yesterday's voice
+
+**Files:**
+- Modify: `lib/store.ts`, `app/api/cron/build-day/route.ts`
+- Create: `lib/store.test.ts` additions or a focused test file
+
+**Interfaces:**
+- Consumes: `list`, `del` from `@vercel/blob` (already used by `putDay`'s day sweep).
+- Produces: `sweepReads(now?: Date): Promise<string[]>` returning the pathnames it deleted.
+
+**Why this exists.** Nothing has ever deleted a voiced read. Measured from the real format —
+20 seconds of 16-bit mono at 24 kHz — one read is ~938 KB, a day of 26 is ~24 MB, a year is
+**~8.5 GB and still climbing**. Yesterday's reads are worthless the moment the day rolls over:
+they are tied to that day's wire items. Tarik chose a **three-day** window.
+
+**The trap, and it is the whole reason this is its own task.** A voiced read's URL is only ever
+referenced from a day file (the cron writes it onto `item.audio`, and `Player` loads that URL
+directly). Day files are swept at **? days** (`isStale`, `lib/store.ts`). Deleting reads
+blindly at three days leaves day files aged 4-? pointing at audio that no longer exists —
+the player would silently fail to load, with no error anywhere. This project has spent a whole
+session eliminating exactly that kind of silent failure; do not add one here.
+
+**So the rule is:** delete a `reads/` object when it is older than three days **AND** no
+surviving day file references it. Build the referenced set by listing `days/`, fetching each
+surviving file, and collecting every `item.audio` that points at our own store. Anything still
+referenced survives regardless of age; anything unreferenced and older than three days goes.
+
+- [ ] **Step 1: Write the failing tests first.** A read older than 3 days and unreferenced is
+      deleted; a read older than 3 days but still referenced by a surviving day file is KEPT;
+      a read newer than 3 days is kept regardless. Use the same dependency-injection seam
+      pattern `voiceRead` already uses (`blob: BlobDeps = defaultBlobDeps`) so this is testable
+      without touching a real store. Watch each fail.
+
+- [ ] **Step 2: Implement `sweepReads` in `lib/store.ts`**, beside the existing day sweep so
+      the two read as one idea. Return what it deleted rather than logging and swallowing.
+
+- [ ] **Step 3: Call it from the cron, after the final `putDay`.** A sweep failure must not
+      fail the build: catch it and append to `day.degraded` like a voicing failure, so a sweep
+      that silently stops working is visible rather than invisible.
+
+- [ ] **Step 4: Report the real numbers** — objects examined, objects deleted, bytes reclaimed.
+
 ### Task 10: The front page — desks, and the mix bar
 
 **Files:**
