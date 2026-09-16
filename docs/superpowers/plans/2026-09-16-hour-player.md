@@ -426,12 +426,54 @@ const item = (id: string, src: string, title: string): WireItem =>
 
 test('the most carried story is the title the most newsrooms filed on', () => {
   const out = mostCarried([
-    item('a', 'WNYC', 'The Fed raises rates'),
-    item('b', 'WBEZ', 'The Fed raises rates again'),
+    item('a', 'WNYC', 'The Fed raises interest rates'),
+    item('b', 'WBEZ', 'The Fed raises interest rates again'),
     item('c', 'KQED', 'A strike at the opera'),
   ]);
   assert.equal(out.stations, 2);
   assert.match(out.title, /Fed/);
+});
+
+test('two headlines sharing only a common news phrase are NOT the same story', () => {
+  // The exact false pairing a real day produced under the old two-word bar.
+  const out = mostCarried([
+    item('a', 'WBEZ', 'Washington Park mass shooting rattles community'),
+    item('b', 'WABE', 'Federal case against man accused of plotting mass shooting'),
+  ]);
+  assert.equal(out.stations, 0, 'no answer is the correct answer here');
+  assert.equal(out.title, '', 'and it must not offer a title it cannot stand behind');
+});
+
+test('generic connectives are not evidence of a shared story', () => {
+  // The real false pair a live wire produced once the bar was already at three words.
+  // **Use these headlines verbatim.** An earlier draft of this test shortened the second
+  // one to "...leaving their country", which drops the trailing "over" and leaves only two
+  // shared words — below the bar, so the test passed whether or not the STOP list was
+  // fixed. A test built from a paraphrased headline proves nothing. Under the short STOP
+  // list these two share exactly "have", "their", "over"; under the corrected one, nothing.
+  const out = mostCarried([
+    item('a', 'KQED', 'Over Half a Million Californians Have Signed Up to Delete Their Info From Data Brokers. Here\u2019s How You Can, Too'),
+    item('b', 'All Things Considered', 'A record number of Israelis have been leaving their country over the last 3 years'),
+  ]);
+  assert.equal(out.stations, 0, '"have", "their" and "over" are not a shared subject');
+});
+
+test('two newsrooms on one story, sharing its proper nouns, IS a real match', () => {
+  // Silence is only correct if the thing can still see a genuine match.
+  const out = mostCarried([
+    item('a', 'WBEZ', 'Chicago Mayor Brandon Johnson launches reelection campaign'),
+    item('b', 'WNYC', 'Mayor Brandon Johnson kicks off reelection bid in Chicago'),
+  ]);
+  assert.equal(out.stations, 2);
+});
+
+test('a lone story does not count itself as a newsroom', () => {
+  const out = mostCarried([item('a', 'WBEZ', 'Washington Park mass shooting rattles community')]);
+  assert.equal(out.stations, 0, 'one newsroom is not "most carried"');
+});
+
+test('an empty wire returns no answer rather than throwing', () => {
+  assert.deepEqual(mostCarried([]), { title: '', url: '', stations: 0 });
 });
 ```
 
@@ -464,6 +506,17 @@ export const STATIONS = {
 // filed it. That is weaker than a story link and it is a deliberate trade — see the
 // decision record in Task 8. These six resolved on 2026-09-16 (KCRW answered 429 and WABE
 // 403 to a bare curl, which is anti-bot behaviour, not a bad domain).
+// Network documents need this as much as station copy does. Verified live on 2026-09-16:
+// an NPR News Now newscast document carries NO webPages and NO nprWebsitePath — only the
+// org-API href and image assets — so `airable` dropped every newscast, and the newscast is
+// core furniture in the hour, not incidental content. Keyed by `src`. All three returned
+// 200 on 2026-09-16.
+const NETWORK_SITE: Record<string, string> = {
+  'NPR': 'https://www.npr.org/podcasts/500005/npr-news-now',
+  'Morning Edition': 'https://www.npr.org/programs/morning-edition',
+  'All Things Considered': 'https://www.npr.org/programs/all-things-considered',
+};
+
 const SITE: Record<string, string> = {
   s921: 'https://radiomilwaukee.org',
   s55:  'https://www.kcrw.com',
@@ -473,18 +526,58 @@ const SITE: Record<string, string> = {
   s150: 'https://www.kqed.org',
 };
 
-const STOP = new Set(['the','a','an','of','in','on','to','for','and','at','is','are','as','its','after','with','from']);
+// The short version of this list WAS the bug. Words like "have", "their", "over", "this"
+// and "said" survive the length>3 filter and carry no subject, so two unrelated headlines
+// sharing three of them looked like two newsrooms on one story. Measured on a real wire:
+// with the short list, KQED's data-broker story paired with an All Things Considered story
+// about Israeli emigration on "have"/"their"/"over".
+const STOP = new Set([
+  'the','a','an','of','in','on','to','for','and','at','is','are','as','its','after','with','from',
+  'have','has','had','been','being','their','them','they','this','that','these','those',
+  'than','then','over','under','out','into','about','more','most','some','many','much',
+  'new','how','why','what','who','when','where','will','would','could','should',
+  'says','said','say','make','made','take','takes','back','down','just','also','still',
+  'before','during','while','year','years','week','weeks','day','days',
+  'first','last','next','other','another','because','through','against','between','among',
+]);
 const keywords = (title: string) => title.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3 && !STOP.has(w));
 
-// Two newsrooms are on the same story when their headlines share two significant words.
+// Two newsrooms are on the same story when their headlines share THREE significant words.
+//
+// It was two, and two is wrong. Measured against a real day's wire (52 headlines, 16
+// September 2026) the two-word bar paired WBEZ's "Washington Park mass shooting rattles
+// community..." with WABE's "Federal case against man accused of plotting mass shooting
+// at..." — a Chicago neighbourhood shooting and an Atlanta federal case, joined by the
+// words "mass" and "shooting". Raising the bar to three produced no match at all that day,
+// which is the right answer: on most days no two of these six newsrooms genuinely are on
+// the same story, and the honest output is silence.
+//
+// ponytail: word overlap is a weak signal and this is its measured ceiling. What it DOES
+// catch is two newsrooms using the same proper nouns for one event — "Chicago Mayor Brandon
+// Johnson launches reelection campaign" against "Mayor Brandon Johnson kicks off reelection
+// bid in Chicago" shares five, and "SF Opera cancels performances as musicians strike"
+// against "San Francisco Opera cancels more shows amid musicians strike" shares four. What
+// it CANNOT catch is the same story told in different words: "Fed holds interest rates
+// steady" against "Federal Reserve leaves borrowing costs unchanged" shares nothing at all.
+// So the feature is precise and partly deaf, which is the right way round for a line that
+// makes a confident claim. Rarity weighting does not help (the offending words appeared in
+// only 2 of 52 headlines, so they were already "rare"). The upgrade, when the feature earns
+// it, is sentence embeddings rather than a cleverer word rule. Until then the contract is:
+// **callers must check `stations >= 2` before showing anything.** `stations: 0` means no
+// answer, not a weak answer.
 export function mostCarried(items: WireItem[]): DayFile['mostCarried'] {
-  let best = { title: items[0]?.title ?? '', url: items[0]?.url ?? '', stations: 0 };
+  let best = { title: '', url: '', stations: 0 };
   for (const item of items) {
     const words = new Set(keywords(item.title));
     const stations = new Set(
-      items.filter((other) => keywords(other.title).filter((w) => words.has(w)).length >= 2).map((o) => o.src),
+      items.filter((other) => keywords(other.title).filter((w) => words.has(w)).length >= 3).map((o) => o.src),
     );
-    if (stations.size > best.stations) best = { title: item.title, url: item.url, stations: stations.size };
+    // An item always matches itself, so a lone story scores 1, never 0. Only a genuine
+    // cross-newsroom match is ever recorded — which is what makes `stations: 0` mean
+    // "no answer" rather than "a weak answer", without every caller having to remember it.
+    if (stations.size >= 2 && stations.size > best.stations) {
+      best = { title: item.title, url: item.url, stations: stations.size };
+    }
   }
   return best;
 }
@@ -519,7 +612,7 @@ export async function buildDay(now = new Date()): Promise<DayFile> {
       expires: d.recommendUntilDateTime ?? d.expirationDateTime, old: i > 0 })),
     ...me.map((d) => toWireItem(d, 'satellite', 'Morning Edition')),
     ...atc.map((d) => toWireItem(d, 'satellite', 'All Things Considered')),
-  ]);
+  ].map((i) => (i.url ? i : { ...i, url: NETWORK_SITE[i.src] ?? '' })));
 
   const stations: DayFile['stations'] = {} as DayFile['stations'];
   for (const [id, s] of Object.entries(STATIONS)) {
@@ -540,10 +633,10 @@ export async function buildDay(now = new Date()): Promise<DayFile> {
 Run: `pnpm test`
 Expected: PASS.
 
-- [ ] **Step 5: Prove it against live CDS once**
+- [ ] **Step 5: Prove it against live CDS once** — note the `--conditions=react-server` flag: `lib/day.ts` opens with `import 'server-only'`, whose exports map throws under any other condition, so a bare `pnpm exec tsx -e` fails here exactly as it does for the test runner. Do not remove the guard to make the command run.
 
 ```bash
-NPR_CDS_TOKEN=$(cat ~/.config/npr-cds/token) pnpm exec tsx -e "import('./lib/day.ts').then(async m => { const d = await m.buildDay(); console.log(d.date, d.network.length, Object.keys(d.stations).length, d.mostCarried.stations); })"
+NPR_CDS_TOKEN=$(cat ~/.config/npr-cds/token) node --conditions=react-server --import tsx -e "import('./lib/day.ts').then(async m => { const d = await m.buildDay(); console.log(d.date, d.network.length, Object.keys(d.stations).length, d.mostCarried.stations); })"
 ```
 Expected: today's date, at least 10 network items, 6 stations, and a most-carried count of 2 or more. If a station returns nothing, note it in the report — some newsrooms file rarely — but do not hard-code substitutes. Also report **how many items `airable` dropped for having no url**, and from which sources: its `console.warn` lines appear in this run's output. Zero is the expected answer and a healthy one; a non-zero count is worth naming, because it means part of the wire is arriving unlinkable.
 
@@ -885,7 +978,7 @@ Expected: PASS, including Task 5's four.
 
 - [ ] **Step 6: Build the end card** in `components/Aircheck.tsx`
 
-Show the five scores, the retention line, the notes, and underneath: **"What the network actually did"** — the same morning's Morning Edition rundown in order with runtimes, read from `day.network` filtered to `src === 'Morning Edition'`, so a player can see where the professionals put the light story. Add one line naming `day.mostCarried.title` when it is not in the player's hour: *"Every other newsroom carried this. You didn't."*
+Show the five scores, the retention line, the notes, and underneath: **"What the network actually did"** — the same morning's Morning Edition rundown in order with runtimes, read from `day.network` filtered to `src === 'Morning Edition'`, so a player can see where the professionals put the light story. Add one line naming `day.mostCarried.title` when it is not in the player's hour: *"Every other newsroom carried this. You didn't."* — **but only when `day.mostCarried.stations >= 2`.** `stations: 0` means the heuristic found no genuine match and the line must not render at all; see the note above `mostCarried` in Task 3 for why. On a real day's wire this line will often be absent, and that is correct: a confident sentence built on a weak match tells the listener something false.
 
 - [ ] **Step 7: Commit**
 
