@@ -42,6 +42,12 @@ a {
   text-decoration: none;
 }
 
+/* Ported from prototype/index.html: makes a timing or score read as a figure, not prose. */
+.figure {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
