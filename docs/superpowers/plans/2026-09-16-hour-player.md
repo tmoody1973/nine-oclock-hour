@@ -597,14 +597,31 @@ function airable(items: WireItem[]): WireItem[] {
   });
 }
 
+// This runs at 5 a.m. with nobody watching, and `cdsQuery` throws on any non-200. Without
+// isolation, one flaky feed takes down the whole day: no day file, so every listener who
+// opens the app that morning gets nothing. Verified against the live wire that parsing
+// itself is resilient — `toWireItem` survives a completely empty document, a missing audio
+// asset, and a collections entry with neither id nor href, seven malformed shapes in all,
+// without throwing. The fragility was never in the parsing; it was in the orchestration.
+// So each query is isolated: a failed arm contributes nothing, says so in the logs, and
+// the rest of the wire still ships.
+async function safe<T>(label: string, run: () => Promise<T[]>): Promise<T[]> {
+  try {
+    return await run();
+  } catch (e) {
+    console.error(`day build: ${label} failed, continuing without it \u2014 ${(e as Error).message}`);
+    return [];
+  }
+}
+
 export async function buildDay(now = new Date()): Promise<DayFile> {
   const date = now.toISOString().slice(0, 10);
   const q = (params: Record<string, string>) => cdsQuery({ sort: 'publishDateTime:desc', ...params });
 
   const [me, atc, casts] = await Promise.all([
-    q({ collectionIds: '3', limit: '8' }),
-    q({ collectionIds: '2', limit: '8' }),
-    q({ collectionIds: '500005', limit: '2' }),
+    safe('Morning Edition', () => q({ collectionIds: '3', limit: '8' })),
+    safe('All Things Considered', () => q({ collectionIds: '2', limit: '8' })),
+    safe('NPR News Now', () => q({ collectionIds: '500005', limit: '2' })),
   ]);
 
   const network: WireItem[] = airable([
@@ -616,7 +633,7 @@ export async function buildDay(now = new Date()): Promise<DayFile> {
 
   const stations: DayFile['stations'] = {} as DayFile['stations'];
   for (const [id, s] of Object.entries(STATIONS)) {
-    const docs = await q({ collectionIds: '319418027', ownerHrefs: `https://organization.api.npr.org/v4/services/${id}`, limit: '6' });
+    const docs = await safe(s.name, () => q({ collectionIds: '319418027', ownerHrefs: `https://organization.api.npr.org/v4/services/${id}`, limit: '6' }));
     stations[id] = { ...s, local: airable(docs.map((d) => {
       const item = toWireItem(d, 'ours', s.name);
       return item.url ? item : { ...item, url: SITE[id] };   // new object, never mutated
@@ -638,7 +655,7 @@ Expected: PASS.
 ```bash
 NPR_CDS_TOKEN=$(cat ~/.config/npr-cds/token) node --conditions=react-server --import tsx -e "import('./lib/day.ts').then(async m => { const d = await m.buildDay(); console.log(d.date, d.network.length, Object.keys(d.stations).length, d.mostCarried.stations); })"
 ```
-Expected: today's date, at least 10 network items, 6 stations, and a most-carried count of 2 or more. If a station returns nothing, note it in the report — some newsrooms file rarely — but do not hard-code substitutes. Also report **how many items `airable` dropped for having no url**, and from which sources: its `console.warn` lines appear in this run's output. Zero is the expected answer and a healthy one; a non-zero count is worth naming, because it means part of the wire is arriving unlinkable.
+Expected: today's date, at least 10 network items, 6 stations, and a most-carried count of 2 or more. If a station returns nothing, note it in the report — some newsrooms file rarely — but do not hard-code substitutes. Also confirm that **a failing feed does not take the day down**: temporarily point one station's `ownerHrefs` at a nonsense service id so CDS rejects it, re-run, and check that the run still completes with the other five stations intact and a `day build: <station> failed, continuing without it` line in the output. Restore it afterwards and say you did. Then report **how many items `airable` dropped for having no url**, and from which sources: its `console.warn` lines appear in this run's output. Zero is the expected answer and a healthy one; a non-zero count is worth naming, because it means part of the wire is arriving unlinkable.
 
 - [ ] **Step 6: Commit**
 
