@@ -37,3 +37,40 @@ test('an hour that lands inside five seconds scores full marks on the clock', ()
   const out = score(blocks, { pledge: false, flash: 'now', drift: 0, weights: {} });
   assert.equal(out.scores.Clock, 30);
 });
+
+// Found by playing an hour to its end in a real browser: the aircheck rendered Mix -4/15.
+// Three of Mix's four penalties (fewer than two locals, no music, thin on network) are
+// floored at zero together, but the fourth (three-plus heavy topics back to back) is applied
+// afterward, with no floor of its own — 15 -> 9 -> 4 -> 0 (floor holds) -> -4. This hour trips
+// all four at once: three 'station' blocks (never 'ours', so locals stays 0), all heavy
+// topics back to back (worstRun 3), none music, none network satellite/seg.
+test('all four Mix penalties at once still cannot push the score negative', () => {
+  const blocks = [
+    seg('a', 200, { how: 'station', topic: 'politics' }),
+    seg('b', 200, { how: 'station', topic: 'world' }),
+    seg('c', 200, { how: 'station', topic: 'economy' }),
+  ];
+  const out = score(blocks, { pledge: false, flash: 'now', drift: 0, weights: {} });
+  assert.ok(out.scores.Mix >= 0, 'no score may be negative');
+});
+
+// Deliberate choice, not a side effect of the fix above: "Local, network and music in
+// proportion" describes only the three source-mix checks (locals/music/network), so it must
+// still fire — truthfully — on an hour that passes all three but ALSO ran three heavy topics
+// back to back. That penalty is a separate concern (pacing), and the note is checked against
+// the pre-grim-run value on purpose. If a later edit moved this check after the grim-run
+// deduction, this hour (mix would read 11, not 15) would make the note wrongly disappear.
+test('the "in proportion" note still fires even when the later grim-run penalty also applies', () => {
+  const blocks = [
+    seg('n1', 200, { how: 'ours', topic: 'local' }),
+    seg('n2', 200, { how: 'ours', topic: 'local' }),
+    seg('m1', 200, { music: true, topic: 'music' }),
+    seg('h1', 200, { how: 'satellite', kind: 'seg', topic: 'politics' }),
+    seg('h2', 200, { how: 'satellite', kind: 'seg', topic: 'world' }),
+    seg('h3', 200, { how: 'satellite', kind: 'seg', topic: 'economy' }),
+  ];
+  const out = score(blocks, { pledge: false, flash: 'now', drift: 0, weights: {} });
+  assert.equal(out.scores.Mix, 11, 'only the grim-run penalty should apply: 15 - 4');
+  assert.ok(out.notes.some(([, text]) => text.includes('in proportion')), 'the proportion note must still fire');
+  assert.ok(out.notes.some(([, text]) => text.includes('grim stories ran back to back')), 'and the grim-run warning must also fire');
+});

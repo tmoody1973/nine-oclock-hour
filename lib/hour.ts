@@ -69,7 +69,10 @@ export function layout(blocks: Block[], pledge: boolean): LayoutResult {
 }
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
-const HEAVY_TOPICS: Topic[] = ['politics', 'world', 'economy', 'health', 'news'];
+// Exported so the topic picker can say, truthfully, which picks change anything — the
+// weights map (lib/taste.ts) is only ever consulted on these five (see the retention curve
+// below), so this is the one list a caller needs, not a second hardcoded copy of it.
+export const HEAVY_TOPICS: Topic[] = ['politics', 'world', 'economy', 'health', 'news'];
 
 export type FlashChoice = 'now' | 'late' | 'skip';
 type ScoreLabel = 'Clock' | 'On air' | 'Freshness' | 'Mix' | 'Hold';
@@ -204,7 +207,14 @@ export function score(hour: Block[], opts: ScoreOpts): ScoreResult {
     mix -= 4;
     notes.push(['warn', 'Thin on network news for nine in the morning.', '']);
   }
-  mix = Math.max(0, mix);
+  // No floor here on purpose: 6 + 5 + 4 sums to exactly 15, so these three penalties alone
+  // can never take `mix` below 0 — the floor used to sit right here and was a no-op. The
+  // grim-run penalty below is the fourth one, and it fires after this point; flooring here
+  // instead of after it is what let Mix render as -4/15 in a live aircheck. The single floor
+  // now lives at the `scores` assembly, after every deduction. This check reads the raw,
+  // pre-grim-run value on purpose: "in proportion" describes these three checks, and must
+  // still be true (and still say so) even on an hour that also ran three heavy topics in a
+  // row — that penalty is a separate concern (pacing/exit-ramp), not a mix-of-sources problem.
   if (mix === 15) notes.push(['ok', 'Local, network and music in proportion.', '']);
   if (credited) {
     notes.push(['ok', `${credited} item${credited > 1 ? 's' : ''} from ${opts.neighbour ?? 'a neighbouring station'}, credited and read.`, 'Their reporting, your voice, their name on it.']);
@@ -256,7 +266,7 @@ export function score(hour: Block[], opts: ScoreOpts): ScoreResult {
     Clock: clockScore,
     'On air': onair,
     Freshness: fresh,
-    Mix: mix,
+    Mix: Math.max(0, mix),
     Hold: holdScore,
   };
 

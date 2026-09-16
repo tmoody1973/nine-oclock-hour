@@ -11,7 +11,7 @@
 // back and forth as props.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
-import { BULLETIN, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
+import { BULLETIN, HEAVY_TOPICS, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
 import { block, buildWire, HOW_LABEL, LEGAL_ID, placementNote, rollable, used, WHY_NOT } from '@/lib/wire';
 import { toPlaylist } from '@/lib/playlist';
 import { ALL_TOPICS, weightsFor } from '@/lib/taste';
@@ -149,12 +149,22 @@ export function HourBuilder({ day }: { day: DayFile }) {
           </div>
 
           <div className={styles.topics}>
-            <span>Pick up to three topics you care about:</span>
-            {ALL_TOPICS.map((t) => (
-              <button key={t} type="button" className={`${styles.topicBtn} ${picks.includes(t) ? styles.topicOn : ''}`} onClick={() => togglePick(t)} aria-pressed={picks.includes(t)}>
-                {t}
-              </button>
-            ))}
+            <span>Pick up to three topics you care about — starred ones change your score:</span>
+            {ALL_TOPICS.map((t) => {
+              const counts = HEAVY_TOPICS.includes(t);
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  className={`${styles.topicBtn} ${picks.includes(t) ? styles.topicOn : ''}`}
+                  onClick={() => togglePick(t)}
+                  aria-pressed={picks.includes(t)}
+                  aria-label={`${t}, ${counts ? 'changes your score' : 'does not change your score'}`}
+                >
+                  {t}{counts ? ' *' : ''}
+                </button>
+              );
+            })}
           </div>
 
           <div className={styles.board}>
