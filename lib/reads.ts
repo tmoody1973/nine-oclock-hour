@@ -39,15 +39,19 @@ export const TTS_MODEL = 'gemini-3.1-flash-tts-preview';
 // DEFAULT_VOICE itself lives in lib/voices.ts — the pure module both this file and the
 // client picker import, so there's exactly one place a new voice or a new default is set.
 
-// Keyed on the deterministic INPUTS to a read — item id, headline, teaser, voice — never on
-// the script the model happened to write. The script comes from a fresh, nondeterministic
-// call every time, so keying on it meant the same story tomorrow, a manual re-run, or the
-// same wire item carried by two stations all produced different text, a different key, and
-// full-price TTS spend on every single run — a cache that looked like cost control and
-// wasn't. Keying on inputs also means a corrected headline earns a new key by itself,
-// rather than silently serving audio for the old one.
+// Keyed on the deterministic INPUTS to a read — item id, source, headline, teaser, voice —
+// never on the script the model happened to write. The script comes from a fresh,
+// nondeterministic call every time, so keying on it meant the same story tomorrow, a manual
+// re-run, or the same wire item carried by two stations all produced different text, a
+// different key, and full-price TTS spend on every single run — a cache that looked like
+// cost control and wasn't. Keying on inputs also means a corrected headline earns a new key
+// by itself, rather than silently serving audio for the old one.
+//
+// `src` matters here too: scriptPrompt bakes it into the words ("${item.src} reports"), so
+// two items that share an id, title and teaser but differ in src would otherwise collide on
+// one key — the first voiced wins, and the second airs audio naming the wrong source.
 export const readKey = (item: WireItem, voice: string = DEFAULT_VOICE) =>
-  `reads/${item.id}-${createHash('sha256').update(`${voice}:${item.title}:${item.teaser}`).digest('hex').slice(0, 12)}.wav`;
+  `reads/${item.id}-${createHash('sha256').update(`${voice}:${item.src}:${item.title}:${item.teaser}`).digest('hex').slice(0, 12)}.wav`;
 
 async function gemini(model: string, body: unknown) {
   const res = await fetch(`${API}/${model}:generateContent`, {

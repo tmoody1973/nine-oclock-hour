@@ -32,6 +32,15 @@ test('the cache key changes when the voice changes', () => {
   assert.notEqual(readKey(item, 'Kore'), readKey(item, 'Orus'));
 });
 
+// scriptPrompt bakes `item.src` into the words the model is asked to say ("WBEZ reports").
+// Two items sharing an id, headline and teaser but differing only in src must not collide
+// on one key — the first voiced would win, and the second would air with the wrong source
+// named aloud.
+test('the cache key changes when the source changes, even with everything else identical', () => {
+  const other: WireItem = { ...item, src: 'A Different Newsroom' };
+  assert.notEqual(readKey(item), readKey(other));
+});
+
 test('the same item and voice always produce the same key', () => {
   assert.equal(readKey(item), readKey(item));
 });
