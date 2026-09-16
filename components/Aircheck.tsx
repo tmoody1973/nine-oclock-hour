@@ -40,12 +40,14 @@ export function Aircheck({ result, hour, day }: { result: ScoreResult; hour: Blo
         {result.notes.map(([kind, text, why], i) => (
           <li key={i}>
             <span className={`tag ${kind}`}>{kind}</span>
-            {/* Safe: every note is a string this codebase writes in lib/hour.ts, and the only
-                interpolated values are clock()/percentage output — formatted numbers, never a
-                headline, teaser, or anything else that reached this build off the wire. If a
-                future note ever interpolates publisher copy or listener input, this becomes an
-                injection hole and that note's text needs sanitising (or the <span> markup
-                dropped) before it can keep using dangerouslySetInnerHTML. */}
+            {/* Safe: every note is a string this codebase writes in lib/hour.ts. Three kinds of
+                value get interpolated, and all three are ours: clock()/percentage output (formatted
+                numbers), window labels from the hardcoded WINDOWS array, and the city/neighbour
+                names from the hardcoded STATIONS object in lib/day.ts. None of them is a headline,
+                teaser, or anything else that reached this build off the wire or from the listener.
+                If a future note ever interpolates publisher copy or listener input, this becomes an
+                injection hole and that note's text needs sanitising (or the <span> markup dropped)
+                before it can keep using dangerouslySetInnerHTML. */}
             <span dangerouslySetInnerHTML={{ __html: text }} />
             {why && <small dangerouslySetInnerHTML={{ __html: why }} />}
           </li>
