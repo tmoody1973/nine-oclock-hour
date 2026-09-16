@@ -12,12 +12,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
 import { BULLETIN, HEAVY_TOPICS, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
+import { arcs } from '@/lib/clock';
 import { block, buildWire, LEGAL_ID, placementNote } from '@/lib/wire';
 import { toPlaylist } from '@/lib/playlist';
 import { ALL_TOPICS, weightsFor } from '@/lib/taste';
 import { VOICES, DEFAULT_VOICE } from '@/lib/voices';
 import { Player } from '@/components/Player';
 import { Aircheck } from '@/components/Aircheck';
+import { HotClock } from '@/components/HotClock';
 import { Wire, MixBar } from '@/components/Desks';
 import styles from './HourBuilder.module.css';
 
@@ -45,6 +47,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
   const wire = useMemo(() => buildWire(day, home), [day, home]);
   const plan = useMemo(() => layout(hour, pledge), [hour, pledge]);
   const left = HOUR + 60 - plan.end;
+  const ringArcs = useMemo(() => arcs(plan.rows), [plan.rows]);
 
   function resetHour() {
     setHour([LEGAL_ID]);
@@ -255,6 +258,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
             <section>
               <div className={styles.railShell}>
                 <div className={styles.rackLabel}><span>The hour</span><span>9:00 – 9:59</span></div>
+                <HotClock arcs={ringArcs} />
                 <MixBar hour={hour} />
                 <div className={styles.readout}>
                   <span className={`${styles.big} ${left < 0 ? styles.bigOver : Math.abs(left) <= 5 ? styles.bigTight : ''}`}>

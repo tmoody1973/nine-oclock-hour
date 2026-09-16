@@ -1,0 +1,90 @@
+/* Local custom properties, same trick as HourBuilder.module.css: scoped to .wrap, not
+   :root, so this never fights app/globals.css's light/dark background. */
+.wrap {
+  --edge: #3c4557; --fgSoft: #98a1b1; --panel: #171b24;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.ring {
+  flex: 0 0 auto;
+  width: 200px;
+  height: 200px;
+  max-width: 100%;
+}
+.side {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+/* The clip technique, not display:none -- display:none removes it from assistive tech too. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.order {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--fgSoft);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 2px;
+  border-radius: 2px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  font-size: 9px;
+  margin-right: 4px;
+}
+.floored { color: var(--amber, #e8a33d); }
+
+.key {
+  list-style: none;
+  margin: 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--edge);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: var(--fgSoft);
+}
+.key li { display: flex; align-items: center; gap: 5px; }
+.key svg { border-radius: 2px; flex: 0 0 auto; }
+
+@keyframes hc-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.arc { animation: hc-fade-in 220ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .arc { animation: none; }
+}
+
+/* The ring never forces the page to scroll sideways in the narrow gutter. */
+@media (max-width: 480px) {
+  .wrap { flex-direction: column; }
+  .ring { width: 100%; max-width: 240px; margin: 0 auto; }
+  .side { width: 100%; }
+}
