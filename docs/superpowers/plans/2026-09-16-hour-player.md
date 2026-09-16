@@ -1400,7 +1400,7 @@ in `prototype/index.html` (735 lines) has all of it. Line numbers, as with Task 
 | `home`, `wire`, `hour` | 417 | the three pieces of state: chosen station, available stories, the hour being built |
 | `buildWire()` | 419 | turns the day's items into the pickable list |
 | `byId()` | 425 | |
-| `block(item, mode)` | 427 | makes a schedulable block from a wire item — **this is where tape-vs-read is decided** |
+| `block(item, mode)` | 427 | makes a schedulable block from a wire item — **this is where tape-vs-read is decided**, and it must set `label` from the wire item's `title` (see below) |
 | `used()` | 434 | whether an item is already in the hour |
 | `start()` | 436 | initial state for a station |
 | `renderWire()` | 446 | the available-stories list |
@@ -1409,6 +1409,14 @@ in `prototype/index.html` (735 lines) has all of it. Line numbers, as with Task 
 | `placementNote(w)` | 500 | the line explaining why an item can or cannot be rolled |
 | `openSheet(id)` | 511 | the story detail view |
 | `CAN_ROLL`, `WHY_NOT`, `HOW_LABEL` | 263–265 | **the rights vocabulary the UI shows** — which audio may be rolled and the plain-English reason when it may not |
+
+**`block()` must set `label` from the wire item's `title`, and nothing has proved that yet.**
+Task 7's aircheck matches `day.mostCarried.title` against the hour to decide whether to print
+"Every other newsroom carried this. You didn't." — it compares against `Block.label`, following
+`lib/playlist.ts`'s existing `title: b.label` convention. Its implementer flagged, correctly,
+that no wire→hour converter existed to confirm the assumption. **You are writing that
+converter.** If `label` carries anything other than the story's title, that end-card line goes
+silently wrong — it will either never fire or fire on the wrong story, and no test will notice.
 
 `CAN_ROLL` and `WHY_NOT` are the rights rules made visible to the producer. Port their wording
 verbatim: "another station's tape — read it with credit" is the sentence that teaches the rule.
