@@ -34,7 +34,11 @@ export default async function Play() {
         <Stage
           items={buildWire(day, HOME)}
           now={at.getTime()}
-          station={{ city: home?.city ?? '', neighbour: neighbour?.name ?? home?.neighbour ?? '' }}
+          station={{
+            city: home?.city ?? '',
+            neighbour: neighbour?.name ?? home?.neighbour ?? '',
+            weather: home?.weather,
+          }}
         />
       ) : (
         <p style={{ margin: 0 }}>

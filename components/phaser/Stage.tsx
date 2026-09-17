@@ -13,16 +13,18 @@ import { unlock, type UnlockResult } from '@/lib/audio';
 import { audioLog, disagreement } from '@/lib/audiolog';
 import { MORNING_MINUTES, canAfford, costOf, morningClock, remaining, spend, whyNot } from '@/lib/morning';
 import { nothingToHear, previewSource, sourceNote } from '@/lib/preview';
-import { BULLETIN, READ, score, type FlashChoice } from '@/lib/hour';
+import { BULLETIN, READ, layout, score, type FlashChoice } from '@/lib/hour';
+import { toPlaylist } from '@/lib/playlist';
 import { airGate } from '@/lib/rules';
 import { weightsFor } from '@/lib/taste';
 import { clock } from '@/lib/player';
-import { CAN_ROLL, WHY_NOT, block, used } from '@/lib/wire';
+import { CAN_ROLL, WHY_NOT, airBlocks, block, used } from '@/lib/wire';
 import type { Block, WireItem } from '@/lib/types';
 import { Card } from './Card';
 import { Rundown } from './Rundown';
 import { Bulletin } from './Bulletin';
 import { Aircheck } from './Aircheck';
+import { HourPlayer } from './HourPlayer';
 import type { PlaceControl, PreviewControl, RemoveControl } from './card-controls';
 import type { ApplyMarks } from './wireScene';
 
@@ -31,7 +33,9 @@ export default function Stage({ items, now, station }: {
   now: number;
   // City and neighbouring station, purely so score() can phrase its notes in this station's
   // own terms — "an hour someone in Milwaukee could have heard anywhere".
-  station: { city: string; neighbour: string };
+  // City and neighbour are purely so score() can phrase its notes in this station's own terms.
+  // `weather` is the morning's recorded forecast, which airBlocks() drops into the 19:00 window.
+  station: { city: string; neighbour: string; weather?: string };
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<PhaserNS.Game | null>(null);
@@ -211,6 +215,17 @@ export default function Stage({ items, now, station }: {
     setAiredHour(finalHour);
   }, [hour]);
 
+  // WHAT ACTUALLY AIRS, and it is not the array the producer built. `airedHour` holds their own
+  // blocks plus the bulletin; the two 45-second windows are inserted by layout(). airBlocks()
+  // turns those laid-out rows into real Blocks, which is what puts the recorded forecast into
+  // the 19:00 window. This conversion happens HERE, on the way to the player, and never inside
+  // `airedHour` — score() lays the hour out again and would insert a second set of windows on
+  // top of the first. Carried over from the React build rather than rediscovered.
+  const airedList = useMemo(
+    () => (airedHour ? toPlaylist(airBlocks(layout([...airedHour], false).rows, { weather: station.weather })) : []),
+    [airedHour, station],
+  );
+
   const result = useMemo(() => {
     if (!airedHour || drift === null || !flash) return null;
     // No topic picker in this build yet, so no picks: weightsFor([]) is the generic listener,
@@ -386,6 +401,7 @@ export default function Stage({ items, now, station }: {
             )}
 
             {pendingAir && <Bulletin onChoose={chooseFlash} />}
+            {airedHour && <HourPlayer list={airedList} />}
             {result && <Aircheck result={result} />}
           </div>
         </div>

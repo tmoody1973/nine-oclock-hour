@@ -204,3 +204,43 @@ export const hourElapsed = (list: PlayItem[], i: number, into: number): number =
 // begins, and the readout would jump BACKWARDS 34 seconds the moment that block ended. The cost
 // is that the hour clock pauses during an overrun; a stalled clock reads as honest, a reversing
 // one reads as broken.
+
+// ── Scrubbing: clock position → which block, and how far into it ──────────────────────────
+//
+// docs/phaser-design.md, and it is a decision rather than an implementation detail: "Scrub the
+// rundown clock. It is the hour on screen, it is what the scoring talks about, and it is what a
+// producer means when they say 'the weather's at nineteen past'. Drag to 9:19 and you land on
+// the weather, because 9:19 IS the weather."
+//
+// The collision it resolves: silence does not air (docs/decisions/004), so the AUDIO is shorter
+// than the hour — sometimes much shorter. Halfway along a bar could mean 9:30 on the rundown or
+// halfway through what actually plays, and those are different places. The clock stays the truth
+// and the audio follows it. That keeps one number on screen meaning one thing, which this player
+// learned the hard way: the hour readout that jumped forward whenever a recording ended early
+// was the same class of lie as a counter that ran backwards.
+//
+// Pure, and beside landOn() on purpose: testable without rendering, and it survives the drawing
+// being replaced.
+export type Seek = { readonly index: number; readonly into: number };
+
+export function seekTo(list: PlayItem[], t: number): Seek | null {
+  let at = 0;
+  for (let i = 0; i < list.length; i++) {
+    const end = at + list[i].seconds;
+    if (t < end) {
+      // Inside this block's SCHEDULED span. Its slot is what the rundown shows, whether or not
+      // anything comes out of the speakers during it.
+      if (list[i].audio) return { index: i, into: Math.max(0, t - at) };
+      // Nothing to hear here. "Scrubbing into a silent stretch cannot strand the player.
+      // Dragging into the middle of a traffic window should land on the next thing with sound,
+      // not stop." Same rule landOn() already applies to every other way the hour moves — and
+      // it must be the same rule, because splitting it is how Back quietly died once before.
+      const n = landOn(list, i, i - 1);
+      return n < list.length ? { index: n, into: 0 } : null;
+    }
+    at = end;
+  }
+  // Past the end of the rundown. The caller reads "no item" as the end of the hour, exactly as
+  // it already does when landOn() walks off the end.
+  return null;
+}

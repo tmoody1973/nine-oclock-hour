@@ -359,3 +359,48 @@ test('the hour clock still never runs backwards when silence is skipped over', (
   assert.ok(after >= before, `hour clock went backwards: ${before} -> ${after}`);
   assert.equal(after, 105, 'the skipped minute and the skipped window are behind us on the rundown');
 });
+
+import { seekTo } from './player';
+
+const slot = (id: string, seconds: number, audio?: string): PlayItem =>
+  ({ id, title: id, src: 'NPR', seconds, mode: 'tape', ...(audio ? { audio } : {}) });
+
+test('scrubbing into a block with tape lands in it, at the offset the clock asked for', () => {
+  const list = [slot('a', 60, 'a.mp3'), slot('b', 300, 'b.mp3')];
+  assert.deepEqual(seekTo(list, 100), { index: 1, into: 40 });
+});
+
+// THE REQUIREMENT THE DESIGN STATES OUTRIGHT: "Scrubbing into a silent stretch cannot strand
+// the player. Dragging into the middle of a traffic window should land on the next thing with
+// sound, not stop."
+test('scrubbing into silence carries forward to the next thing with sound, never strands', () => {
+  const list = [slot('id', 60), slot('wx', 45), slot('story', 300, 'story.mp3')];
+  assert.deepEqual(seekTo(list, 80), { index: 2, into: 0 }, 'landed in the silent weather window');
+});
+
+test('a carried-forward landing starts that block at its top, not at a borrowed offset', () => {
+  const list = [slot('silent', 600), slot('story', 300, 'story.mp3')];
+  assert.equal(seekTo(list, 590)?.into, 0);
+});
+
+test('the top of the hour lands on the first thing that can be heard', () => {
+  const list = [slot('id', 60), slot('story', 300, 'story.mp3')];
+  assert.deepEqual(seekTo(list, 0), { index: 1, into: 0 });
+});
+
+test('scrubbing past the end of the rundown is the end of the hour, not the last block', () => {
+  const list = [slot('a', 60, 'a.mp3')];
+  assert.equal(seekTo(list, 60), null);
+  assert.equal(seekTo(list, 9999), null);
+});
+
+// An hour whose tail is entirely silent must end rather than sit on a block that plays nothing.
+test('scrubbing into silence with nothing audible after it ends the hour', () => {
+  const list = [slot('a', 60, 'a.mp3'), slot('wx', 45), slot('tx', 45)];
+  assert.equal(seekTo(list, 70), null);
+});
+
+test('a negative position clamps to the start rather than reading as the end', () => {
+  const list = [slot('a', 60, 'a.mp3')];
+  assert.deepEqual(seekTo(list, -30), { index: 0, into: 0 });
+});
