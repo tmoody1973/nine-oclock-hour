@@ -17,6 +17,10 @@ export type ApplyMarks = (marks: Marks) => void;
 
 export type WireSceneOpts = {
   readonly items: readonly WireItem[];
+  // Measured from the page at boot. Not re-measured on resize: rebuilding the game to re-lay
+  // the strip would take the sound manager with it and throw away the audio grant the tap
+  // earned, which is a far worse trade than a rotated phone keeping its original column count.
+  readonly width: number;
   readonly onPick: (id: string) => void;
   // Handed back once the tiles exist, so React can re-mark them WITHOUT rebuilding the game.
   // Recreating it would take the sound manager with it and throw away the audio grant the tap
@@ -24,14 +28,18 @@ export type WireSceneOpts = {
   readonly onReady: (apply: ApplyMarks) => void;
 };
 
-export function wireSceneSize(items: readonly WireItem[]) {
-  return { width: STRIP_DEFAULTS.width, height: Math.max(200, stripLayout(items).height) };
+// The strip is sized to the space it actually has, not to a number picked on a laptop. At
+// 320px — the narrowest phone still in use — a fixed 320 strip plus the page's own padding put
+// a column of tiles 24px past the edge of the screen, where nothing could scroll to reach them.
+// stripLayout() already takes a width and wraps to it; this is just telling it the truth.
+export function wireSceneSize(items: readonly WireItem[], width = STRIP_DEFAULTS.width) {
+  return { width, height: Math.max(200, stripLayout(items, { width }).height) };
 }
 
 export function makeWireScene(Phaser: typeof PhaserNS, opts: WireSceneOpts) {
   return class WireScene extends Phaser.Scene {
     create() {
-      const strip = stripLayout(opts.items);
+      const strip = stripLayout(opts.items, { width: opts.width });
       // Two different SHAPES rather than two colours: a bar under a story you have read, a play
       // glyph on one you have heard. Colour is never the only signal in this codebase, and on a
       // 72px tile there is no room for a word.

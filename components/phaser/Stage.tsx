@@ -26,6 +26,7 @@ import { Bulletin } from './Bulletin';
 import { Aircheck } from './Aircheck';
 import { HourPlayer } from './HourPlayer';
 import type { PlaceControl, PreviewControl, RemoveControl } from './card-controls';
+import { STRIP_DEFAULTS } from '@/lib/strip';
 import type { ApplyMarks } from './wireScene';
 
 export default function Stage({ items, now, station }: {
@@ -274,7 +275,10 @@ export default function Stage({ items, now, station }: {
       const { makeWireScene, wireSceneSize } = await import('./wireScene');
       if (cancelled || !hostRef.current) return;
 
-      const size = wireSceneSize(items);
+      // What the page can actually give the strip, capped at the design width so a desktop
+      // does not stretch 72px tiles across half a monitor.
+      const avail = Math.max(140, Math.min(STRIP_DEFAULTS.width, hostRef.current.clientWidth || STRIP_DEFAULTS.width));
+      const size = wireSceneSize(items, avail);
       gameRef.current = new Phaser.Game({
         type: Phaser.AUTO,
         parent: hostRef.current,
@@ -283,6 +287,7 @@ export default function Stage({ items, now, station }: {
         backgroundColor: '#141414',
         scene: makeWireScene(Phaser, {
           items,
+          width: avail,
           onReady: (apply) => {
             applyMarksRef.current = apply;
             // Bump rather than calling apply() here: the effect below owns marking, and calling
@@ -350,9 +355,13 @@ export default function Stage({ items, now, station }: {
   }, []);
 
   return (
-    <div style={{ display: 'grid', gap: 20 }}>
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 20 }}>
+      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap', minWidth: 0 }}>
+        {/* A real flex basis, and minWidth 0 so it may shrink below its own text. Without a
+            basis this column sized itself to the widest line of copy in it — "Read 0 and heard
+            0 of 26 stories." — and the strip, being width:100% of that, came out 198px wide at
+            every screen size, phone and desktop alike. */}
+        <div style={{ flex: `0 1 ${STRIP_DEFAULTS.width}px`, minWidth: 0 }}>
           <h2 style={{ margin: '0 0 8px', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8a8a8a' }}>
             What came in — {items.length} items
           </h2>
@@ -369,10 +378,13 @@ export default function Stage({ items, now, station }: {
           <p style={{ margin: '0 0 8px', fontSize: 12, color: '#555' }}>
             Read {read.size} and heard {heard.size} of {items.length} stories.
           </p>
-          <div ref={hostRef} style={{ background: '#141414' }} />
+          <div ref={hostRef} style={{ background: '#141414', width: '100%', maxWidth: STRIP_DEFAULTS.width }} />
         </div>
 
-        <div style={{ flex: '1 1 340px', minWidth: 300 }}>
+        {/* minWidth 0, not 300: a 300px floor put this column 28px past the edge of a 320px
+            phone, with nothing able to scroll to reach it. The 340px basis still gives it a
+            row of its own as soon as the screen is too narrow to sit beside the strip. */}
+        <div style={{ flex: '1 1 340px', minWidth: 0 }}>
           {picked ? (
             <Card item={picked} flipped={flipped} onFlip={onFlip} now={now} flipPrice={flipPrice} flipBlocked={flipBlocked} preview={preview} place={place} />
           ) : (

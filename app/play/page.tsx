@@ -27,8 +27,11 @@ export default async function Play() {
   const home = day?.stations[HOME];
   const neighbour = home ? day?.stations[home.neighbour] : undefined;
 
+  // minmax(0, 1fr) below: a grid column defaults to min-width auto and so refuses to shrink
+  // below its content, which let the strip push the page four pixels wider than a 320px phone
+  // with nothing able to scroll to reach it.
   return (
-    <main style={{ padding: 24, display: 'grid', gap: 16, fontFamily: 'system-ui, sans-serif' }}>
+    <main style={{ padding: 24, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16, fontFamily: 'system-ui, sans-serif' }}>
       <h1 style={{ margin: 0, fontSize: 20 }}>Canvas scaffold</h1>
       {day ? (
         <Stage
