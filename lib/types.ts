@@ -47,6 +47,13 @@ export type DayFile = {
     // station record, could never be protected by it — under `reads/` this would be deleted on
     // the fourth morning and the silence would come back with nothing to show why.
     legalId?: string;
+    // OUR recording of this station's forecast, for the 19:00 weather window. Same shape and
+    // same reasoning as `legalId` above, with one difference that matters: a legal ID is
+    // permanent and a forecast is stale within hours, so this lives under `wx/` rather than
+    // `ids/` and is keyed on the date as well as the words (weatherKey, lib/weather.ts).
+    // Absent when the forecast or the recording failed this morning; the window then stays
+    // silent, with no fallback text and no yesterday's audio, by design.
+    weather?: string;
   }>;
   mostCarried: { title: string; url: string; stations: number };
   // Feeds that failed this morning, by label. Absent on a healthy day. Without this, a

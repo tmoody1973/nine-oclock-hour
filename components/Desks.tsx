@@ -23,7 +23,7 @@ export function Wire({ items, hour, degraded, onAdd, onOpen }: {
   // negation meant every new marker shape leaked into the feed line: `legalid:s921` rendered as
   // "We couldn't reach legalid:s921 this morning", inventing a newsroom that does not exist.
   // `sweep:reads` already did the same. Anything without a known prefix is a real feed label.
-  const INTERNAL_MARKERS = ['voice:', 'legalid:', 'sweep:'];
+  const INTERNAL_MARKERS = ['voice:', 'legalid:', 'sweep:', 'wx:'];
   const feedFailures = degraded?.filter((d) => !INTERNAL_MARKERS.some((p) => d.startsWith(p))) ?? [];
   const voiceFailures = degraded?.filter((d) => d.startsWith('voice:')) ?? [];
   return (

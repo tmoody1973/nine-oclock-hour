@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scriptPrompt, readKey, stripPreamble, voiceRead, legalIdKey, voiceId, TTS_MODEL, SCRIPT_MODEL } from './reads';
+import { scriptPrompt, readKey, stripPreamble, voiceRead, legalIdKey, voiceId, voiceWeather, TTS_MODEL, SCRIPT_MODEL } from './reads';
 import type { WireItem } from './types';
 
 const item: WireItem = { id: 'g-s308-6913', src: 'WBEZ', how: 'station', kind: 'seg',
@@ -178,6 +178,59 @@ test('a legal ID is spoken verbatim — one TTS call, and the script model never
     assert.ok(!urls[0].includes(SCRIPT_MODEL), 'never the model that writes its own words');
     assert.equal(JSON.parse(bodies[0]).contents[0].parts[0].text, ID_TEXT, 'the words go to TTS exactly as the station gave them');
     assert.ok(url.startsWith('https://blob.example/ids/'), 'and it is stored where the sweep cannot reach it');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+// ── The weather window ────────────────────────────────────────────────────────────────────
+// Same path as the legal ID and for the same reason: these words must reach text-to-speech
+// unchanged. A legal ID rewritten by a model is a licence violation; a forecast rewritten by
+// a model is a forecast that is wrong, aired to somebody looking out of the window. voiceId
+// and voiceWeather are now two keys onto one recorder (voiceVerbatim) so the two can never
+// drift apart on that guarantee.
+const WX_TEXT = 'The forecast for Milwaukee, from the National Weather Service. Thursday. Mostly cloudy, with a high near 71.';
+
+test('a forecast is spoken verbatim, and stored where the reads sweep cannot reach it', async () => {
+  const urls: string[] = [];
+  const bodies: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: unknown, init: { body: string }) => {
+    urls.push(String(url));
+    bodies.push(String(init.body));
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ inlineData: { data: Buffer.from('fake pcm').toString('base64') } }] } }] }) };
+  }) as unknown as typeof fetch;
+  const blob = {
+    head: async () => { throw new Error('not recorded yet'); },
+    put: async (key: string) => ({ url: `https://blob.example/${key}` }),
+  };
+  try {
+    const url = await voiceWeather('2026-09-17', 's921', WX_TEXT, 'Orus', blob);
+    assert.equal(urls.length, 1, 'exactly one model call, and it is the TTS one');
+    assert.ok(urls[0].includes(TTS_MODEL));
+    assert.ok(!urls[0].includes(SCRIPT_MODEL), 'no model ever rewrites a forecast');
+    assert.equal(JSON.parse(bodies[0]).contents[0].parts[0].text, WX_TEXT, 'the words go to TTS exactly as composed');
+    assert.ok(url.startsWith('https://blob.example/wx/2026-09-17-s921-'), 'under wx/, not reads/ — see weatherKey');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+// A re-run of the same morning finds the same forecast, composes the same words, and pays
+// nothing. A forecast the service has REVISED since earns a different key and a new recording
+// — which is the point of keying on the words, not on the date alone.
+test('re-running a morning whose forecast has not changed costs no API call', async () => {
+  const fakeUrl = 'https://blob.example/wx/2026-09-17-s921-abc123abc123.wav';
+  let headCalls = 0;
+  const blob = {
+    head: async () => { headCalls++; return { url: fakeUrl }; },
+    put: async () => { throw new Error('put must never run on a cache hit'); },
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => { throw new Error('no network call should happen on a cache hit'); }) as unknown as typeof fetch;
+  try {
+    assert.equal(await voiceWeather('2026-09-17', 's921', WX_TEXT, 'Orus', blob), fakeUrl);
+    assert.equal(headCalls, 1);
   } finally {
     globalThis.fetch = realFetch;
   }

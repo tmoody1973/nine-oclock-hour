@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { put, head } from '@vercel/blob';
 import type { WireItem } from './types';
 import { DEFAULT_VOICE } from './voices';
+import { weatherKey } from './weather';
 
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -159,8 +160,29 @@ export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE, b
 // Same `blob` seam as voiceRead — real callers never pass it and get the real @vercel/blob
 // functions via the default.
 export async function voiceId(text: string, voice: string = DEFAULT_VOICE, blob: BlobDeps = defaultBlobDeps): Promise<string> {
-  const key = legalIdKey(text, voice);
-  // Before the only paid call on this path. After the first morning this is the whole function.
+  return voiceVerbatim(legalIdKey(text, voice), text, voice, blob);
+}
+
+// This station's forecast, for the 19:00 weather window — the same verbatim path as the legal
+// ID above, and for a sibling reason. A legal ID rewritten by a model is a licence violation;
+// a forecast rewritten by a model is a forecast that is WRONG, aired at nine to somebody who
+// is looking out of the window at the time. The words are composed in lib/weather.ts from the
+// National Weather Service's own fields and arrive here finished.
+//
+// The two differences from a legal ID are both in the key (weatherKey, lib/weather.ts): it
+// carries the date, because a forecast is stale within hours where an identification is
+// permanent, and it lives under `wx/` rather than `ids/`. That file is also where the note
+// about what sweeps this prefix lives — nothing does, today, and it says so.
+export async function voiceWeather(date: string, station: string, script: string, voice: string = DEFAULT_VOICE, blob: BlobDeps = defaultBlobDeps): Promise<string> {
+  return voiceVerbatim(weatherKey(date, station, script, voice), script, voice, blob);
+}
+
+// Record these exact words at this exact key, and never let a model near them. One recorder
+// under both callers above rather than two near-identical copies: the guarantee they share —
+// straight to TTS, no script model, no rewrite — is the only thing either of them is for, and
+// it must not be possible to fix in one and forget in the other.
+async function voiceVerbatim(key: string, text: string, voice: string, blob: BlobDeps): Promise<string> {
+  // Before the only paid call on this path. On a cache hit this is the whole function.
   try { return (await blob.head(key)).url; } catch { /* not recorded yet */ }
 
   const wav = await speak(text, voice);

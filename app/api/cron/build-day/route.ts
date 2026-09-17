@@ -1,6 +1,7 @@
 import { buildDay } from '@/lib/day';
 import { putDay, sweepReads, audioUrls } from '@/lib/store';
-import { voiceRead, voiceId } from '@/lib/reads';
+import { voiceRead, voiceId, voiceWeather } from '@/lib/reads';
+import { COORDS, forecast, weatherScript } from '@/lib/weather';
 import { LEGAL_IDS } from '@/lib/legalid';
 import { DEFAULT_VOICE } from '@/lib/voices';
 import { pool } from '@/lib/pool';
@@ -23,6 +24,11 @@ const READ_VOICE = process.env.READ_VOICE || DEFAULT_VOICE;
 // would hit whatever rate limit Gemini enforces long before it saved any real time, and a
 // 429 under concurrency is a `degraded` entry, not a crash — see lib/pool.ts's backstop.
 const READ_CONCURRENCY = 6;
+
+// Six stations, three at a time: two waves of real TTS spend every morning, and a polite
+// ceiling on a free service run by a public agency. ponytail: a fixed number, not a setting —
+// there is exactly one caller and six stations.
+const WEATHER_CONCURRENCY = 3;
 
 export async function GET(req: Request) {
   // Refuse when the secret is UNSET, before comparing anything. Without this the comparison
@@ -106,6 +112,45 @@ export async function GET(req: Request) {
       day.degraded = [...(day.degraded ?? []), `legalid:${id}`];
     }
   }
+
+  // The 19:00 weather window, per station — the other half of the fixed content, and the same
+  // verbatim path as the legal ID above for the same reason: voiceWeather() goes straight to
+  // text-to-speech, and no model is ever allowed to reword a forecast. A rewritten forecast is
+  // a WRONG forecast, aired at nine to somebody looking out of the window at the time.
+  //
+  // Recorded at five, aired at nine, so the words only ever speak in forecast — "high near 71,
+  // rain before noon" — never in current conditions. lib/weather.ts composes them from the
+  // National Weather Service's own named periods, which makes that the natural shape rather
+  // than a rule anyone has to remember.
+  //
+  // POOLED, where the legal ID is sequential, and the difference is cost, not taste. A legal ID
+  // is keyed on its words and recorded once ever, so every morning after the first is a free
+  // cache hit and there is no concurrency worth managing. A forecast changes daily by
+  // definition: this is six real TTS calls every single morning, and at ~20s each, run one
+  // after another, it would spend two minutes of a 300s budget before the day file is even
+  // written. Three at a time is two waves, ~40s, and stays modest against a public agency's
+  // free service.
+  //
+  // Placed HERE, before the pessimistic putDay, exactly like the legal ID: a run killed later
+  // in the reads pool still leaves a stored day whose weather window has something in it.
+  //
+  // Failure is silence, never invention. A station whose forecast or recording fails keeps
+  // `weather` unset, its window stays quiet, and `wx:<id>` goes into `degraded`. There is no
+  // fallback text and no yesterday's recording — a stale forecast read as today's is the one
+  // outcome worse than an empty window. components/Desks.tsx filters `wx:` out of the feed
+  // line; without that it would render as "We couldn't reach wx:s921 this morning".
+  await pool(Object.entries(day.stations), WEATHER_CONCURRENCY, async ([id, st]) => {
+    const at = COORDS[id];
+    if (!at) return; // a station with no coordinates on file — see lib/weather.ts
+    try {
+      // `st.city` and not a second place-name table: the read describes the place the
+      // producer's screen names, and there is one source for what that is (lib/day.ts).
+      st.weather = await voiceWeather(day.date, id, weatherScript(st.city, await forecast(at.lat, at.lon)), READ_VOICE);
+    } catch (e) {
+      console.error(`weather for ${id} failed, its window airs silent — ${(e as Error).message}`);
+      day.degraded = [...(day.degraded ?? []), `wx:${id}`];
+    }
+  });
 
   await putDay(day, undefined, false);
 
