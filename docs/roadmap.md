@@ -40,9 +40,27 @@ clock counts 105 seconds at the top of every hour and **there is nothing behind 
   each need their own, and guessing a call sign or city of licence from general knowledge is exactly
   how this goes wrong on air. Ask for each; do not infer.
 - **Weather** — real forecast per station city. Stations already carry `city` (`lib/day.ts:8`), so
-  the location is mostly solved; "the Bay Area" needs coordinates. Source: `api.weather.gov` — free,
-  no key, US-only, authoritative, and all six stations are US. Recorded in the 5 a.m. job. Six more
-  recordings a morning, pennies.
+  the location is mostly solved; "the Bay Area" needs coordinates. Recorded in the 5 a.m. job. Six
+  more recordings a morning, pennies.
+
+  **Source verified live on 2026-09-17, not read from docs.** `api.weather.gov` answered HTTP 200
+  with **no key and no registration**. Three facts that will otherwise cost an implementer an hour:
+
+  1. **It is a two-step lookup.** `GET /points/{lat},{lon}` returns `properties.forecast`, a
+     gridpoint URL; fetch *that* for the actual forecast. Milwaukee (43.0389, -87.9065) resolved to
+     `gridpoints/MKX/88,65/forecast`.
+  2. **A User-Agent header is required** — it is the weather service's stated policy, and requests
+     without one are refused. Send something identifying, e.g.
+     `NineOClockHour/0.1 (radio rundown; contact address)`.
+  3. **Stations need coordinates, not city names.** The endpoint takes lat/lon only. Six pairs in
+     the station table; "the Bay Area" has no coordinates of its own and needs a real point.
+
+  **The response shape pushes toward the honest script, which is the good news.** It returns named
+  forecast *periods* — "Tonight", "Thursday", "Thursday Night" — each with `temperature`,
+  `shortForecast` and a full `detailedForecast` already written in broadcast-ready prose
+  ("A chance of rain showers after 2am. Cloudy, with a low around 62. Chance of precipitation is
+  40%."). Periods, not current conditions — so a script built from them is still true four hours
+  after it was recorded, which is exactly the constraint below.
 - **The catch that shapes the script:** recorded at 5 a.m., aired at 9. That is a four-hour-old
   forecast. Fine for "high near 72, rain after lunch". **Wrong for "it's raining right now."** A
   confidently wrong weather read on a real station is worse than an empty window.
