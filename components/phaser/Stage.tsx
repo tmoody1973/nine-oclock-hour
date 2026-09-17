@@ -19,7 +19,7 @@ import { CAN_ROLL, WHY_NOT, block, used } from '@/lib/wire';
 import type { Block, WireItem } from '@/lib/types';
 import { Card } from './Card';
 import { Rundown } from './Rundown';
-import type { PlaceControl, PreviewControl } from './card-controls';
+import type { PlaceControl, PreviewControl, RemoveControl } from './card-controls';
 import type { ApplyMarks } from './wireScene';
 
 export default function Stage({ items, now }: { items: readonly WireItem[]; now: number }) {
@@ -167,6 +167,19 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
     };
   }, [picked, hour, spent, onPlace]);
 
+  const onRemove = useCallback((blockId: string) => {
+    if (!canAfford('move', spent)) return;
+    setHour((h) => h.filter((b) => b.id !== blockId));
+    setSpent((sp) => spend('move', sp));
+  }, [spent]);
+
+  // One price for moving and for removing, rising through the morning: pulling at 5:30 is cheap
+  // because you have hours to repair it, and pulling at 8:50 is not.
+  const remove: RemoveControl = useMemo(
+    () => ({ price: costOf('move', spent), blocked: whyNot('move', spent), onRemove }),
+    [spent, onRemove],
+  );
+
   const onFlip = useCallback(() => {
     if (!picked) return;
     if (flipped) { setFlipped(false); return; }
@@ -304,7 +317,7 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
               while you read; having to scroll away from the wire to see what you have built is
               how you lose your place in it. */}
           <div style={{ marginTop: 20 }}>
-            <Rundown hour={hour} />
+            <Rundown hour={hour} remove={remove} />
           </div>
         </div>
       </div>

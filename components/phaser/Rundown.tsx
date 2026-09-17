@@ -9,14 +9,16 @@
 
 import { HOUR, crashLine, layout } from '@/lib/hour';
 import { clock } from '@/lib/player';
+import { reflowNote, reflowOf } from '@/lib/reflow';
 import type { Block } from '@/lib/types';
+import type { RemoveControl } from './card-controls';
 
 // score() measures the landing against HOUR + 60 — 3540 plus the minute the legal ID occupies —
 // so the hour a producer is aiming at ends at 60:00. Taken from there rather than hardcoded,
 // so the two can never disagree about where the top of the hour is.
 const TARGET_END = HOUR + 60;
 
-export function Rundown({ hour }: { hour: readonly Block[] }) {
+export function Rundown({ hour, remove }: { hour: readonly Block[]; remove: RemoveControl }) {
   const plan = layout([...hour], false);
   const off = plan.end - TARGET_END;
 
@@ -37,18 +39,34 @@ export function Rundown({ hour }: { hour: readonly Block[] }) {
             // The windows nobody may move, shown in the running order because their position is
             // the thing a producer is building around, not a detail behind a setting.
             const fixed = 'window' in row.b && row.b.window;
+            // What pulling THIS one would do, worked out before a minute is spent on it.
+            // Looking is free; only actions spend the morning.
+            const note = fixed ? null : reflowNote(reflowOf(hour, row.b.id));
             return (
               <li
                 key={`${row.b.id}-${i}`}
                 style={{
-                  display: 'flex', gap: 12, fontSize: 13, padding: '4px 6px',
+                  fontSize: 13, padding: '4px 6px',
                   background: fixed ? '#f0f0f0' : 'transparent',
                   fontStyle: fixed ? 'italic' : 'normal',
                 }}
               >
-                <span style={{ fontVariantNumeric: 'tabular-nums', color: '#555', minWidth: 46 }}>{clock(row.at)}</span>
-                <span style={{ flex: 1 }}>{row.b.label}</span>
-                <span style={{ fontVariantNumeric: 'tabular-nums', color: '#555' }}>{clock(row.b.len)}</span>
+                <span style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', color: '#555', minWidth: 46 }}>{clock(row.at)}</span>
+                  <span style={{ flex: 1 }}>{row.b.label}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', color: '#555' }}>{clock(row.b.len)}</span>
+                  {/* The windows nobody may move carry no control at all — there is nothing to
+                      explain, because moving them was never on offer. */}
+                  {fixed ? null : (
+                    <button type="button" onClick={() => remove.onRemove(row.b.id)} disabled={!!remove.blocked}
+                            style={{ fontSize: 12, padding: '2px 8px' }}>
+                      Take it out — {remove.price} min
+                    </button>
+                  )}
+                </span>
+                {note ? (
+                  <span style={{ display: 'block', fontSize: 12, color: '#555', paddingLeft: 58, fontStyle: 'normal' }}>{note}</span>
+                ) : null}
               </li>
             );
           })}
@@ -66,6 +84,8 @@ export function Rundown({ hour }: { hour: readonly Block[] }) {
               : `It lands within ${clock(Math.abs(off))} of the top of the hour.`}
         </p>
       )}
+
+      {remove.blocked ? <p style={{ margin: 0, fontSize: 12, color: '#8a4b00' }}>{remove.blocked}</p> : null}
 
       {plan.crashes.length > 0 && (
         <div style={{ display: 'grid', gap: 8 }}>

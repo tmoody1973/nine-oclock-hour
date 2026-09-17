@@ -25,3 +25,12 @@ export type PlaceControl = {
   readonly read: { readonly label: string; readonly blocked: string | null };
   readonly onPlace: (mode: 'tape' | 'read') => void;
 };
+
+// Taking a story back out. One price for moving and for removing — Tarik's call: the clock does
+// not care what you intended, and two prices means explaining two rules. The price rises through
+// the morning, because pulling at 5:30 is cheap and pulling at 8:50 is not.
+export type RemoveControl = {
+  readonly price: number;
+  readonly blocked: string | null;
+  readonly onRemove: (blockId: string) => void;
+};
