@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { block, buildWire, legalIdBlock, rollable, used } from './wire';
+import { airBlocks, block, buildWire, legalIdBlock, rollable, used } from './wire';
+import { layout } from './hour';
 import { toWireItem } from './cds';
 import { toPlaylist } from './playlist';
 import type { DayFile, WireItem } from './types';
@@ -246,4 +247,60 @@ test('a station with no confirmed wording keeps its silent block, and says why',
   // weather and traffic share.
   assert.equal(b.label, 'Legal ID (no wording on file)', 'the rail and the player say so instead of looking broken');
   assert.equal(toPlaylist([b])[0].audio, undefined);
+});
+
+// ── The weather window, and how a window learns to carry audio ────────────────────────────
+// The windows are not Blocks. `layout()` drops them in as FixedRows — `TimeWindow & { fixed,
+// window }` — with no `mode`, no `how` and nowhere to put a URL, and `toPlaylist` was never
+// handed them at all: the player's list came from the producer's own block array, so the two
+// 45-second windows existed on the rail and in the score and NOWHERE in what actually played.
+// `airBlocks` is the join: the laid-out hour, converted to real Blocks, which is what the
+// player should have been playing all along.
+const wxRow = { id: 'wx', at: 1140, len: 45, label: 'Weather window', fixed: true as const, window: true as const };
+
+test('the weather window carries the station recording, and reaches the player', () => {
+  const rows = [{ b: wxRow, at: 1140 }];
+  const [entry] = toPlaylist(airBlocks(rows, { weather: 'https://blob.example/wx/2026-09-17-s921-abc.wav' }));
+  assert.equal(entry.audio, 'https://blob.example/wx/2026-09-17-s921-abc.wav', 'the window has a forecast in it');
+  assert.equal(entry.seconds, 45, 'and it still runs the 45 seconds the clock reserved');
+  assert.equal(entry.mode, 'read');
+});
+
+// The rights gate in lib/playlist.ts is SATISFIED here, never loosened. A read streams only when
+// `spoken` marks the audio as our own rather than a publisher's tape — and this is our own
+// recording of public-domain government data. `spoken` is true only where a recording exists.
+test('a station with no forecast this morning keeps a silent window, and invents nothing', () => {
+  const [b] = airBlocks([{ b: wxRow, at: 1140 }], {});
+  assert.equal(b.audio, undefined, 'no stale forecast, no fallback text');
+  assert.equal(b.spoken, false, 'and the gate is told the truth about it');
+  assert.equal(toPlaylist([b])[0].audio, undefined);
+  assert.equal(b.len, 45, 'the window still holds its place in the hour');
+});
+
+test('the traffic window never claims to carry the weather recording', () => {
+  const tx = { id: 'tx', at: 2940, len: 45, label: 'Traffic window', fixed: true as const, window: true as const };
+  const [b] = airBlocks([{ b: tx, at: 2940 }], { weather: 'https://blob.example/wx/today.wav' });
+  assert.equal(b.audio, undefined);
+  assert.equal(b.spoken, false);
+});
+
+// A producer's own blocks pass through untouched — same object, so nothing about a story's
+// audio, length or mode can be quietly rewritten on the way to the player.
+test('the producer blocks pass through the conversion unchanged', () => {
+  const b = block(item(), 'tape');
+  const out = airBlocks([{ b, at: 0 }, { b: wxRow, at: 1140 }], {});
+  assert.equal(out[0], b, 'the same block, not a copy that might differ');
+  assert.equal(out.length, 2);
+});
+
+// THE REASON THIS EXISTS AT ALL: the played hour used to be 90 seconds shorter than the hour
+// the rail promised, because both windows were missing from it.
+test('the aired hour is the hour the rundown promised, windows included', () => {
+  const hour = [legalIdBlock({}), block(item({ id: 'a1', len: 1200 }), 'tape'), block(item({ id: 'a2', len: 1800 }), 'tape')];
+  const rows = layout(hour, false).rows;
+  const list = toPlaylist(airBlocks(rows, {}));
+  assert.equal(list.length, hour.length + 2, 'both windows are in what plays');
+  assert.deepEqual(list.map((x) => x.title).filter((t) => t.includes('window')), ['Weather window', 'Traffic window']);
+  const played = list.reduce((n, x) => n + x.seconds, 0);
+  assert.equal(played, hour.reduce((n, b) => n + b.len, 0) + 90, 'the 90 seconds of windows are no longer skipped');
 });

@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
 import { BULLETIN, HEAVY_TOPICS, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
 import { arcs } from '@/lib/clock';
-import { block, buildWire, legalIdBlock, placementNote } from '@/lib/wire';
+import { airBlocks, block, buildWire, legalIdBlock, placementNote } from '@/lib/wire';
 import { toPlaylist } from '@/lib/playlist';
 import { ALL_TOPICS, weightsFor } from '@/lib/taste';
 import { VOICES, DEFAULT_VOICE } from '@/lib/voices';
@@ -188,6 +188,25 @@ export function HourBuilder({ day }: { day: DayFile }) {
     finalizeAir(choice);
   }
 
+  // WHAT ACTUALLY AIRS, and it is not the same array the producer built. `airedHour` holds the
+  // producer's own blocks plus the bulletin; the two 45-second windows are inserted by
+  // `layout()`, which until now only fed the rail, the hot clock and the score. So the player
+  // skipped both of them and the hour it played was ninety seconds shorter than the hour on the
+  // rail beside it. `airBlocks` converts the laid-out rows into real Blocks, which is what puts
+  // the weather recording into the 19:00 window — see lib/wire.ts for why the conversion has to
+  // happen HERE, on the way to the player, and never inside `airedHour` itself (score() lays the
+  // hour out again, and would insert a second set of windows on top of the first).
+  //
+  // Memoised, unlike the inline `toPlaylist(airedHour)` it replaces: <Player> lists `list` in the
+  // dependencies of the effect that cues audio, so a fresh array on every parent render re-runs
+  // that effect for no reason. It is safe when it happens — cue() only touches `src` when it
+  // actually changes, and a read's timer settles through runClock on the way out — but not
+  // re-running it at all is better than relying on both guards.
+  const airedList = useMemo(
+    () => (airedHour ? toPlaylist(airBlocks(layout(airedHour, pledge).rows, station)) : []),
+    [airedHour, pledge, station],
+  );
+
   const result = useMemo(() => {
     if (!done || !airedHour || drift === null || !flash) return null;
     const neighbour = day.stations[station.neighbour];
@@ -301,7 +320,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
 
       {airedHour && !done && (
         <div className={styles.playerDock}>
-          <Player key={airedHour.map((b) => b.id).join('|')} list={toPlaylist(airedHour)} station={station.name} onDone={() => setDone(true)} />
+          <Player key={airedHour.map((b) => b.id).join('|')} list={airedList} station={station.name} onDone={() => setDone(true)} />
         </div>
       )}
 

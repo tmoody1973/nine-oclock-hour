@@ -5,7 +5,7 @@
 // match `day.mostCarried.title` against a block already in the hour. Pure, so it is testable
 // without a browser and importable from the client component that renders it.
 import type { Block, DayFile, How, Topic, WireItem } from './types';
-import { FIXED_ID, READ } from './hour';
+import { FIXED_ID, READ, type LayoutRow, type TimeWindow } from './hour';
 
 // The rights rules made visible to the producer. Ported verbatim from the prototype.
 export const CAN_ROLL: Record<How, boolean> = { satellite: true, ours: true, station: false, podcast: false };
@@ -52,6 +52,50 @@ export const LEGAL_ID: Block = { ...FIXED_ID, how: 'podcast', kind: 'seg', mode:
 export function legalIdBlock(station: { legalId?: string }): Block {
   if (!station.legalId) return { ...LEGAL_ID, label: 'Legal ID (no wording on file)' };
   return { ...LEGAL_ID, audio: station.legalId, spoken: true };
+}
+
+// ── How a window learns to carry audio ────────────────────────────────────────────────────
+// The two windows are NOT Blocks. lib/hour.ts defines them as `TimeWindow`s and the layout
+// walk drops them in as `FixedRow = TimeWindow & { fixed; window }` — no `mode`, no `how`,
+// nowhere to put a URL. And they never reached the player at all: <Player> was handed
+// `toPlaylist(airedHour)`, the producer's own block array, so the rail, the hot clock and
+// score() all knew about 90 seconds of windows that the thing actually playing did not. The
+// played hour was a minute and a half shorter than the hour the rundown promised.
+//
+// So this is the join, and it lives at the PLAYER'S call site rather than in the hour itself.
+// That placement is load-bearing: score() runs layout() again on the hour it is given, so an
+// `airedHour` that already carried window blocks would have a second set inserted on top and
+// every clock check would score a doubled hour. Convert on the way out, never on the way in.
+//
+// Windows become real Blocks shaped exactly like LEGAL_ID above and for the same reasons:
+// `fixed: true` routes them around every check that would read `mode` or `topic`, and
+// `how: 'podcast'` matches none of score()'s three how-based tallies, so a window counts
+// toward nothing even if one ever does reach the engine.
+export function windowBlock(w: TimeWindow, audio?: string): Block {
+  return {
+    id: w.id, label: w.label, len: w.len,
+    how: 'podcast', kind: 'seg', mode: 'read', topic: 'local',
+    fixed: true, window: true,
+    // `spoken` is true ONLY where a real recording exists, which is what makes this honest
+    // rather than a hole in the rights gate. toPlaylist streams a read's audio when `spoken`
+    // marks it as OUR OWN voice instead of a publisher's tape, and a weather read is exactly
+    // that: our recording, in our storage, of a National Weather Service forecast — a work of
+    // the US government, public domain. Nothing in lib/playlist.ts or lib/wire.ts is loosened
+    // to let it through. With no recording the window is what it has always been: silent, in
+    // its place, holding the clock. No stale forecast and no fallback text — see the cron.
+    audio,
+    spoken: !!audio,
+  };
+}
+
+// The hour as it actually airs: the producer's blocks with the fixed windows dropped in where
+// the clock reached them. Producer blocks pass through by identity, never copied, so nothing
+// here can quietly rewrite a story's audio, length or mode on the way to the player.
+//
+// `'mode' in b` is the discriminator, the same test the rail already uses — every Block has a
+// mode and no FixedRow does.
+export function airBlocks(rows: LayoutRow[], station: { weather?: string }): Block[] {
+  return rows.map(({ b }) => ('mode' in b ? b : windowBlock(b, b.id === 'wx' ? station.weather : undefined)));
 }
 
 // What came in for the producer at `home`, plus the first two things their neighbour filed —
