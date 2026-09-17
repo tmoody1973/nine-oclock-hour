@@ -218,6 +218,45 @@ recording ended early was the same class of lie.
 - **The first scrub is still a gesture.** Whatever starts audio must start inside the tap — see the
   browser-audio section of `docs/roadmap.md`. A scrub that resumes playback counts.
 
+## Non-negotiable: the newsroom's content, their audio, their link
+
+**Tarik, 2026-09-17, confirming:** *"the user still can see the content from CDS, listen to the
+audio if available, or click a link to open the story — that is still key."*
+
+This is not a feature to port, it is a **commitment the app makes in writing** and keeps in code.
+The React build states it in the footer of every page:
+
+> *"Headlines, runtimes, teasers and audio links come from each newsroom's own feed and play from
+> their servers; nothing is copied or stored here."*
+
+**The card back must carry all three:**
+
+1. **The content** — headline, teaser, who filed it, when. Straight from CDS.
+2. **The audio, when there is any** — streamed from the publisher's own server. **Never copied,
+   never re-hosted.** The only audio this project stores is audio it made itself: our voiced reads,
+   the station identification, the weather, the music beds.
+3. **A link out to the story** on the newsroom's own site.
+
+### The WBEZ wrinkle, already solved — do not lose it in the port
+
+**WBEZ files no web link on any story.** Verified against live CDS on 2026-09-16 by walking every
+string in a WBEZ document: no `webPages`, no `nprWebsitePath`, no canonical page anywhere — only CDS
+internal paths and the audio enclosure. WNYC omits it occasionally too.
+
+Dropping those items would empty Chicago out of a six-newsroom product, so the app **attributes at
+station level**: the item links to the newsroom that filed it. That is weaker than a story link and
+it is a deliberate trade, recorded rather than hidden. See `lib/day.ts`.
+
+### Why this is easy to lose on canvas, and must not be
+
+In HTML a link is a real anchor: it is focusable, it has a URL on hover, middle-click opens a tab,
+a screen reader announces it, and a browser knows what it is. **In Phaser it is a rectangle you
+decided to make clickable.** Everything a link does for free has to be rebuilt deliberately.
+
+That is an accessibility problem and an attribution problem at the same time. A newsroom's credit
+that cannot be clicked, copied, or read aloud is not much of a credit. **Build these as real links
+in a DOM layer over the canvas rather than as painted rectangles**, unless there is a reason not to.
+
 ## Still open
 
 - **How long is the morning?** Four hours of story time compressed into how much real play.
