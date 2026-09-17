@@ -1,0 +1,25 @@
+{
+  "_comment": "HAND-BUILT, unlike me.json which is a captured live CDS response. Every asset in the real capture carries a duration, so the untimed case — the one the drift mechanic exists for — does not occur in it. This document is the same shape as a real one, trimmed to the fields toWireItem() reads, with the duration removed from the audio asset and an mp3 enclosure that still carries its fileSize. 3360000 bytes / 16000 bytes-per-second = 210 seconds.",
+  "resources": [
+    {
+      "id": "nx-s1-untimed-1",
+      "title": "A Chicago alderman wants the city's speed cameras switched off",
+      "teaser": "<p>The ward has four of them, and the alderman says the tickets fall hardest on the people least able to pay.</p>",
+      "publishDateTime": "2026-09-16T11:04:00Z",
+      "webPages": [{ "href": "https://www.wbez.org/city-life/2026/09/16/speed-cameras" }],
+      "collections": [{ "id": "1014" }],
+      "audio": [{ "href": "#/assets/nx-s1-untimed-1-audio" }],
+      "assets": {
+        "nx-s1-untimed-1-audio": {
+          "enclosures": [
+            {
+              "type": "audio/mpeg",
+              "href": "https://ondemand.example.org/anon.wbez/20260916_wbez_speedcameras.mp3",
+              "fileSize": 3360000
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

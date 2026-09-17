@@ -25,12 +25,29 @@ export async function cdsQuery(params: Record<string, string>): Promise<CdsDoc[]
   return (await res.json()).resources ?? [];
 }
 
+// NPR files its mp3s at a constant ~128 kbps, which is 16000 bytes per second of audio.
+// MEASURED, not assumed: the five assets in lib/fixtures/me.json that carry both a duration
+// and an mp3 fileSize come out at 128.1, 128.9, 128.1, 128.1 and 128.0 kbps — 16003 to 16116
+// bytes per second, a 0.7% spread. So an estimate from file size is wrong by well under a
+// second a minute. Keep the awkward 16000 rather than rounding it into something tidier:
+// tidier would be a guess, and this is a measurement.
+const BYTES_PER_SECOND = 16000;
+
 // CDS keeps audio in an assets map the document points at by fragment href.
 const primaryAudio = (doc: CdsDoc) => {
   const href: string | undefined = doc.audio?.[0]?.href;
   const asset = href?.startsWith('#/assets/') ? doc.assets?.[href.slice(9)] : undefined;
-  const mp3 = asset?.enclosures?.find((e: { type?: string; href?: string }) => e.type === 'audio/mpeg');
-  return { seconds: asset?.duration ?? 0, href: mp3?.href as string | undefined };
+  const mp3 = asset?.enclosures?.find((e: { type?: string; href?: string; fileSize?: number }) => e.type === 'audio/mpeg');
+  const seconds: number = asset?.duration ?? 0;
+  // Untimed tape: the feed hands over the file but never says how long it runs. Its byte
+  // count is the only length signal in the document, so that is what the estimate is built
+  // from — and only when there is genuinely no duration to use instead. No fileSize means no
+  // basis for a number, and inventing one there would be worse than leaving it untimed.
+  // `len` deliberately stays 0: the item is still untimed, and every consumer downstream
+  // (rollable(), block()'s Block.est, score()'s drift walk, the "≈ untimed" wire label)
+  // keys on exactly that difference — a real duration is a promise, an estimate is a gamble.
+  const est = !seconds && mp3?.fileSize ? Math.round(mp3.fileSize / BYTES_PER_SECOND) : undefined;
+  return { seconds, est, href: mp3?.href as string | undefined };
 };
 
 export function toWireItem(doc: CdsDoc, how: How, src: string): WireItem {
@@ -49,6 +66,7 @@ export function toWireItem(doc: CdsDoc, how: How, src: string): WireItem {
     topic,
     when: day,
     len: audio.seconds,
+    est: audio.est,
     audio: audio.href,
     old: day !== new Date().toISOString().slice(0, 10),
   };
