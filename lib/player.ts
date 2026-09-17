@@ -147,3 +147,24 @@ export function readLeft(item: PlayItem, c: ReadClock, now: number): number {
   return Math.max(0, item.seconds - clockElapsed(c, now));
 }
 
+
+
+// mm:ss. Rounds the WHOLE value before splitting, so 59.5s reads 1:00 rather than 0:60.
+// Rounding only the seconds part is what five other copies of this helper still do; they are
+// fed whole rundown lengths where Math.round is a no-op. The player is the first caller to hand
+// it real playback time — a float, sampled four times a second — which is what made a two-week-old
+// latent bug reachable on the most visible number in the app.
+export const clock = (s: number) => {
+  const t = Math.max(0, Math.round(s));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+};
+
+// Where the hour stands. Blocks already aired count at their SCHEDULED length — what the rundown
+// promised — and only the block now playing counts at its real position.
+export const hourElapsed = (list: PlayItem[], i: number, into: number): number =>
+  list.slice(0, i).reduce((n, x) => n + x.seconds, 0) + Math.min(into, list[i]?.seconds ?? 0);
+// Capped at the block's scheduled length deliberately. A block that runs long — the rundown says
+// 4:40, the file is really 5:14 — would otherwise push this past where the next block's base
+// begins, and the readout would jump BACKWARDS 34 seconds the moment that block ended. The cost
+// is that the hour clock pauses during an overrun; a stalled clock reads as honest, a reversing
+// one reads as broken.

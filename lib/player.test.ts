@@ -4,9 +4,9 @@
 // run here against a stub element rather than a rendered component. The logic itself lives in
 // lib/player.ts, not beside the component: node cannot parse the CSS module <Player> imports.
 import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { cue, toggle } from './player';
 import type { PlayItem } from './playlist';
+import assert from 'node:assert/strict';
+import { cue, toggle, clock, hourElapsed } from './player';
 
 const item = (over: Partial<PlayItem> = {}): PlayItem =>
   ({ id: 'a1:tape', title: 'The Fed holds rates', src: 'Morning Edition', seconds: 214, mode: 'tape', audio: 'https://npr.example/a1.mp3', ...over });
@@ -217,4 +217,31 @@ test('runClock hands back the very same clock when nothing has changed', () => {
   const running = runClock(CLOCK_IDLE, true, 1_000);
   assert.equal(runClock(running, true, 9_000), running, 'still running — nothing to settle');
   assert.equal(runClock(CLOCK_IDLE, false, 9_000), CLOCK_IDLE, 'still paused — nothing to start');
+});
+
+
+// A block that runs long is normal: the rundown says 4:40, the file is really 5:14. The hour
+// readout must never go BACKWARDS when that block ends — a clock ticking backwards reads as
+// broken worse than one that stalls.
+test('the hour clock never runs backwards when a block overruns its scheduled length', () => {
+  const list: PlayItem[] = [item({ id: 'a', seconds: 280 }), item({ id: 'b', seconds: 120 })];
+  const atOverrun = hourElapsed(list, 0, 314);   // still on block A, 34s past its schedule
+  const justAfter = hourElapsed(list, 1, 0);     // block A done, block B just started
+  assert.ok(justAfter >= atOverrun, `hour clock went backwards: ${atOverrun} -> ${justAfter}`);
+  assert.equal(atOverrun, 280, 'an overrunning block is capped at what the rundown promised');
+});
+
+// Fed a float in [59.5, 60) the seconds round to 60 instead of carrying into the minute.
+test('the clock carries into the minute instead of printing :60', () => {
+  assert.equal(clock(59.5), '1:00');
+  assert.equal(clock(59.9), '1:00');
+  assert.equal(clock(299.7), '5:00');
+  assert.equal(clock(3599.6), '60:00');
+});
+
+test('the clock still formats the ordinary cases', () => {
+  assert.equal(clock(0), '0:00');
+  assert.equal(clock(59.4), '0:59');
+  assert.equal(clock(60), '1:00');
+  assert.equal(clock(314), '5:14');
 });

@@ -2,12 +2,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlayItem } from '@/lib/playlist';
 import styles from './Player.module.css';
-import { CLOCK_IDLE, clockElapsed, cue, readLeft, runClock, toggle, type ReadClock } from '@/lib/player';
+import { CLOCK_IDLE, clockElapsed, cue, readLeft, runClock, toggle, type ReadClock, clock, hourElapsed} from '@/lib/player';
 
 // Same one-liner the other five components carry (HourBuilder, Desks, HotClock, Aircheck,
 // lib/hour.ts). Left duplicated rather than centralised: hoisting it is a six-file change that
 // has nothing to do with this one.
-const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+// `clock` and `hourElapsed` come from lib/player.ts so the arithmetic is testable without
+// rendering — same reason cue/unlock/toggle live there.
 
 // What the producer is told is happening, and it is the whole point of this panel. Three
 // states, because three different things can be true, and the third is the one that read as a
@@ -135,7 +136,7 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
   // Blocks already aired are counted at their scheduled length, which is what the rundown
   // promised; only the block now playing is counted at its real position.
   const hourTotal = list.reduce((n, x) => n + x.seconds, 0);
-  const hourInto = list.slice(0, i).reduce((n, x) => n + x.seconds, 0) + into;
+  const hourInto = hourElapsed(list, i, into);
   const upNext = list[i + 1];
 
   return (
