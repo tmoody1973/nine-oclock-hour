@@ -33,7 +33,21 @@ export type DayFile = {
   date: string;           // YYYY-MM-DD
   builtAt: string;        // ISO
   network: WireItem[];
-  stations: Record<string, { name: string; city: string; neighbour: string; local: WireItem[] }>;
+  stations: Record<string, {
+    name: string;
+    city: string;
+    neighbour: string;
+    local: WireItem[];
+    // OUR recording of this station's legal identification, written by the morning job. Absent
+    // when nobody has confirmed that station's wording — which is five of the six — and the
+    // opening block then stays silent and says why (legalIdBlock, lib/wire.ts).
+    //
+    // Stored under `ids/`, which sweepReads never lists. That is not tidiness: the sweep's
+    // referenced set is built from wire items' audio fields, so a URL that lives HERE, on the
+    // station record, could never be protected by it — under `reads/` this would be deleted on
+    // the fourth morning and the silence would come back with nothing to show why.
+    legalId?: string;
+  }>;
   mostCarried: { title: string; url: string; stations: number };
   // Feeds that failed this morning, by label. Absent on a healthy day. Without this, a
   // total outage produces a perfectly well-formed file — empty network, six stations with

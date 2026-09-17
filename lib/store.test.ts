@@ -411,3 +411,37 @@ test('getDayOrThrow throws when the day file body fails to fetch', async () => {
     globalThis.fetch = realFetch;
   }
 });
+
+// THE TRAP THE ids/ PREFIX EXISTS FOR, pinned from the sweep's side. A station's legal ID is
+// referenced from the day file's STATION record, never from a wire item, so audioUrls() — which
+// reads item.audio and item.spokenAudio — can never name it. Stored under reads/ it would look
+// unreferenced to every run of this function, age past the three-day window, and be deleted:
+// the hour would go back to opening on sixty seconds of silence days later, with nothing in any
+// log to say what broke. The fix is the smaller one — its own prefix, which the sweep does not
+// list at all — and this is what holds that true. A legal ID is permanent, not a daily read.
+test('a legal ID under ids/ is never listed and never deleted, however old it is', async () => {
+  const dayUrl = 'https://blob.example/days/2026-09-16.json';
+  const deleted: string[] = [];
+  const asked: string[] = [];
+  const blob: StoreBlobDeps = {
+    list: async ({ prefix }) => {
+      asked.push(prefix);
+      if (prefix === 'days/') return { blobs: [{ url: dayUrl, pathname: 'days/2026-09-16.json', uploadedAt: NOW }], hasMore: false };
+      if (prefix === 'reads/') return { blobs: [], hasMore: false };
+      // Only reached if the sweep ever goes looking under ids/ — a year-old recording that is
+      // still played by every hour this station opens.
+      return { blobs: [{ url: 'https://blob.example/ids/wyms.wav', pathname: 'ids/wyms.wav', uploadedAt: new Date(NOW.getTime() - 400 * DAY_MS) }], hasMore: false };
+    },
+    del: async (urls) => { deleted.push(...urls); },
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify(dayFile()))) as unknown as typeof fetch;
+  try {
+    const swept = await sweepReads(NOW, blob);
+    assert.deepEqual(asked, ['days/', 'reads/'], 'the sweep must never go looking under ids/ at all');
+    assert.deepEqual(swept, []);
+    assert.deepEqual(deleted, [], 'a legal ID recorded a year ago must still be there tomorrow morning');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

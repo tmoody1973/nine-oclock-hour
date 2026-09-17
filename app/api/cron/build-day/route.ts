@@ -1,6 +1,7 @@
 import { buildDay } from '@/lib/day';
 import { putDay, sweepReads, audioUrls } from '@/lib/store';
-import { voiceRead } from '@/lib/reads';
+import { voiceRead, voiceId } from '@/lib/reads';
+import { LEGAL_IDS } from '@/lib/legalid';
 import { DEFAULT_VOICE } from '@/lib/voices';
 import { pool } from '@/lib/pool';
 
@@ -98,6 +99,29 @@ export async function GET(req: Request) {
       // Its marker is already sitting in day.degraded from the pessimistic write above.
     }
   });
+
+  // The legal identification that opens every hour, per station — and the only VERBATIM
+  // recording this job makes. voiceId() goes straight to text-to-speech; voiceRead() would send
+  // the words to the script model to be rewritten first, which is right for a news read and a
+  // regulatory violation here. Only stations whose wording somebody actually confirmed are in
+  // LEGAL_IDS (lib/legalid.ts); the rest keep a silent opening block that says why, rather than
+  // a call sign guessed on somebody else's licence.
+  //
+  // Sequential rather than pooled, unlike the reads above: at most six, and keyed on the words
+  // instead of the date, so every morning after the first is a cache hit that costs nothing and
+  // there is no concurrency worth managing. A failure leaves that station exactly where it was
+  // yesterday — silent — and says so in `degraded`. Silence is a bad opening block; a wrong
+  // identification is a licence problem, so there is no fallback here on purpose.
+  for (const [id, st] of Object.entries(day.stations)) {
+    const words = LEGAL_IDS[id];
+    if (!words) continue;
+    try {
+      st.legalId = await voiceId(words, READ_VOICE);
+    } catch (e) {
+      console.error(`legal ID for ${id} failed, its hour opens silent — ${(e as Error).message}`);
+      day.degraded = [...(day.degraded ?? []), `legalid:${id}`];
+    }
+  }
   // Reads older than three days and no longer referenced by any surviving day file — see
   // lib/store.ts's sweepReads for the trap this avoids (day files sweep at 7 days; deleting
   // reads blindly at 3 would leave a day aged 4-7 pointing at audio that no longer exists).
