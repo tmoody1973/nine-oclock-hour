@@ -77,10 +77,16 @@ export async function forecast(lat: number, lon: number, fetchImpl: typeof fetch
   return periods;
 }
 
-// 45 seconds of window. At a newsreader's ~140 words a minute that is about 105 words, so the
-// budget stops a little short of it: the block is scheduled at 45 seconds and a recording that
-// overruns pushes everything after it, which is precisely what this app scores a producer on.
-const WORD_BUDGET = 100;
+// 45 seconds of window, and this number is MEASURED, not assumed. The script below, voiced
+// through the real TTS model on 2026-09-17, came back at 60 words / 26.4 seconds — 136 words a
+// minute. So 100 words would be ~44 seconds against a 45-second window, which is no headroom at
+// all; 90 lands near 40 and leaves five seconds for a slower voice or a longer sentence. The
+// block is scheduled at 45 seconds and a recording that overruns pushes everything after it,
+// which is precisely what this app scores a producer on.
+//
+// ponytail: one constant, not a per-voice table. Gemini's prebuilt voices do not differ enough
+// in pace to be worth modelling, and the five seconds absorb it.
+const WORD_BUDGET = 90;
 const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
 
 // Whole sentences. The trim below cuts from the end, so a split that is slightly off only
