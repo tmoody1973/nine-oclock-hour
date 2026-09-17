@@ -11,7 +11,8 @@
 // back and forth as props.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
-import { BULLETIN, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
+import { BULLETIN, HOUR, crashLine, layout, score, type FlashChoice } from '@/lib/hour';
+import { reflowNote, reflowOf } from '@/lib/reflow';
 import { previewSource } from '@/lib/preview';
 import { arcs } from '@/lib/clock';
 import { airBlocks, block, buildWire, legalIdBlock, placementNote } from '@/lib/wire';
@@ -345,11 +346,39 @@ export function HourBuilder({ day }: { day: DayFile }) {
                       <span className={styles.who}>{b.label}{'mode' in b && b.mode === 'read' ? ' — read' : ''}</span>
                       <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <span className={'est' in b && b.est ? styles.blkEst : ''}>{'est' in b && b.est ? '≈' : ''}{clock(b.len)}</span>
-                        {!b.fixed && <button type="button" onClick={() => removeFromHour(b.id)} aria-label={`Remove ${b.label}`}>×</button>}
+                        {!b.fixed && (() => {
+                          // What pulling THIS one would do, worked out before it is pulled.
+                          // "The real cost is the reflow, not a penalty" — layout() already
+                          // knows that taking a piece out sends whatever follows into a window.
+                          const note = reflowNote(reflowOf(hour, b.id, pledge));
+                          return (
+                            <button type="button" onClick={() => removeFromHour(b.id)}
+                                    title={note ?? undefined}
+                                    aria-label={note ? `Remove ${b.label} — ${note}` : `Remove ${b.label}`}>×</button>
+                          );
+                        })()}
                       </span>
                     </div>
                   ))}
                 </div>
+                {/* layout() has reported these since the engine was ported and nothing ever
+                    showed them: score() reads them only after the hour is over. Consequence
+                    while you build, not a verdict afterwards — and it teaches the clock, which
+                    is the point. Same wording as the aircheck, from one crashLine(). */}
+                {plan.crashes.length > 0 && (
+                  <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+                    {plan.crashes.map((c, i) => {
+                      const [headline, detail] = crashLine(c);
+                      return (
+                        <div key={i} style={{ borderLeft: '3px solid var(--red)', paddingLeft: 10 }}>
+                          <p style={{ margin: 0, fontSize: 12 }}>{headline}</p>
+                          <p style={{ margin: 0, fontSize: 11, color: 'var(--fgSoft)' }}>{detail}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div className={styles.filler}>
                   <button type="button" onClick={() => addMusic(180)}>+ Music 3:00</button>
                   <button type="button" onClick={() => addMusic(270)}>+ Music 4:30</button>
