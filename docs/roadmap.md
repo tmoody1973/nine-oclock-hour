@@ -25,20 +25,27 @@ and it stays visible while you scroll.
 
 ## 2. A legal ID and weather that actually say something
 
-`lib/hour.ts:35` (legal ID, 60s) and `lib/hour.ts:18` (weather window, 45s) are placeholders. The
-clock counts 105 seconds at the top of every hour and **there is nothing behind either one.**
+`lib/hour.ts:18` (weather window, 45s) is still a placeholder. The legal ID is **built for the home
+station** (2026-09-17) and still silent for the other five, because nobody has given us their words.
 
-- **Legal ID** — station-specific fixed text, recorded once per station and cached forever, since the
-  wording almost never changes. Six recordings, one time.
+- **Legal ID — DONE for `s921`, blocked on words for the other five.** The confirmed wording lives in
+  `lib/legalid.ts`, the 5 a.m. job records it with text-to-speech only (`voiceId`, never the script
+  model — a legal ID airs verbatim), and it is cached on a hash of the words rather than the date, so
+  it is recorded once and free every morning after. Stored under `ids/`, which the three-day read
+  sweep never touches.
 
-  **Confirmed by the station, 2026-09-17 — use this exactly:**
+  **Confirmed by the station, 2026-09-17 — this is what airs:**
 
   > You're listening to 88Nine Radio Milwaukee, WYMS Milwaukee
 
-  That is the home station (`s921`). The pattern is FCC-shaped: brand, then call sign, then city of
-  licence. **The other five stations' wording is NOT confirmed** — WBEZ, WNYC, WABE, KQED and KCRW
-  each need their own, and guessing a call sign or city of licence from general knowledge is exactly
-  how this goes wrong on air. Ask for each; do not infer.
+  **The other five stations' wording is still NOT confirmed** — WBEZ, WNYC, WABE, KQED and KCRW each
+  need their own, and guessing a call sign or city of licence from general knowledge is exactly how
+  this goes wrong on air. Ask for each; do not infer. Until then their hour opens on a silent block
+  labelled "Legal ID — no wording on file for this station", which is honest rather than broken.
+  Adding a station is one line in `lib/legalid.ts`; a test goes red if one appears without words.
+
+  **Still unheard by a human:** nobody has listened to the recording, so how the voice says the call
+  sign ("W-Y-M-S" letter by letter, or "wims" as a word) is unverified.
 - **Weather** — real forecast per station city. Stations already carry `city` (`lib/day.ts:8`), so
   the location is mostly solved; "the Bay Area" needs coordinates. Recorded in the 5 a.m. job. Six
   more recordings a morning, pennies.
