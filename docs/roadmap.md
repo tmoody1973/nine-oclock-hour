@@ -29,8 +29,16 @@ and it stays visible while you scroll.
 clock counts 105 seconds at the top of every hour and **there is nothing behind either one.**
 
 - **Legal ID** — station-specific fixed text, recorded once per station and cached forever, since the
-  wording almost never changes. Six recordings, one time. The actual wording is FCC-shaped and
-  station-specific: ask, don't invent.
+  wording almost never changes. Six recordings, one time.
+
+  **Confirmed by the station, 2026-09-17 — use this exactly:**
+
+  > You're listening to 88Nine Radio Milwaukee, WYMS Milwaukee
+
+  That is the home station (`s921`). The pattern is FCC-shaped: brand, then call sign, then city of
+  licence. **The other five stations' wording is NOT confirmed** — WBEZ, WNYC, WABE, KQED and KCRW
+  each need their own, and guessing a call sign or city of licence from general knowledge is exactly
+  how this goes wrong on air. Ask for each; do not infer.
 - **Weather** — real forecast per station city. Stations already carry `city` (`lib/day.ts:8`), so
   the location is mostly solved; "the Bay Area" needs coordinates. Source: `api.weather.gov` — free,
   no key, US-only, authoritative, and all six stations are US. Recorded in the 5 a.m. job. Six more
