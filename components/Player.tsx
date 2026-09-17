@@ -2,6 +2,23 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PlayItem } from '@/lib/playlist';
 
+// Only the three members `cue` touches, so a test can hand it a plain object instead of a
+// real DOM element — there is no React test harness in this build (see lib/player.test.ts).
+type CueTarget = { src: string; play: () => Promise<void>; pause: () => void };
+
+// Point the session's one audio element at the track now playing. Exported so the decision
+// can be tested without rendering a component.
+export function cue(a: CueTarget, item: PlayItem, playing: boolean, onRefused: () => void): void {
+  // A read has no audio of its own, and the element must be STOPPED before one starts, not
+  // merely left alone. Nothing else reassigns `src` on this path: skipping forward onto a
+  // read (the lock-screen "next" button) used to leave the previous tape rolling underneath
+  // a read the listener was supposed to hear in silence. Natural end-of-track never showed
+  // it — the element has already stopped itself by then — which is why it survived so long.
+  if (!item.audio) { a.pause(); return; }
+  a.src = item.audio;
+  if (playing) void a.play().catch(onRefused);
+}
+
 export function Player({ list, station, onDone }: { list: PlayItem[]; station: string; onDone?: () => void }) {
   // One element for the session. iOS unlocks audio on the element the user tapped;
   // creating a new one per track loses that unlock and playback silently stops.
@@ -19,8 +36,9 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
     // every read started cold. Reads are 30 seconds; an un-warmed mp3 on a phone is exactly
     // where a gap opens in the hour. Traced through the real control flow, not spotted by eye.
     if (next.current && list[i + 1]?.audio) next.current.src = list[i + 1].audio!;
-    if (item.audio) { a.src = item.audio; if (playing) void a.play().catch(() => setPlaying(false)); }
-    else if (playing) { const t = setTimeout(() => setI((n) => n + 1), item.seconds * 1000); return () => clearTimeout(t); }
+    cue(a, item, playing, () => setPlaying(false));
+    // A read has no audio of its own, so the hour is carried forward by a timer instead.
+    if (!item.audio && playing) { const t = setTimeout(() => setI((n) => n + 1), item.seconds * 1000); return () => clearTimeout(t); }
   }, [i, playing, item, list]);
 
   useEffect(() => {
