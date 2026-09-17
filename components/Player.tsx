@@ -103,6 +103,43 @@ export function toggle(a: CueTarget, item: PlayItem, playing: boolean, onRefused
   return next;
 }
 
+// ── How far into a block we are ───────────────────────────────────────────────────────────
+// A block WITH tape has real media time: the element counts `currentTime` against `duration`
+// and the browser owns it. A READ has none of that — no media element state at all, because
+// cue() deliberately never gives a read a source — so the only clock it has is the wall clock,
+// and the arithmetic below is the whole of it. Every hour opens on one: the 60-second legal ID,
+// silent by design, which is exactly the screen that read as "nothing is happening, no play, no
+// audio" four separate times in twenty minutes (docs/roadmap.md, gap 1).
+//
+// Why this is not simply `Date.now() - startedAt`: the listener can pause. `spent` is the
+// seconds already aired and settled; `since` is when the current run began, or null while
+// paused; nothing else is remembered. Pausing folds the open run into `spent`, resuming opens a
+// new one. So a legal ID paused at 0:55 and resumed ten minutes later still owes the hour five
+// seconds and says so, where a start-time-only clock would insist the minute was long gone.
+export type ReadClock = { spent: number; since: number | null };
+export const CLOCK_IDLE: ReadClock = { spent: 0, since: null };
+
+export function clockElapsed(c: ReadClock, now: number): number {
+  return c.since === null ? c.spent : c.spent + (now - c.since) / 1000;
+}
+
+// Start or stop the clock to match whether the hour is running. Returns the SAME object when it
+// is already in that state, which is load-bearing rather than tidy: the track effect below
+// re-runs on several dependencies and assigns this back unconditionally, so handing out a fresh
+// object for an unchanged state would reopen `since` on every pass and keep resetting the read
+// to zero.
+export function runClock(c: ReadClock, running: boolean, now: number): ReadClock {
+  if (running === (c.since !== null)) return c;
+  return running ? { spent: c.spent, since: now } : { spent: clockElapsed(c, now), since: null };
+}
+
+// What the read still owes the hour, in seconds. Clamped at zero because this arms the
+// setTimeout that carries the hour past a read — a negative delay fires immediately — and
+// because it is also the number on screen, which must never count below 0:00.
+export function readLeft(item: PlayItem, c: ReadClock, now: number): number {
+  return Math.max(0, item.seconds - clockElapsed(c, now));
+}
+
 export function Player({ list, station, onDone }: { list: PlayItem[]; station: string; onDone?: () => void }) {
   // One element for the session. iOS unlocks audio on the element the user tapped;
   // creating a new one per track loses that unlock and playback silently stops.

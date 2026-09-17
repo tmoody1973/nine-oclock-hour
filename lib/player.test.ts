@@ -161,3 +161,59 @@ test('a refused play() reports back rather than throwing into the effect', async
   await new Promise((r) => setTimeout(r, 0));
   assert.equal(reported, true);
 });
+
+// ── The read clock ────────────────────────────────────────────────────────────────────────
+// A READ has no media of its own — no currentTime, no duration, nothing the browser counts —
+// so the ONLY clock it has is the wall clock. Every hour opens on one: the 60-second legal ID,
+// silent by design, which is what made the whole app look dead four separate times in twenty
+// minutes (docs/roadmap.md, gap 1). These tests pin the half of that which is arithmetic; the
+// wiring into <Player> is browser-verified, since there is no React harness in this build.
+import { CLOCK_IDLE, clockElapsed, runClock, readLeft } from '../components/Player';
+
+const legalId = (): PlayItem => item({ id: 'legalid', title: 'Legal ID and promo', audio: undefined, seconds: 60 });
+
+test('a read that has not started yet reads zero, with the whole minute still to come', () => {
+  assert.equal(clockElapsed(CLOCK_IDLE, 1_000), 0);
+  assert.equal(readLeft(legalId(), CLOCK_IDLE, 1_000), 60);
+});
+
+test('a running read counts up against its own length, not against any media', () => {
+  const started = runClock(CLOCK_IDLE, true, 1_000);
+  assert.equal(clockElapsed(started, 21_000), 20, 'twenty seconds of wall clock is twenty seconds of read');
+  assert.equal(readLeft(legalId(), started, 21_000), 40);
+});
+
+// THE ONE THAT MATTERS. Paused, the number must FREEZE — not keep counting toward an end that
+// is not coming, which is the "stuck at 3 of 30" reading of a screen that is actually fine.
+test('a paused read stops counting, however long the listener leaves it', () => {
+  const paused = runClock(runClock(CLOCK_IDLE, true, 1_000), false, 21_000);
+  assert.equal(clockElapsed(paused, 21_000), 20);
+  assert.equal(clockElapsed(paused, 600_000), 20, 'ten minutes paused is still twenty seconds aired');
+  assert.equal(readLeft(legalId(), paused, 600_000), 40, 'and forty seconds still owed to the hour');
+});
+
+// And resuming must not start the minute again. This is the bug the wiring below it fixes:
+// <Player> used to arm setTimeout(item.seconds * 1000) on every resume, so a legal ID paused
+// at 0:55 aired for another full sixty seconds — the bar and the block would disagree, and the
+// bar would be the one telling the truth.
+test('resuming picks up where it left off — a read never airs its minute twice', () => {
+  const paused = runClock(runClock(CLOCK_IDLE, true, 1_000), false, 56_000);   // 55s aired
+  const resumed = runClock(paused, true, 300_000);                             // back, much later
+  assert.equal(clockElapsed(resumed, 300_000), 55, 'the pause itself costs the hour nothing');
+  assert.equal(readLeft(legalId(), resumed, 303_000), 2, 'three more seconds aired, two to go');
+  assert.equal(readLeft(legalId(), resumed, 305_000), 0, 'and it ends on time, not sixty seconds late');
+});
+
+test('a read that has over-run owes the hour nothing — never a negative countdown', () => {
+  const overrun = runClock(CLOCK_IDLE, true, 1_000);
+  assert.equal(readLeft(legalId(), overrun, 90_000), 0);
+});
+
+// <Player> assigns runClock()'s result back on every pass of its track effect, which re-runs
+// on several dependencies. Handing back a fresh object for an unchanged state would restart
+// `since` each time and quietly reset the read to zero over and over.
+test('runClock hands back the very same clock when nothing has changed', () => {
+  const running = runClock(CLOCK_IDLE, true, 1_000);
+  assert.equal(runClock(running, true, 9_000), running, 'still running — nothing to settle');
+  assert.equal(runClock(CLOCK_IDLE, false, 9_000), CLOCK_IDLE, 'still paused — nothing to start');
+});
