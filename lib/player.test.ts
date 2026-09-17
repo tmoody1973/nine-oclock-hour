@@ -59,19 +59,63 @@ test('a track with tape is loaded but not started while the hour is paused', () 
   assert.deepEqual(calls, ['pause']);
 });
 
-// THE OTHER BUG THIS FILE EXISTS FOR. The manual Play/Pause button called a.play()/a.pause()
-// directly on the DOM node, bypassing cue() — so resuming during a 30-second read (cue()
-// never touches `src` for a read) momentarily replayed whatever tape had been rolling before
-// the read, because the direct a.play() call had no idea the current item was a read. Once
-// the button routes every toggle through cue() instead, "resume during a read" is just
-// cue(el, sameReadItem, true, ...) — and that must never touch src or start playback,
-// regardless of what the element is still holding from before.
-test('resuming during a read never plays or touches src, even though the element still holds the previous tape', () => {
+// CHARACTERISATION, not a guard — and the distinction is the point. The bug it describes was
+// in <Player>'s button, which called a.play()/a.pause() directly on the DOM node and so had no
+// idea the current item was a read: resuming during a 30-second read momentarily replayed
+// whatever tape had been rolling before it. The FIX was to route the button through cue().
+//
+// This test cannot prove that fix. It exercises cue() alone, which has always behaved this
+// way, so it was green before the button changed and is green after — it would pass just as
+// happily against a button that still bypassed cue() entirely. There is no React harness in
+// this build (see the file header), so nothing here can reach the button. What it does earn
+// its place doing is pinning cue()'s half of the contract: if cue() is ever loosened to touch
+// src or start playback for an item with no audio of its own, this goes red.
+test('CHARACTERISATION: cue() on a read never plays or touches src, whatever the element still holds', () => {
   const { el, calls } = stubAudio();
   el.src = 'https://npr.example/previous-tape.mp3';
   cue(el, item({ id: 'a2:read', audio: undefined, seconds: 30 }), true, () => {});
   assert.deepEqual(calls, ['pause'], 'resuming a read must only ever pause, never play');
   assert.equal(el.src, 'https://npr.example/previous-tape.mp3', 'a read must never touch src');
+});
+
+// THE INVARIANT THAT LETS THE PLAY BUTTON START AUDIO INSIDE THE TAP. iOS only permits audio
+// to start from within the gesture, and the first tap is what unlocks audio for the whole
+// session — so <Player>'s button calls cue() synchronously in its onClick. The track effect
+// then re-runs (React defers it until after paint) and calls cue() a second time with the same
+// item. Assigning to a real HTMLAudioElement's `src` invokes the media load algorithm EVERY
+// time, even with an identical URL: it resets currentTime to 0 and aborts any play() already
+// in flight. Unguarded, that second cue() would abort the play() the tap just started, and on
+// iOS the retry lands outside the gesture and is refused. The same guard also stops pause and
+// resume from restarting the current track from zero.
+function stubAudioCountingSrc() {
+  const calls: string[] = [];
+  let src = '';
+  const el = {
+    get src() { return src; },
+    set src(v: string) { src = v; calls.push(`src=${v}`); },
+    play: async () => { calls.push('play'); },
+    pause: () => { calls.push('pause'); },
+  };
+  return { el, calls };
+}
+
+test('re-cueing the track already loaded never reassigns src — that would restart it mid-tap', () => {
+  const { el, calls } = stubAudioCountingSrc();
+  const track = item();
+  cue(el, track, true, () => {});   // the click handler, inside the tap
+  assert.deepEqual(calls, [`src=${track.audio}`, 'play'], 'the first cue loads it and starts it');
+  calls.length = 0;
+  cue(el, track, true, () => {});   // the effect, re-running after paint with the same item
+  assert.ok(!calls.some((c) => c.startsWith('src=')), 'src must not be reassigned for the track already loaded');
+  assert.deepEqual(calls, ['play'], 'it may only ensure playback, which is a no-op on an element already playing');
+});
+
+test('a genuinely different track still gets loaded — the guard must not freeze the hour', () => {
+  const { el, calls } = stubAudioCountingSrc();
+  cue(el, item(), true, () => {});
+  calls.length = 0;
+  cue(el, item({ id: 'b:tape', audio: 'https://npr.example/b.mp3' }), true, () => {});
+  assert.deepEqual(calls, ['src=https://npr.example/b.mp3', 'play']);
 });
 
 // play() rejects on its own whenever the browser refuses (an autoplay policy, a lost iOS

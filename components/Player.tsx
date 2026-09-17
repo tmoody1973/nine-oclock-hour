@@ -15,7 +15,20 @@ export function cue(a: CueTarget, item: PlayItem, playing: boolean, onRefused: (
   // a read the listener was supposed to hear in silence. Natural end-of-track never showed
   // it — the element has already stopped itself by then — which is why it survived so long.
   if (!item.audio) { a.pause(); return; }
-  a.src = item.audio;
+  // Only when it actually changes. Assigning `src` invokes the media load algorithm every
+  // time, even with an identical URL: currentTime resets to 0 and any play() already in
+  // flight is aborted. The Play button below calls cue() synchronously inside the tap — iOS
+  // permits audio to start only there, and the first tap is what unlocks it for the whole
+  // session — and the track effect then re-runs after paint and cues the same item again.
+  // Unguarded, that second call would abort the play() the tap just started and retry it
+  // outside the gesture, where iOS refuses it: no audio on iPhone, ever. It also stops pause
+  // and resume restarting the current track from the top.
+  //
+  // Load-bearing assumption: every audio URL here is absolute (a CDS enclosure href or a
+  // Vercel Blob href), so a real element's `src` getter returns the same string that was
+  // assigned to it. A relative URL would resolve, never compare equal, reassign on every
+  // cue, and quietly put the iOS gesture chain back the way it was.
+  if (a.src !== item.audio) a.src = item.audio;
   if (playing) void a.play().catch(onRefused);
   else a.pause();
 }
@@ -77,12 +90,23 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
     <section aria-label="Player">
       <audio ref={el} onEnded={() => setI((n) => n + 1)} preload="none" />
       <audio ref={next} preload="auto" style={{ display: 'none' }} />
-      {/* Only flips `playing` — the effect above is the one place that calls cue() and
-          decides what the element does. A direct a.play()/a.pause() here used to bypass
-          cue()'s read check: resuming during a 30-second read replayed whatever tape had
-          been rolling before it, because the direct call had no idea the current item had
-          no audio of its own. */}
-      <button onClick={() => setPlaying((p) => !p)}>
+      {/* The tap itself starts the audio. iOS permits playback to begin only from inside the
+          gesture, and the first tap is what unlocks audio for the rest of the session; a React
+          effect runs after paint, in a later task, which is outside it — flipping `playing` and
+          leaving the effect to start playback risked no audio on iPhone at all. So cue() is
+          called synchronously here, within the tap.
+
+          It goes through cue() rather than a direct a.play()/a.pause() because cue() is the
+          one place that decides what the element does — including the read check that a direct
+          call used to bypass, where resuming during a 30-second read replayed whatever tape had
+          been rolling before it. The effect above still calls cue() for every other reason the
+          track changes, and cue() no longer reassigns an unchanged `src`, so that second call
+          cannot abort the playback this one starts. */}
+      <button onClick={() => {
+        const next = !playing;
+        if (el.current) cue(el.current, item, next, () => setPlaying(false));
+        setPlaying(next);
+      }}>
         {playing ? 'Pause' : 'Play my hour'}
       </button>
       <p>{item.title} — {item.src}{item.audio ? '' : ' (read)'}</p>
