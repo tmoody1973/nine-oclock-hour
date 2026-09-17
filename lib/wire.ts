@@ -94,8 +94,28 @@ export function windowBlock(w: TimeWindow, audio?: string): Block {
 //
 // `'mode' in b` is the discriminator, the same test the rail already uses — every Block has a
 // mode and no FixedRow does.
+//
+// TWO SILENCES THAT LOOK IDENTICAL AND ARE NOT THE SAME FACT. The player says "Nothing to play
+// — this block airs on the clock" for any block with no audio, which is exactly right for the
+// traffic window: nobody ever intended a recording there, the host fills those 45 seconds live,
+// and the silence is the design. An empty WEATHER window is the opposite — it means this
+// morning's forecast or recording failed — and leaving it to read as "by design" is the same
+// quiet dishonesty that made a silent legal ID look like a dead player. So the weather window
+// carries the reason in its label when it has nothing to play, exactly as legalIdBlock does. A
+// word, not a mechanism: no new field, no new state, and the traffic window is left alone
+// because it has nothing to apologise for.
+//
+// The RAIL still shows the plain "Weather window" for both, because it renders layout()'s rows
+// directly and layout() knows nothing about a station. Converting the rail's rows too would
+// make it append its own " — read" suffix to every window, including traffic, which is not a
+// read — that is the mechanism this deliberately stops short of.
 export function airBlocks(rows: LayoutRow[], station: { weather?: string }): Block[] {
-  return rows.map(({ b }) => ('mode' in b ? b : windowBlock(b, b.id === 'wx' ? station.weather : undefined)));
+  return rows.map(({ b }) => {
+    if ('mode' in b) return b;
+    if (b.id !== 'wx') return windowBlock(b);
+    if (station.weather) return windowBlock(b, station.weather);
+    return windowBlock({ ...b, label: `${b.label} (no forecast this morning)` });
+  });
 }
 
 // What came in for the producer at `home`, plus the first two things their neighbour filed —

@@ -273,3 +273,31 @@ test('a station with NO confirmed wording still unlocks, exactly as it does toda
   assert.ok(calls.includes('play'), 'and play() must still happen inside the tap, or the session never unlocks');
   assert.equal(calls[calls.length - 1], 'pause', 'the block itself still airs in silence');
 });
+
+// The windows are now IN the list (lib/wire.ts, airBlocks), which means the hour readout counts
+// them and the "N of M" beside it includes them. Both are the fix, not a regression — the played
+// hour used to be 90 seconds shorter than the rundown it claimed to be playing. But it puts a
+// new kind of block under the same cap as the test above, and the weather window is the one
+// block whose audio length is decided by a text-to-speech model rather than by us: a 45-second
+// window holding a 48-second forecast is entirely possible. So the same guarantee is pinned for
+// a window, with real numbers: the clock stalls at what the rundown promised, and never reverses.
+test('the hour clock never runs backwards when a weather window overruns its 45 seconds', () => {
+  const list: PlayItem[] = [
+    item({ id: 'legalid', seconds: 60, audio: undefined, mode: 'read' }),
+    item({ id: 'wx', title: 'Weather window', seconds: 45, mode: 'read', audio: 'https://blob.example/wx/today.wav' }),
+    item({ id: 'b', seconds: 120 }),
+  ];
+  const atOverrun = hourElapsed(list, 1, 48);   // the recording ran three seconds long
+  const justAfter = hourElapsed(list, 2, 0);    // the window is over, the next block starts
+  assert.ok(justAfter >= atOverrun, `hour clock went backwards: ${atOverrun} -> ${justAfter}`);
+  assert.equal(atOverrun, 105, 'capped at the 60-second ID plus the 45 the window was given');
+  assert.equal(justAfter, 105, 'and the next block picks up from exactly there');
+});
+
+// A SILENT window cannot overrun at all — it has no media, so its position comes from the read
+// clock, which readLeft() clamps at zero and the render caps at the block's scheduled length.
+test('a silent window counts exactly the seconds the rundown gave it', () => {
+  const list: PlayItem[] = [item({ id: 'tx', title: 'Traffic window', seconds: 45, mode: 'read', audio: undefined }), item({ id: 'b', seconds: 120 })];
+  assert.equal(hourElapsed(list, 0, 45), 45);
+  assert.equal(hourElapsed(list, 1, 0), 45, 'no jump, no gap');
+});

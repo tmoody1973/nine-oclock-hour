@@ -5,7 +5,7 @@ import { airBlocks, block, buildWire, legalIdBlock, rollable, used } from './wir
 import { layout } from './hour';
 import { toWireItem } from './cds';
 import { toPlaylist } from './playlist';
-import type { DayFile, WireItem } from './types';
+import type { Block, DayFile, WireItem } from './types';
 
 const item = (over: Partial<WireItem> = {}): WireItem => ({
   id: 'a1', src: 'Morning Edition', how: 'satellite', kind: 'seg',
@@ -298,9 +298,80 @@ test('the producer blocks pass through the conversion unchanged', () => {
 test('the aired hour is the hour the rundown promised, windows included', () => {
   const hour = [legalIdBlock({}), block(item({ id: 'a1', len: 1200 }), 'tape'), block(item({ id: 'a2', len: 1800 }), 'tape')];
   const rows = layout(hour, false).rows;
-  const list = toPlaylist(airBlocks(rows, {}));
+  // A forecast on file, so the labels stay plain — this test is about LENGTH, and the
+  // no-forecast label has its own test below.
+  const list = toPlaylist(airBlocks(rows, { weather: 'https://blob.example/wx/today.wav' }));
   assert.equal(list.length, hour.length + 2, 'both windows are in what plays');
   assert.deepEqual(list.map((x) => x.title).filter((t) => t.includes('window')), ['Weather window', 'Traffic window']);
   const played = list.reduce((n, x) => n + x.seconds, 0);
   assert.equal(played, hour.reduce((n, b) => n + b.len, 0) + 90, 'the 90 seconds of windows are no longer skipped');
+});
+
+// ── The five things the aired hour must keep true ─────────────────────────────────────────
+
+// (1) THE INVARIANT THAT MATTERS MOST. score() runs layout() on the array it is handed, so if
+// the hour given to the scorer ever carried window blocks it would have a SECOND set inserted
+// on top and every clock check would score a doubled hour — silently, and every aircheck from
+// that moment on would be incomparable with every one before it. The conversion happens on the
+// way to the player and nowhere else; this pins that the scorer's array is untouched.
+test('converting for the player leaves the array the scorer sees byte-identical', () => {
+  const airedHour = [legalIdBlock({}), block(item({ id: 'a1', len: 1200 }), 'tape'), block(item({ id: 'a2', len: 1800 }), 'tape')];
+  const before = JSON.stringify(airedHour);
+  const list = toPlaylist(airBlocks(layout(airedHour, false).rows, { weather: 'https://blob.example/wx/today.wav' }));
+  assert.equal(JSON.stringify(airedHour), before, 'the scorer must not see the windows');
+  assert.equal(airedHour.length, 3, 'and nothing was spliced into it');
+  assert.equal(list.length, 5, 'while the player does get them');
+});
+
+// (2) The bulletin is spliced into the hour by finalizeAir BEFORE the conversion runs, so a
+// bulletin pushes the windows later exactly the way it pushes everything else. If the order
+// ever flipped, the windows would land where the hour would have been without the flash.
+test('a bulletin spliced into the hour moves the windows with everything else', () => {
+  const long = block(item({ id: 'a1', len: 1100 }), 'tape');
+  const bulletin: Block = { id: 'bulletin', label: 'BULLETIN', len: 75, how: 'satellite', kind: 'seg', mode: 'read', topic: 'economy', bulletin: true };
+  const wx = { weather: 'https://blob.example/wx/today.wav' };
+  const without = toPlaylist(airBlocks(layout([legalIdBlock({}), long], false).rows, wx));
+  const withIt = toPlaylist(airBlocks(layout([legalIdBlock({}), bulletin, long], false).rows, wx));
+  assert.equal(without[2].title, 'Weather window', 'without the flash the window follows the tape');
+  assert.equal(withIt[1].title, 'BULLETIN', 'the flash is in the played hour, in its spliced position');
+  assert.equal(withIt[3].title, 'Weather window', 'and the window still follows the tape, one slot later');
+});
+
+// (3) Pledge week puts two 120-second pitch breaks in the hour. Each is its own labelled block
+// in what plays — never one undifferentiated four-minute hole a listener cannot read.
+test('a pledge hour renders each pitch break as its own labelled block', () => {
+  const hour = [legalIdBlock({}), block(item({ id: 'a1', len: 900 }), 'tape'), block(item({ id: 'a2', len: 2000 }), 'tape')];
+  const list = toPlaylist(airBlocks(layout(hour, true).rows, {}));
+  const pitches = list.filter((x) => x.title === 'Pitch break');
+  assert.equal(pitches.length, 2, 'two breaks, two blocks');
+  assert.deepEqual(pitches.map((p) => p.seconds), [120, 120]);
+  assert.equal(new Set(pitches.map((p) => p.id)).size, 2, 'and they are distinct blocks, not one repeated');
+});
+
+// (4) The first entry decides which path the listener's very first tap takes (lib/player.ts),
+// and a window must never be able to take that slot. It cannot: layout() only emits a window
+// once the clock has REACHED it, and the hour always opens with the legal ID.
+test('the hour never opens on a window, so the first tap path is unchanged', () => {
+  for (const pledge of [false, true]) {
+    const hour = [legalIdBlock({ legalId: 'https://blob.example/ids/wyms.wav' }), block(item(), 'tape'), block(item({ id: 'a2' }), 'tape')];
+    const first = toPlaylist(airBlocks(layout(hour, pledge).rows, { weather: 'https://blob.example/wx/today.wav' }))[0];
+    assert.equal(first.title, 'Legal ID and promo', `pledge=${pledge}`);
+    assert.equal(first.id, 'legalid');
+  }
+});
+
+// (5) THE JUDGEMENT CALL, and it is a word rather than a mechanism. A silent traffic window and
+// an unrecorded weather window look identical on screen but are not the same fact: nobody ever
+// intended audio in the traffic window — the host fills those 45 seconds live — while a weather
+// window with nothing in it means this morning's recording FAILED. The player says "Nothing to
+// play — this block airs on the clock" for both, which is exactly right for traffic and quietly
+// misleading for weather, so the weather label carries the reason, the way the legal ID's does.
+test('a weather window with no forecast says so; a traffic window does not apologise', () => {
+  const rows = layout([legalIdBlock({}), block(item({ id: 'a1', len: 1200 }), 'tape'), block(item({ id: 'a2', len: 1800 }), 'tape')], false).rows;
+  const failed = toPlaylist(airBlocks(rows, {}));
+  assert.equal(failed.find((x) => x.id === 'wx')!.title, 'Weather window (no forecast this morning)');
+  assert.equal(failed.find((x) => x.id === 'tx')!.title, 'Traffic window', 'live and by design — nothing failed here');
+
+  const ok = toPlaylist(airBlocks(rows, { weather: 'https://blob.example/wx/today.wav' }));
+  assert.equal(ok.find((x) => x.id === 'wx')!.title, 'Weather window', 'with a forecast it is just the window again');
 });
