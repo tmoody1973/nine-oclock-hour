@@ -68,8 +68,47 @@ test("another newsroom's tape added as a read carries no audio, even though item
 });
 
 test('a voiced read carries its own audio, and is marked spoken', () => {
-  const b = block(item({ audio: 'https://blob.example/reads/x.wav', spoken: true }), 'read');
+  const b = block(item({ len: 0, spokenAudio: 'https://blob.example/reads/x.wav' }), 'read');
   assert.equal(b.audio, 'https://blob.example/reads/x.wav');
+  assert.equal(b.spoken, true);
+});
+
+// THE CASE THIS WHOLE CHANGE EXISTS FOR. Reading a story that arrived WITH publisher tape is
+// a normal editorial call — a 4:40 tape becomes a 30-second read when the hour is tight. The
+// cron used to skip voicing anything already carrying an audio href, so such a story had no
+// voiced take of its own, and block() (correctly) refuses to stream a publisher's tape from a
+// read. The listener got thirty seconds of silence. Now the publisher's tape and our own read
+// live in two different fields and coexist: reading it plays OUR voice, and voicing it does
+// not cost the producer the roll.
+test('a story that came in with publisher tape can still be read aloud in our own voice', () => {
+  const both = item({ audio: 'https://npr.example/tape.mp3', spokenAudio: 'https://blob.example/reads/x.wav' });
+  const read = block(both, 'read');
+  assert.equal(read.audio, 'https://blob.example/reads/x.wav', 'a read plays our voiced take, never silence');
+  assert.equal(read.spoken, true);
+  const tape = block(both, 'tape');
+  assert.equal(tape.audio, 'https://npr.example/tape.mp3', 'and the producer keeps the roll — voicing must never overwrite the tape');
+  assert.equal(tape.spoken, false);
+});
+
+// The two items on a real wire that have NO other outcome available: another newsroom's tape
+// cannot be rolled at all, so a read is the only way they reach air. Our own voice is not
+// subject to the tape rights gate, which is exactly why voicing every story is safe.
+test("another newsroom's story reaches air as our voiced read, tape gate and all", () => {
+  const both = item({ how: 'station', audio: 'https://wbez.example/tape.mp3', spokenAudio: 'https://blob.example/reads/y.wav' });
+  const [entry] = toPlaylist([block(both, 'read')]);
+  assert.equal(entry.audio, 'https://blob.example/reads/y.wav', "our read streams; their tape never does");
+  assert.equal(toPlaylist([block(both, 'tape')])[0].audio, undefined, 'and the tape gate is untouched');
+});
+
+// MIGRATION, not a preference. Day files written before `spokenAudio` existed put the voiced
+// read in `audio` and flagged it `spoken: true`, and those files stay readable for their full
+// seven days — the page serves the latest stored day whenever this morning's build has not
+// landed yet. Reading only the new field would send every one of yesterday's reads back to the
+// silence this change exists to end.
+test("a read stored in the old shape — voiced audio in `audio`, flagged spoken — still plays", () => {
+  const legacy = item({ len: 0, audio: 'https://blob.example/reads/yesterday.wav', spoken: true });
+  const b = block(legacy, 'read');
+  assert.equal(b.audio, 'https://blob.example/reads/yesterday.wav');
   assert.equal(b.spoken, true);
 });
 

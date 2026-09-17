@@ -48,6 +48,12 @@ export function rollable(item: WireItem): boolean {
 // `title: b.label` convention lib/playlist.ts already uses.
 export function block(item: WireItem, mode: 'tape' | 'read', now = Date.now()): Block {
   const usingEstimate = mode === 'tape' && !item.len && !!item.est;
+  // Our own voiced take, in whichever field the item carries it. `spokenAudio` is where the
+  // cron writes it now; the `item.spoken` fallback reads the old shape, where the voiced read
+  // sat in `audio` behind that flag. Day files live seven days and the page serves the latest
+  // stored one whenever this morning's build has not landed, so dropping the fallback would
+  // send every one of yesterday's reads back to silence.
+  const voiced = item.spokenAudio ?? (item.spoken ? item.audio : undefined);
   return {
     id: `${item.id}:${mode}`,
     label: item.title,
@@ -57,12 +63,13 @@ export function block(item: WireItem, mode: 'tape' | 'read', now = Date.now()): 
     mode,
     topic: item.topic,
     src: item.src,
-    // A read only carries audio when it's our own voiced take — gated on `item.spoken`
-    // (set by voiceRead() in the cron), never on `mode === 'read'` alone. Keying on mode
-    // alone would let a tape item added as a read stream the publisher's tape through the
-    // back door — exactly the rights violation display-only items exist to prevent.
-    audio: mode === 'tape' ? item.audio : (item.spoken ? item.audio : undefined),
-    spoken: mode === 'read' && !!item.spoken,
+    // A read only carries audio when it's our own voiced take — gated on `voiced` above,
+    // never on `mode === 'read'` alone. Keying on mode alone would let a tape item added as
+    // a read stream the publisher's tape through the back door — exactly the rights
+    // violation display-only items exist to prevent. Tape mode still reads `item.audio` and
+    // nothing else: voicing a story must never cost the producer the roll.
+    audio: mode === 'tape' ? item.audio : voiced,
+    spoken: mode === 'read' && !!voiced,
     est: usingEstimate,
     // The prototype's fake newscasts carried a hardcoded `expired: true`. Real ones carry an
     // ISO `expires` timestamp instead (see lib/day.ts), so the expiry has to be computed —
