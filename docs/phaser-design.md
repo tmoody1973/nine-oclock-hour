@@ -106,11 +106,33 @@ before writing a line of audio code — especially that Web Audio lets you *veri
 (`await ctx.resume()`, then assert `ctx.state === 'running'`) where the React path could only assume
 it.
 
+## Nine o'clock: the player chooses how long to listen
+
+**Tarik's call.** At nine the hour goes out, and you pick how much of it you sit through — **the
+whole thing, or a compressed version**. Either way the aircheck follows.
+
+That is the same rule as the preview cost, which makes it a principle rather than two settings:
+**the player decides how much real time this costs them, and the honest option is always available.**
+
+### What "compressed" should be — play the joins
+
+Proposed, not yet agreed: compressed does not mean sped up. It means **the first eight to ten
+seconds of every block, in order**. You hear the legal ID land, the newscast come in under it, the
+read, the music bed arriving. Around ten blocks makes roughly ninety seconds.
+
+Two reasons:
+
+1. **That is what an aircheck actually is.** In radio an aircheck is the recording of your hour that
+   you listen back to afterwards. The scorecard already carries the name; this makes the name true.
+2. **The craft is in the joins.** Nobody reviews their own hour for the middles. They listen to how
+   one thing became another — whether the newscast landed clean, whether the music came in too hot.
+
+The full version stays for anyone who wants it, and for a music station it is genuinely listenable:
+lofi beds, voiced reads, a real forecast. Note that with silence skipped it is already shorter than
+sixty minutes.
+
 ## Still open
 
 - **How long is the morning?** Four hours of story time compressed into how much real play.
-- **What happens at nine?** Do you hear the hour go out, or does it cut to the aircheck? The
-  recordings are the best asset this project has; the answer decides whether they are the payoff or
-  just a score input.
 - **How many cards are on screen at once?** Twenty-six is a lot of canvas. Does the wire arrive in
   waves, or is it all there from 5 a.m.?
