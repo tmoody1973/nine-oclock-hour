@@ -12,6 +12,7 @@
 import { DESK_COLOR, DESK_NAME } from '@/lib/desks';
 import { clock } from '@/lib/player';
 import { CAN_ROLL, HOW_LABEL, WHY_NOT, placementNote } from '@/lib/wire';
+import type { PreviewControl } from './preview-control';
 import type { WireItem } from '@/lib/types';
 
 const cell: React.CSSProperties = { display: 'grid', gap: 2 };
@@ -21,7 +22,7 @@ const value: React.CSSProperties = { fontSize: 14 };
 // `now` is passed in rather than read here, following the same seam as block() in lib/wire.ts.
 // Reading the clock during render is impure, and on this component it would also be a
 // server/client hydration mismatch: freshness is decided once, on the server, at request time.
-export function Card({ item, flipped, onFlip, now, flipPrice, flipBlocked }: {
+export function Card({ item, flipped, onFlip, now, flipPrice, flipBlocked, preview }: {
   item: WireItem;
   flipped: boolean;
   onFlip: () => void;
@@ -32,6 +33,7 @@ export function Card({ item, flipped, onFlip, now, flipPrice, flipBlocked }: {
   // Why the control is unavailable, in words. The React build explained every disabled control
   // in text rather than greying it out and hoping; colour is never the only signal.
   flipBlocked: string | null;
+  preview: PreviewControl;
 }) {
   const expired = !!item.expires && Date.parse(item.expires) < now;
   // The `≈` the design asks for: no duration in the feed means rolling it is a gamble, so it
@@ -107,11 +109,23 @@ export function Card({ item, flipped, onFlip, now, flipPrice, flipBlocked }: {
         </>
       )}
 
-      <div style={{ display: 'grid', gap: 6, justifyItems: 'start' }}>
-        <button type="button" onClick={onFlip} disabled={!!flipBlocked} style={{ padding: '6px 12px', fontSize: 13 }}>
-          {flipped ? 'Back to the signals' : flipPrice === null ? 'Flip to read' : `Flip to read — ${flipPrice} min`}
-        </button>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" onClick={onFlip} disabled={!!flipBlocked} style={{ padding: '6px 12px', fontSize: 13 }}>
+            {flipped ? 'Back to the signals' : flipPrice === null ? 'Flip to read' : `Flip to read — ${flipPrice} min`}
+          </button>
+          {/* Hearing it is the most expensive thing you can do, so the price is on the control
+              rather than hidden in a rulebook. Available from both sides of the card: you may
+              well want it playing while you read. */}
+          <button type="button" onClick={preview.onToggle} disabled={!!preview.blocked} style={{ padding: '6px 12px', fontSize: 13 }}>
+            {preview.playing ? 'Stop' : preview.price === null ? 'Hear it' : `Hear it — ${preview.price} min`}
+          </button>
+        </div>
+        {/* Disabled controls explain themselves in text. Colour is never the only signal. */}
         {flipBlocked ? <p style={{ margin: 0, fontSize: 12, color: '#8a4b00' }}>{flipBlocked}</p> : null}
+        {preview.blocked ? <p style={{ margin: 0, fontSize: 12, color: '#8a4b00' }}>{preview.blocked}</p> : null}
+        {/* Whose server the sound comes off. Auditioning must never look like we host it. */}
+        {preview.note ? <p style={{ margin: 0, fontSize: 12, color: '#555' }}>{preview.note}</p> : null}
       </div>
     </article>
   );

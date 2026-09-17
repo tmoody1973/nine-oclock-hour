@@ -12,8 +12,10 @@ import type * as PhaserNS from 'phaser';
 import { unlock, type UnlockResult } from '@/lib/audio';
 import { audioLog, disagreement } from '@/lib/audiolog';
 import { MORNING_MINUTES, canAfford, costOf, morningClock, remaining, spend, whyNot } from '@/lib/morning';
+import { nothingToHear, previewSource, sourceNote } from '@/lib/preview';
 import type { WireItem } from '@/lib/types';
 import { Card } from './Card';
+import type { PreviewControl } from './preview-control';
 
 export default function Stage({ items, now }: { items: readonly WireItem[]; now: number }) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -30,12 +32,89 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
   // Stories already read this morning. Reading one twice costs nothing, because a producer who
   // has read it has read it; the price is for the reading, not for the gesture.
   const [read, setRead] = useState<ReadonlySet<string>>(() => new Set());
+  // Stories already paid to hear. Preview is a FLAT price: once you have decided to listen,
+  // sitting through the whole piece costs nothing extra — which matters because the hour is
+  // meant to be a real news product, not something you sample and discard.
+  const [heard, setHeard] = useState<ReadonlySet<string>>(() => new Set());
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  // ONE element for the session, the way the React build kept one. Publisher tape streams from
+  // the newsroom's own server; nothing is copied here.
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const picked = useMemo(() => items.find((i) => i.id === pickedId) ?? null, [items, pickedId]);
   const paidFor = !!picked && read.has(picked.id);
   // Turning a card back over is free, and so is re-reading one you already paid for.
   const flipPrice = flipped || paidFor ? null : costOf('flip', spent);
   const flipBlocked = flipped || paidFor ? null : whyNot('flip', spent);
+
+  const onPreview = useCallback(() => {
+    if (!picked) return;
+    const log = logRef.current;
+    const el = audioRef.current;
+    const src = previewSource(picked);
+    if (!el || !src) return;
+
+    if (playingId === picked.id) {
+      el.pause();
+      setPlayingId(null);
+      log.record('preview stopped', picked.id);
+      setLines(log.lines());
+      return;
+    }
+
+    const paid = heard.has(picked.id);
+    if (!paid && !canAfford('preview', spent)) return;
+
+    // SYNCHRONOUS, INSIDE THE TAP, and before anything is awaited. This is the rule the React
+    // build arrived at the hard way (docs/roadmap.md): let the gesture start something real,
+    // and never build a priming step you then assume ran. An `await` above this line would
+    // spend the gesture and iOS would refuse the play that follows.
+    //
+    // Assigning `src` runs the media load algorithm every time, even with an identical URL —
+    // currentTime resets and any in-flight play() is aborted — so it is guarded, exactly as
+    // cue() guards it in lib/player.ts.
+    if (el.src !== src.url) el.src = src.url;
+    void el
+      .play()
+      .then(() => { log.record('preview playing', `${src.what} · ${src.from}`); setLines(log.lines()); })
+      .catch((e: Error) => {
+        // A refusal must reach the screen, not the void. A control that looks responsive and
+        // plays nothing is the exact failure this harness exists to make visible.
+        log.record('preview REFUSED', e.message);
+        setPlayingId(null);
+        setLines(log.lines());
+      });
+
+    if (!paid) {
+      setHeard((h) => new Set([...h, picked.id]));
+      setSpent((sp) => spend('preview', sp));
+    }
+    setPlayingId(picked.id);
+
+    // The diagnostic, AFTER the play() and never awaited before it. Phaser's own signals mean
+    // "resume() resolved"; this reads the state back and says what is actually true.
+    const sm = gameRef.current?.sound as PhaserNS.Sound.WebAudioSoundManager | undefined;
+    if (sm?.context) {
+      void unlock(sm.context).then((r) => {
+        log.record('context during preview', `unlock=${r} state=${sm.context.state}`);
+        setLines(log.lines());
+      });
+    }
+  }, [picked, playingId, heard, spent]);
+
+  const preview: PreviewControl = useMemo(() => {
+    if (!picked) return { price: null, blocked: 'Nothing picked.', note: null, playing: false, onToggle: () => {} };
+    const src = previewSource(picked);
+    const paid = heard.has(picked.id);
+    const playing = playingId === picked.id;
+    return {
+      price: paid || playing ? null : costOf('preview', spent),
+      blocked: nothingToHear(picked) ?? (paid || playing ? null : whyNot('preview', spent)),
+      note: src ? sourceNote(src) : null,
+      playing,
+      onToggle: onPreview,
+    };
+  }, [picked, heard, playingId, spent, onPreview]);
 
   const onFlip = useCallback(() => {
     if (!picked) return;
@@ -149,7 +228,7 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
 
         <div style={{ flex: '1 1 340px', minWidth: 300 }}>
           {picked ? (
-            <Card item={picked} flipped={flipped} onFlip={onFlip} now={now} flipPrice={flipPrice} flipBlocked={flipBlocked} />
+            <Card item={picked} flipped={flipped} onFlip={onFlip} now={now} flipPrice={flipPrice} flipBlocked={flipBlocked} preview={preview} />
           ) : (
             <p style={{ margin: 0, color: '#666', maxWidth: '44ch' }}>
               Every story that came in this morning is in the strip, grouped by desk. Nothing is hidden —
@@ -169,6 +248,10 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
       {verdict && (
         <p role="status" style={{ margin: 0, color: verdict.ok ? '#2e7d32' : '#b3261e' }}>{verdict.text}</p>
       )}
+
+      {/* The session's one audio element. Publisher tape streams from the newsroom's own
+          server — the only audio this project stores is audio it made itself. */}
+      <audio ref={audioRef} onEnded={() => setPlayingId(null)} preload="none" />
 
       {/* On screen rather than in the console: nobody has opened this on an iPhone, and a phone
           has no console to read. */}
