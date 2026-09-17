@@ -140,3 +140,58 @@ Service's own words, used verbatim on purpose, but verbatim is not the same as s
   rather than observation. The check is written beside `unlock()` in `lib/player.ts`.
 - **Nobody has heard a weather read inside the app.** One was produced outside it, through the real
   code and the real voice, and sent to Tarik.
+
+---
+
+## Inherited by any rewrite: what we actually know about browser audio
+
+**Recorded 2026-09-17, when the React interface was about to be replaced by Phaser. Phaser runs on
+Web Audio and carries the same constraint, so this is the part that must not be thrown away with the
+components.**
+
+### The unlock clip has never played. Not once.
+
+The app spends the first tap on five milliseconds of silent audio to earn the browser's permission
+to play sound. An implementer instrumented the audio element — monkey-patching `play`, `pause` and
+the `src` setter to log the browser's own rejection reasons — and watched the **shipped** code do
+this:
+
+```
+src=data:audio/wav;base64,...
+play#1 call
+pause
+...55ms later...
+play#1 REJECT  AbortError: The play() request was interrupted by a call to pause().
+```
+
+`toggle()` calls `unlock()`, then `cue()` pauses immediately because the block is silent. **The clip
+is requested and aborted before a single frame sounds.**
+
+### So the whole design rests on an unwritten premise
+
+**That the browser grants the element permission when `play()` is CALLED inside a user gesture, not
+when playback SUCCEEDS.** That premise is load-bearing and appeared nowhere in the long comments
+defending the mechanism. The evidence for it is circumstantial but strong: if it were false, iPhones
+would already have been silent — before anyone touched the timer.
+
+**Nobody has tested this on an iPhone.** It remains the one link in the chain that is reasoning
+rather than observation.
+
+### The obvious fix is impossible, and here is why
+
+"Hold the first silent block until the unlock clip fires `ended`, then move on" **cannot work.**
+`ended` never fires on a clip that is paused before it starts. There is **no observable event on an
+HTMLMediaElement that says the grant landed** — which is exactly why the code has to assume rather
+than check. Anyone reaching for "wait until the unlock takes effect" is reaching for something the
+platform does not expose.
+
+### What replaced it, and why it is stronger
+
+The tap now **lands on the first block that actually has audio and plays that**. The gesture is
+spent on a real recording rather than on silence that gets aborted — no substitute clip, no `src`
+replaced underneath an in-flight `play()`, no race to lose. Proven on desktop Chromium: one tap
+produced exactly one `src` assignment and one `play()`, `play#1 OK`, with no `data:audio/wav`
+anywhere in the log.
+
+**For a Phaser build:** the same rule should hold. Resume the audio context inside the tap, and let
+that tap start something real. Do not build a silent-priming step and assume it ran.
