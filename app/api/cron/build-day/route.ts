@@ -79,27 +79,11 @@ export async function GET(req: Request) {
   }
   // sweep: false — the final putDay() below runs the same day-file sweep again a few
   // seconds later; running it here too finds nothing that call won't also find.
-  await putDay(day, undefined, false);
-
-  await pool(toVoice, READ_CONCURRENCY, async (item) => {
-    try {
-      // Into `spokenAudio`, NEVER `item.audio`. That field holds the publisher's tape, and
-      // assigning over it is exactly what used to destroy the producer's ability to roll the
-      // story — which is why this route refused to voice such stories in the first place.
-      item.spokenAudio = await voiceRead(item, READ_VOICE);
-      // Clear only this item's own marker — never anyone else's. Safe under concurrency:
-      // the read of `day.degraded` and the write back happen on the same line, with no
-      // `await` between them, so this whole statement runs to completion before the event
-      // loop can hand control to any other worker. Two workers finishing "at the same time"
-      // still clear one at a time, each against the array the other just left behind — see
-      // lib/pool.test.ts for the same pattern proven under real staggered concurrency.
-      day.degraded = (day.degraded ?? []).filter((d) => d !== `voice:${item.id}`);
-    } catch (e) {
-      console.error(`voice ${item.id} failed, leaving it as a card — ${(e as Error).message}`);
-      // Its marker is already sitting in day.degraded from the pessimistic write above.
-    }
-  });
-
+  // Recorded BEFORE the pessimistic write, and before the reads pool below. It is one cached
+  // call after the first morning, while the pool is the long, kill-prone part — so putting it
+  // first costs nothing and means a run killed during voicing still leaves a stored day whose
+  // hour opens on the station's own identification. Ordered last, a timeout left s921 showing
+  // "Legal ID (no wording on file)", which is false: the words are on file, the recording is not.
   // The legal identification that opens every hour, per station — and the only VERBATIM
   // recording this job makes. voiceId() goes straight to text-to-speech; voiceRead() would send
   // the words to the script model to be rewritten first, which is right for a news read and a
@@ -122,6 +106,28 @@ export async function GET(req: Request) {
       day.degraded = [...(day.degraded ?? []), `legalid:${id}`];
     }
   }
+
+  await putDay(day, undefined, false);
+
+  await pool(toVoice, READ_CONCURRENCY, async (item) => {
+    try {
+      // Into `spokenAudio`, NEVER `item.audio`. That field holds the publisher's tape, and
+      // assigning over it is exactly what used to destroy the producer's ability to roll the
+      // story — which is why this route refused to voice such stories in the first place.
+      item.spokenAudio = await voiceRead(item, READ_VOICE);
+      // Clear only this item's own marker — never anyone else's. Safe under concurrency:
+      // the read of `day.degraded` and the write back happen on the same line, with no
+      // `await` between them, so this whole statement runs to completion before the event
+      // loop can hand control to any other worker. Two workers finishing "at the same time"
+      // still clear one at a time, each against the array the other just left behind — see
+      // lib/pool.test.ts for the same pattern proven under real staggered concurrency.
+      day.degraded = (day.degraded ?? []).filter((d) => d !== `voice:${item.id}`);
+    } catch (e) {
+      console.error(`voice ${item.id} failed, leaving it as a card — ${(e as Error).message}`);
+      // Its marker is already sitting in day.degraded from the pessimistic write above.
+    }
+  });
+
   // Reads older than three days and no longer referenced by any surviving day file — see
   // lib/store.ts's sweepReads for the trap this avoids (day files sweep at 7 days; deleting
   // reads blindly at 3 would leave a day aged 4-7 pointing at audio that no longer exists).

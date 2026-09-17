@@ -19,7 +19,12 @@ export function Wire({ items, hour, degraded, onAdd, onOpen }: {
   // "Morning Edition" when a newsroom didn't answer, and a `voice:<id>` entry when a read
   // was voiced. They read very differently to a producer, so they get two different lines
   // rather than one list that names a station and a cache key in the same breath.
-  const feedFailures = degraded?.filter((d) => !d.startsWith('voice:')) ?? [];
+  // Matched against the KNOWN internal prefixes, not "anything that isn't voice:". A one-sided
+  // negation meant every new marker shape leaked into the feed line: `legalid:s921` rendered as
+  // "We couldn't reach legalid:s921 this morning", inventing a newsroom that does not exist.
+  // `sweep:reads` already did the same. Anything without a known prefix is a real feed label.
+  const INTERNAL_MARKERS = ['voice:', 'legalid:', 'sweep:'];
+  const feedFailures = degraded?.filter((d) => !INTERNAL_MARKERS.some((p) => d.startsWith(p))) ?? [];
   const voiceFailures = degraded?.filter((d) => d.startsWith('voice:')) ?? [];
   return (
     <>

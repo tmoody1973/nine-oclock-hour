@@ -61,8 +61,10 @@ export function cue(a: CueTarget, item: PlayItem, playing: boolean, onRefused: (
 //
 // iOS grants an element permission to play only when play() is invoked from inside a user
 // gesture, and grants it to the element that gesture touched. Every hour opens on the legal ID,
-// which is a READ with no audio of its own — toPlaylist([LEGAL_ID]) yields an entry whose
-// `audio` is undefined — and cue() correctly pauses for a read and never calls play(). So the
+// and for a station with no confirmed wording on file that block is a READ with no audio of its
+// own — toPlaylist() yields an entry whose `audio` is undefined — and cue() correctly pauses for a
+// read and never calls play(). (A station whose identification IS recorded opens on real audio, so
+// the tape itself is the gesture's play() and no silence is spent. Both paths must work.) So the
 // listener's first tap would invoke play() nowhere at all, the element would stay locked for
 // the whole session, and the first real tape sixty seconds later would be refused outside any
 // gesture. Every effect-driven play() after it fails for the same reason: not one glitchy
@@ -78,8 +80,11 @@ const SILENT_WAV = 'data:audio/wav;base64,UklGRhQBAABXQVZFZm10IBAAAAABAAEAwF0AAI
 // observation: that iOS grants the unlock for a `data:` URI of silence. It is the standard
 // technique, but nothing in this repo can settle it. The check, and the obvious version of it
 // passes while proving nothing — open a normal hour, tap Play ONCE, then do not touch the screen.
-// The first block is the legal ID, a read, silent by design, so hearing nothing for ~60s is
-// expected and proves nothing either way. WATCH THE BUTTON, not the audio. Success: it still
+// The first block is the legal ID. On a station with no confirmed wording it is silent by design,
+// so hearing nothing for ~60s is expected and proves nothing either way; on a station whose
+// identification is recorded you will hear it, and that ALSO proves nothing about the unlock.
+// EITHER WAY, WATCH THE BUTTON, not the audio — the button is the only signal that distinguishes
+// a granted unlock from a refused one. Test the silent case if you can: it is the harder path. Success: it still
 // reads "Pause" at the end of that minute and the first tape rolls on its own. Failure: it flips
 // back to "Play my hour" at any point, and no tape ever rolls. Do not tap twice — a second tap is
 // a fresh gesture and masks exactly the failure being tested.
