@@ -55,6 +55,7 @@ does the unglamorous work of asking each newsroom for one sentence. We also acce
 of confirmed wording is edited by hand: there is no admin screen, and adding a station means a
 code change and a deploy.
 
+- **Old recordings are never deleted.** The `ids/` prefix is deliberately outside the sweep that clears out day-old audio, because a station identification is permanent and being swept would mean silence returning days later for no visible reason. The cost of that choice: correct the wording, or change the voice, and the previous recording stays in storage for good. It is six files at stake, so nothing to solve today — but it is a real thing we gave up, and it belongs here rather than only in a report nobody will read next year.
 ## How we'll know if this was right
 
 - A station's legal ID is still playing a week after it was first recorded — which is the specific
