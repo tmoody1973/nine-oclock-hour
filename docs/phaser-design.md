@@ -131,6 +131,48 @@ The full version stays for anyone who wants it, and for a music station it is ge
 lofi beds, voiced reads, a real forecast. Note that with silence skipped it is already shorter than
 sixty minutes.
 
+## It has to work as a news product, not only as a game
+
+**Tarik, 2026-09-17:** *"the game should also be allowed the user to get the news they want to hear
+too in addition to engaging gameplay."*
+
+This is a constraint on everything above, not a feature beside it. **The hour you build is a real
+thing you want in your ears** — something you would put on for the commute — and the game is the
+interface for curating it. Not a scored attempt that gets thrown away.
+
+### What that changes
+
+**The full hour is the product; the compressed version is the feedback.** Earlier this document had
+that backwards — full playback treated as a curiosity for completists, compressed as the sensible
+default. Invert it. If the point is genuinely to hear the news, you listen to the whole thing and
+skim the joins only to see how you did.
+
+**The topic picks stop being scoring weights dressed as preferences.** They become literally "what
+do I want to hear this morning", and the score becomes a second opinion rather than the purpose.
+
+**The wire is already a real news product.** Twenty-six items every morning from six newsrooms,
+every text story voiced, a real forecast, the station's own identification. That is not set dressing
+for a game — it is a news hour that happens to be assembled by playing.
+
+### The tension is the design, not a problem to remove
+
+The aircheck rewards good radio: land on the top of the hour, clear the underwriting credit, air the
+current newscast, keep a mix, never three heavy stories back to back. **Some mornings you want forty
+minutes of music and three stories.**
+
+That gap — between the hour you would personally listen to and the hour that serves an audience —
+**is the job.** A real producer lives in it every day. The game should let you sit wherever you like
+in that gap and tell you honestly where you sat. It should never refuse to build the hour you want.
+
+### Consequences to design for
+
+- **A low score must still produce a good listen.** If the scoring and the listening fight, the
+  scoring loses — it is feedback, not a gate.
+- **The hour should be worth keeping.** Somewhere between "play again tomorrow" and "this is my
+  morning show": resumable, maybe portable. Not decided.
+- **Reads have to be genuinely listenable**, because people will actually listen to them end to end
+  rather than previewing fifteen seconds. That raises the bar on the voice and the script.
+
 ## Still open
 
 - **How long is the morning?** Four hours of story time compressed into how much real play.
