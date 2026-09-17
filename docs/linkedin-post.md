@@ -20,13 +20,24 @@ Here's how it works.
 
 ## How it connects to real radio
 
-This runs on NPR's Content Distribution Service — the pipe member stations actually publish and read each other's work through.
+This is the part people assume is fake, so: it isn't.
 
-To get at it, I built and published an MCP server for that wire.
+Public radio stations share their work through something NPR runs called the Content Distribution Service. It's the pipe — when WBEZ files a piece in Chicago, that's where it goes, and it's how every other station in the network can see it.
 
-**In plain terms:** think of it as a satellite downlink. Before, every application that wanted the network feed had to run its own private line and learn NPR's plumbing from scratch. An MCP server is a standard dish and receiver — one common way for an AI assistant, or an app, to tune into a source of information and actually understand what's coming down. Point it at the feed and it can ask real questions: what did Chicago file this morning, what's still current, what has audio.
+At 5 a.m., a scheduled job signs in with our station credentials and asks that feed a short list of very specific questions. What has the network filed overnight? What have these six newsrooms each put out? It gets back structured records, not web pages — headline, teaser, who filed it, how long it runs, whether it's still current, whether we're allowed to broadcast it, and a link to the audio if there is any.
 
-NPR documents this API in prose but never published a machine-readable description of it. So our team wrote one — 63 content types, 19 shared schemas — and open-sourced it, so the next station doesn't have to repeat the work.
+Then the app does the work a producer would otherwise do by hand at five in the morning:
+
+- **Sorts each story to a desk** — news, politics, world, economy, health, tech, culture, climate, local, music.
+- **Checks the rights on every item**, because they're not all the same. Something off the satellite feed is ours to roll. Another station's piece we can credit and read, but not air their tape. A podcast we can talk about and link to, and that's it.
+- **Works out what's still good.** A newscast expires. Yesterday's tape is fine as texture and risky as news. Some items arrive with no runtime at all, which means rolling them is a genuine gamble — you find out how long it is while it's on the air.
+- **Reads the text stories aloud** in a synthetic voice, so a story that came in as words still has a way to go on air.
+
+Everything that arrived with real tape keeps the newsroom's own audio, streamed from their servers, with a link back to their story. Nothing is copied or re-hosted. The only audio this project stores is audio it made itself — our voiced reads, the station identification, the weather.
+
+One wrinkle worth admitting, because it's the kind of thing you only find by looking: WBEZ files no web link on any story. None. So rather than drop Chicago out of a six-newsroom product, those items credit the newsroom instead of the article. Weaker, deliberate, written down rather than hidden.
+
+A side effect of building this: NPR documents that feed in prose but has never published a machine-readable description of it. So our team wrote one — 63 content types, 19 shared schemas — and open-sourced it, so the next station doesn't have to reverse-engineer the same thing we did.
 
 ## The part I care most about: it's a real news product
 
@@ -50,13 +61,12 @@ And the honest part: **a low score still has to sound good.** Some mornings you 
 
 Still building. But it's the most fun I've had making something in a long time.
 
-#PublicRadio #AI #ProductManagement #NewsInnovation #MCP
+#PublicRadio #AI #ProductManagement #NewsInnovation
 
 ---
 
 ## Notes for Tarik before posting
 
-- **The MCP nuance.** The post says you built an MCP server for NPR's wire and that the game runs on that same feed. Both true. What it does *not* say — and what isn't true — is that the game calls the MCP server at runtime. It queries CDS directly (`lib/cds.ts`); there's no MCP reference in this repo. If you want the stronger claim, the game would need to actually route through it.
 - **No live link on purpose.** This has never been deployed and has no public URL. The post says "still building" rather than inviting anyone to try it. If you'd rather have a link, that's a deploy decision.
 - **Numbers are from this morning's real run:** 26 items, six newsrooms, 2026-09-17. The six station names are from `lib/day.ts`. The five score names and what each measures are from `lib/hour.ts`.
-- **Length** is ~700 words, long for LinkedIn. If you want a tighter cut, the three sections that survive on their own are the 5 a.m. open, the aircheck, and the "low score still has to sound good" close.
+- **Length** is ~1174 words, long for LinkedIn. If you want a tighter cut, the three sections that survive on their own are the 5 a.m. open, the aircheck, and the "low score still has to sound good" close. The "how it connects" section is the one that compresses best — it can drop to a single paragraph without losing the point.
