@@ -37,7 +37,10 @@
 .topicBtn { background: transparent; border: 1px solid var(--edge); border-radius: 3px; padding: 4px 9px; font-size: 12px; min-height: 30px; }
 .topicOn { border-color: var(--green); color: var(--green); }
 
-.board { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: start; }
+/* `stretch`, not `start`. The rail inside the right-hand column is position: sticky, and sticky
+   can only travel inside its own parent's box — with `start` that column collapses to exactly the
+   rail's height, leaving zero room to stick, so it scrolled away with the page. */
+.board { display: grid; gap: 22px; grid-template-columns: 1fr; align-items: stretch; }
 @media (min-width: 900px) { .board { grid-template-columns: minmax(0, 1.3fr) minmax(310px, 0.8fr); } }
 .rackLabel { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fgSoft);
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
