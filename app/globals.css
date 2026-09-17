@@ -1,12 +1,32 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Tokens for the canvas build's DOM layer. Every one of these was a hardcoded hex that
+     assumed a light page, which is how the opened card ended up drawing near-white text on a
+     white card for anyone in dark mode: the text had no colour of its own and inherited
+     --foreground, while the card's background was pinned to #fff. */
+  --surface: #ffffff;
+  --muted: #555555;
+  --border: #d8d8d8;
+  --link: #1a56c4;
+  --ok: #2e7d32;
+  --warn: #8a4b00;
+  --bad: #b3261e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    /* A surface that separates from the page without going white, and states light enough to
+       read on it. */
+    --surface: #171717;
+    --muted: #a8a8a8;
+    --border: #333333;
+    --link: #7fb2ff;
+    --ok: #6fbf73;
+    --warn: #e0a458;
+    --bad: #ff6b5e;
   }
 }
 

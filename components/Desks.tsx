@@ -4,16 +4,22 @@
 import type { Block, WireItem } from '@/lib/types';
 import { byDesk, mixOf, DESK_NAME, DESK_COLOR } from '@/lib/desks';
 import { HOW_LABEL, WHY_NOT, rollable, used } from '@/lib/wire';
+import { nothingToHear, previewSource, sourceNote } from '@/lib/preview';
 import styles from './HourBuilder.module.css';
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
-export function Wire({ items, hour, degraded, onAdd, onOpen }: {
+export function Wire({ items, hour, degraded, onAdd, onOpen, onPreview, playingId }: {
   items: WireItem[];
   hour: Block[];
   degraded?: string[];
   onAdd: (item: WireItem, mode: 'tape' | 'read') => void;
   onOpen: (item: WireItem) => void;
+  // Listening to a story WITHOUT leaving the page. Tarik, using this build: "how come i don't
+  // have a built in player for listening and streaming stories." There was none — this row
+  // could only ever link out to the publisher's site, which is what "Audition at NPR" is.
+  onPreview: (item: WireItem) => void;
+  playingId: string | null;
 }) {
   // `degraded` carries two different kinds of marker (see lib/types.ts): a feed label like
   // "Morning Edition" when a newsroom didn't answer, and a `voice:<id>` entry when a read
@@ -69,11 +75,22 @@ export function Wire({ items, hour, degraded, onAdd, onOpen }: {
                     <button type="button" onClick={() => onAdd(w, 'read')}>{w.how === 'station' ? 'Read with credit 0:30' : 'Read 0:30'}</button>
                     {!canRoll && <span className={styles.why}>{w.len || est ? WHY_NOT[w.how] : 'text only, nothing to roll'}</span>}
                   </div>
-                  {w.url && (
-                    <div className={styles.listen}>
-                      <a href={w.url} target="_blank" rel="noreferrer">Audition at {w.src}</a>
-                    </div>
-                  )}
+                  <div className={styles.listen}>
+                    {/* Play it here, streamed from the newsroom's own server. The link out
+                        stays: their content, their audio, THEIR LINK is the commitment this
+                        app makes in writing, and a player does not replace a credit. */}
+                    {previewSource(w) ? (
+                      <button type="button" onClick={() => onPreview(w)}>
+                        {playingId === w.id ? 'Stop' : 'Hear it'}
+                      </button>
+                    ) : (
+                      <span className={styles.why}>{nothingToHear(w)}</span>
+                    )}
+                    {w.url && <a href={w.url} target="_blank" rel="noreferrer">Audition at {w.src}</a>}
+                    {playingId === w.id && previewSource(w) && (
+                      <span className={styles.why}>{sourceNote(previewSource(w)!)}</span>
+                    )}
+                  </div>
                 </article>
               );
             })}

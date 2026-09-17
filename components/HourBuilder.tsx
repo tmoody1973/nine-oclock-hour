@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
 import { BULLETIN, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
+import { previewSource } from '@/lib/preview';
 import { arcs } from '@/lib/clock';
 import { airBlocks, block, buildWire, legalIdBlock, placementNote } from '@/lib/wire';
 import { toPlaylist } from '@/lib/playlist';
@@ -47,6 +48,11 @@ export function HourBuilder({ day }: { day: DayFile }) {
   const [voice, setVoice] = useState<string>(DEFAULT_VOICE);
   const [auditioning, setAuditioning] = useState(false);
   const [auditionError, setAuditionError] = useState<string | null>(null);
+  // Auditioning a story in place, rather than sending the producer to the publisher's website
+  // and losing the hour they were building. One element for the session; publisher tape streams
+  // from the newsroom's own server and nothing is copied here.
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewRef = useRef<HTMLAudioElement>(null);
 
   const station = day.stations[home];
   const wire = useMemo(() => buildWire(day, home), [day, home]);
@@ -183,6 +189,19 @@ export function HourBuilder({ day }: { day: DayFile }) {
     setAiredHour(finalHour);
   }
 
+  function onPreview(item: WireItem) {
+    const el = previewRef.current;
+    const src = previewSource(item);
+    if (!el || !src) return;
+    if (previewId === item.id) { el.pause(); setPreviewId(null); return; }
+    // Assigned only when it changes, and play() called SYNCHRONOUSLY inside the click: assigning
+    // `src` runs the media load algorithm and aborts any play() in flight, and a play that
+    // starts outside the gesture is refused on iOS. Same rule as cue() below.
+    if (el.src !== src.url) el.src = src.url;
+    setPreviewId(item.id);
+    void el.play().catch(() => setPreviewId(null));
+  }
+
   function handleAir() {
     if (!gate.ready) return;
     setFlashPending(true);
@@ -302,7 +321,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
 
           <div className={styles.board}>
             <div>
-              <Wire items={wire} hour={hour} degraded={day.degraded} onAdd={addToHour} onOpen={setSheetItem} />
+              <Wire items={wire} hour={hour} degraded={day.degraded} onAdd={addToHour} onOpen={setSheetItem} onPreview={onPreview} playingId={previewId} />
             </div>
 
             <section>
@@ -368,6 +387,10 @@ export function HourBuilder({ day }: { day: DayFile }) {
       <p className={styles.foot}>
         Headlines, runtimes, teasers and audio links come from each newsroom&rsquo;s own feed and play from their servers; nothing is copied or stored here.
       </p>
+
+      {/* The session's one preview element. Publisher tape streams from the newsroom's own
+          server; the only audio this project stores is audio it made itself. */}
+      <audio ref={previewRef} preload="none" onEnded={() => setPreviewId(null)} />
 
       <BulletinModal open={flashPending} onChoose={chooseFlash} onDismiss={() => setFlashPending(false)} />
       <StorySheet item={sheetItem} onClose={() => setSheetItem(null)} />
