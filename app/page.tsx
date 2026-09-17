@@ -22,17 +22,5 @@ export default async function Home() {
     );
   }
 
-  return (
-    <>
-      {/* The Phaser rebuild lives at /play and nothing pointed at it, so the only way to find
-          it was to know the URL. That is how the per-story preview player — the whole reason
-          the rebuild started — went unseen: it exists there and has never existed here. */}
-      <p style={{ margin: 0, padding: '10px 16px', background: '#101010', color: '#f4f4f4', fontFamily: 'system-ui, sans-serif', fontSize: 14 }}>
-        This is the original build.{' '}
-        <a href="/play" style={{ color: '#7fb2ff' }}>Open the canvas version at /play</a>{' '}
-        — the one with the wire strip, the cards and the built-in preview player.
-      </p>
-      <HourBuilder day={day} />
-    </>
-  );
+  return <HourBuilder day={day} />;
 }

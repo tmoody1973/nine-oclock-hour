@@ -14,6 +14,7 @@ import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
 import { BULLETIN, HOUR, crashLine, layout, score, type FlashChoice } from '@/lib/hour';
 import { reflowNote, reflowOf } from '@/lib/reflow';
 import { previewSource } from '@/lib/preview';
+import { NowPlaying } from './NowPlaying';
 import { arcs } from '@/lib/clock';
 import { airBlocks, block, buildWire, legalIdBlock, placementNote } from '@/lib/wire';
 import { toPlaylist } from '@/lib/playlist';
@@ -52,7 +53,12 @@ export function HourBuilder({ day }: { day: DayFile }) {
   // Auditioning a story in place, rather than sending the producer to the publisher's website
   // and losing the hour they were building. One element for the session; publisher tape streams
   // from the newsroom's own server and nothing is copied here.
-  const [previewId, setPreviewId] = useState<string | null>(null);
+  // The story currently loaded in the audition player, with enough state to DRAW a player
+  // rather than just start invisible audio.
+  const [preview, setPreview] = useState<WireItem | null>(null);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const [previewAt, setPreviewAt] = useState(0);
+  const [previewDur, setPreviewDur] = useState(0);
   const previewRef = useRef<HTMLAudioElement>(null);
 
   const station = day.stations[home];
@@ -194,13 +200,29 @@ export function HourBuilder({ day }: { day: DayFile }) {
     const el = previewRef.current;
     const src = previewSource(item);
     if (!el || !src) return;
-    if (previewId === item.id) { el.pause(); setPreviewId(null); return; }
+    // Already loaded: this is a pause/resume, not a reload. Reassigning `src` would throw away
+    // the position the listener is standing on.
+    if (preview?.id === item.id) { togglePreview(); return; }
     // Assigned only when it changes, and play() called SYNCHRONOUSLY inside the click: assigning
     // `src` runs the media load algorithm and aborts any play() in flight, and a play that
     // starts outside the gesture is refused on iOS. Same rule as cue() below.
     if (el.src !== src.url) el.src = src.url;
-    setPreviewId(item.id);
-    void el.play().catch(() => setPreviewId(null));
+    setPreview(item);
+    setPreviewAt(0);
+    void el.play().then(() => setPreviewPlaying(true)).catch(() => setPreviewPlaying(false));
+  }
+
+  function togglePreview() {
+    const el = previewRef.current;
+    if (!el || !preview) return;
+    if (el.paused) void el.play().then(() => setPreviewPlaying(true)).catch(() => setPreviewPlaying(false));
+    else { el.pause(); setPreviewPlaying(false); }
+  }
+
+  function closePreview() {
+    previewRef.current?.pause();
+    setPreview(null);
+    setPreviewPlaying(false);
   }
 
   function handleAir() {
@@ -322,7 +344,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
 
           <div className={styles.board}>
             <div>
-              <Wire items={wire} hour={hour} degraded={day.degraded} onAdd={addToHour} onOpen={setSheetItem} onPreview={onPreview} playingId={previewId} />
+              <Wire items={wire} hour={hour} degraded={day.degraded} onAdd={addToHour} onOpen={setSheetItem} onPreview={onPreview} playingId={preview?.id ?? null} />
             </div>
 
             <section>
@@ -419,7 +441,25 @@ export function HourBuilder({ day }: { day: DayFile }) {
 
       {/* The session's one preview element. Publisher tape streams from the newsroom's own
           server; the only audio this project stores is audio it made itself. */}
-      <audio ref={previewRef} preload="none" onEnded={() => setPreviewId(null)} />
+      <audio
+        ref={previewRef}
+        preload="none"
+        onTimeUpdate={(e) => setPreviewAt(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => setPreviewDur(e.currentTarget.duration || 0)}
+        onEnded={() => setPreviewPlaying(false)}
+      />
+
+      {preview && (
+        <NowPlaying
+          item={preview}
+          playing={previewPlaying}
+          at={previewAt}
+          duration={previewDur}
+          onToggle={togglePreview}
+          onSeek={(t) => { const el = previewRef.current; if (el) { el.currentTime = t; setPreviewAt(t); } }}
+          onClose={closePreview}
+        />
+      )}
 
       <BulletinModal open={flashPending} onChoose={chooseFlash} onDismiss={() => setFlashPending(false)} />
       <StorySheet item={sheetItem} onClose={() => setSheetItem(null)} />

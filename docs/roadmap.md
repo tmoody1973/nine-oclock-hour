@@ -229,3 +229,34 @@ section came from instrumenting the audio element — monkey-patching `play`, `p
 setter to log what the browser actually did, refusal reasons included — and then watching an hour
 run. **Build that harness early in Phaser.** A green suite says nothing about whether sound comes
 out of the speakers.
+
+### Phaser moves the unlock assumption; it does not remove it
+
+**Recorded 2026-09-17, when the Phaser rebuild was abandoned.** The section above says Phaser
+gains the ability to *verify* the gesture grant where an `HTMLMediaElement` can only assume it.
+That is true of Web Audio in general. It is **not** true of Phaser's own sound manager, and the
+difference was only found by reading its source:
+
+```js
+// node_modules/phaser/src/sound/webaudio/WebAudioSoundManager.js
+_this.context.resume().then(function () {
+    ...
+    _this.unlocked = true;          // set because resume() RESOLVED
+})
+```
+
+`BaseSoundManager.update()` then clears `locked` and fires `UNLOCKED` on the following tick. So
+**both of Phaser's signals mean "resume() resolved", not "sound is possible"** — precisely the
+unwritten premise the React player rests on, relocated rather than removed. A `resume()` that
+settles is not proof of a grant; only reading `context.state` back is.
+
+Anyone reaching for a canvas engine again should know that adopting it buys no verification on
+its own. The check is three lines and belongs to the caller:
+
+```js
+await ctx.resume();
+if (ctx.state !== 'running') { /* the grant did NOT land — say so, do not pretend */ }
+```
+
+The interface that shipped uses `HTMLAudioElement`, so this remains unverifiable there and the
+premise stands unchanged: **still never tested on an iPhone.**
