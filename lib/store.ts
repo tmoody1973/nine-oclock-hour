@@ -1,5 +1,5 @@
 import 'server-only';
-import { head, list, put, del } from '@vercel/blob';
+import { head, list, put, del, BlobNotFoundError } from '@vercel/blob';
 import type { DayFile } from './types';
 
 const key = (date: string) => `days/${date}.json`;
@@ -21,10 +21,11 @@ type PutDayBlobDeps = {
   list: (options: { prefix: string }) => Promise<{ blobs: { url: string; uploadedAt: Date }[] }>;
   del: (urls: string[]) => Promise<void>;
   // How putDay finds out what is already stored for this date, for the empty-overwrite guard
-  // below. Same seam as the rest of this type: real callers never pass it and get getDay.
+  // below. Same seam as the rest of this type: real callers never pass it and get
+  // getDayOrThrow, not getDay — see that function for why the guard needs the distinction.
   existingDay: (date: string) => Promise<DayFile | null>;
 };
-const defaultPutDayBlobDeps: PutDayBlobDeps = { put, list, del, existingDay: getDay };
+const defaultPutDayBlobDeps: PutDayBlobDeps = { put, list, del, existingDay: getDayOrThrow };
 
 // Every story in a day file, network and local. `buildDay()` never throws — each source is
 // wrapped in a `safe()` that records the failure and returns [] — so a morning when the NPR
@@ -59,7 +60,15 @@ export async function putDay(day: DayFile, blob: PutDayBlobDeps = defaultPutDayB
   // the reason in the logs, nothing voiced (no Gemini spend on a build with no stories in
   // it), and the stored day file left exactly as it was.
   if (itemCount(day) === 0) {
-    const stored = await blob.existingDay(day.date);
+    // Fail closed: if the guard cannot tell what is stored, treat it the same as "something
+    // is stored" and refuse. An empty build is never urgent — nothing is lost by refusing
+    // and letting the next run repair it, and everything is lost by writing.
+    let stored: DayFile | null;
+    try {
+      stored = await blob.existingDay(day.date);
+    } catch (err) {
+      throw new Error(`refusing to overwrite days/${day.date}.json with an empty build: could not verify what is currently stored (${err instanceof Error ? err.message : String(err)})`);
+    }
     if (stored && itemCount(stored) > 0) {
       throw new Error(`refusing to overwrite days/${day.date}.json with an empty build: the stored file has ${itemCount(stored)} items and this one has none`);
     }
@@ -83,6 +92,29 @@ export async function getDay(date: string): Promise<DayFile | null> {
     const meta = await head(key(date));
     return await fetch(meta.url, { cache: 'no-store' }).then((r) => r.json());
   } catch { return null; }
+}
+
+// Same lookup as getDay, but for the empty-overwrite guard only: getDay's swallow-all
+// collapses "no day file for this date" (safe to write) and "the read failed" (network
+// blip, Blob outage, malformed JSON — unsafe to conclude anything) into the same null, and
+// the guard above needs to fail closed on the second, not treat it as the first. getDay
+// itself is left exactly as forgiving as before — app/page.tsx wants "no day file yet" for
+// any read problem, not a thrown error over a Blob blip.
+//
+// `headFn` defaults to the real @vercel/blob `head`, injectable so this is testable without
+// Blob credentials — same narrowing seam as PutDayBlobDeps above.
+type HeadFn = (pathname: string) => Promise<{ url: string }>;
+export async function getDayOrThrow(date: string, headFn: HeadFn = head): Promise<DayFile | null> {
+  let meta;
+  try {
+    meta = await headFn(key(date));
+  } catch (err) {
+    if (err instanceof BlobNotFoundError) return null;
+    throw err;
+  }
+  const res = await fetch(meta.url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`day file fetch failed with status ${res.status}`);
+  return res.json();
 }
 
 // The page's fallback for when the 5 a.m. cron hasn't run yet (or failed) and today has no

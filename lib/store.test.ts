@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isStale, isOldRead, sweepReads, putDay, type StoreBlobDeps } from './store';
+import { isStale, isOldRead, sweepReads, putDay, getDayOrThrow, type StoreBlobDeps } from './store';
+import { BlobNotFoundError } from '@vercel/blob';
 import type { DayFile, WireItem } from './types';
 
 test('the file just written is never stale', () => {
@@ -310,4 +311,47 @@ test('an empty build may replace a stored day that is also empty', async () => {
   const blob = fakePutDayBlob();
   await putDay(dayFile(), blob);
   await assert.doesNotReject(() => putDay({ ...dayFile(), degraded: ['NPR News Now'] }, blob));
+});
+
+// The compound failure the guard exists to catch: CDS is down (itemCount === 0) AND the
+// lookup of what's already stored fails for an unrelated reason (a transient Blob read
+// failure, not "this date has no file yet"). getDay used to swallow that failure into the
+// same null it returns for genuine absence, so the guard read it as "nothing to protect" and
+// let an empty file land on top of a healthy one. It must instead fail closed: refuse the
+// write, and leave the healthy file exactly as it was.
+test('an empty build refuses to write when the guard cannot tell what is currently stored', async () => {
+  const blob = fakePutDayBlob();
+  const healthy = dayFile([item({ id: 'a1' }), item({ id: 'a2' })]);
+  await putDay(healthy, blob);
+  const before = blob.written.get('days/2026-09-16.json');
+
+  blob.existingDay = async () => { throw new Error('Blob read failed: ECONNRESET'); };
+  const ruined: DayFile = { ...dayFile(), degraded: ['Morning Edition', 'All Things Considered'] };
+  await assert.rejects(() => putDay(ruined, blob), /refusing to overwrite/);
+  assert.equal(blob.written.get('days/2026-09-16.json'), before, 'the healthy file must still be there, byte for byte');
+});
+
+// getDayOrThrow is what makes the test above possible in production: it is the guard's
+// lookup, and it has to tell "no file for this date" apart from "the read failed" — getDay
+// can't, because it swallows both into null. `headFn` is injected so this needs no Blob
+// credentials, same seam as putDay's own blob argument.
+test('getDayOrThrow returns null only when the file genuinely does not exist', async () => {
+  const notFound = async () => { throw new BlobNotFoundError(); };
+  assert.equal(await getDayOrThrow('2026-09-16', notFound), null);
+});
+
+test('getDayOrThrow throws, rather than swallowing, when the head lookup fails for another reason', async () => {
+  const networkBlip = async () => { throw new Error('ECONNRESET'); };
+  await assert.rejects(() => getDayOrThrow('2026-09-16', networkBlip));
+});
+
+test('getDayOrThrow throws when the day file body fails to fetch', async () => {
+  const headOk = async () => ({ url: 'https://blob.example/days/2026-09-16.json' });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response('', { status: 500 })) as unknown as typeof fetch;
+  try {
+    await assert.rejects(() => getDayOrThrow('2026-09-16', headOk));
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
