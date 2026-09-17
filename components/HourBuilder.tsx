@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
 import { BULLETIN, HEAVY_TOPICS, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
 import { arcs } from '@/lib/clock';
-import { block, buildWire, LEGAL_ID, placementNote } from '@/lib/wire';
+import { block, buildWire, legalIdBlock, placementNote } from '@/lib/wire';
 import { toPlaylist } from '@/lib/playlist';
 import { ALL_TOPICS, weightsFor } from '@/lib/taste';
 import { VOICES, DEFAULT_VOICE } from '@/lib/voices';
@@ -32,7 +32,10 @@ export function HourBuilder({ day }: { day: DayFile }) {
   const [home, setHome] = useState(stationIds[0]);
   const [picks, setPicks] = useState<Topic[]>([]);
   const [pledge, setPledge] = useState(false);
-  const [hour, setHour] = useState<Block[]>([LEGAL_ID]);
+  // The opening block carries THIS station's recorded identification, so it is built from the
+  // station rather than being one shared constant. Lazy initialiser: it would otherwise be
+  // rebuilt on every render and thrown away.
+  const [hour, setHour] = useState<Block[]>(() => [legalIdBlock(day.stations[stationIds[0]])]);
   const [flash, setFlash] = useState<FlashChoice | null>(null);
   const [flashPending, setFlashPending] = useState(false);
   const [airedHour, setAiredHour] = useState<Block[] | null>(null);
@@ -49,8 +52,12 @@ export function HourBuilder({ day }: { day: DayFile }) {
   const left = HOUR + 60 - plan.end;
   const ringArcs = useMemo(() => arcs(plan.rows), [plan.rows]);
 
-  function resetHour() {
-    setHour([LEGAL_ID]);
+  // Takes the station id because the hour now OPENS with something station-specific. Inside
+  // changeStation below, `home` still holds the station the producer just left — React state is
+  // not visible until the next render — so reading it here would rebuild the hour with the wrong
+  // station's legal ID. Defaulted for the two "clear the hour" buttons, which stay where they are.
+  function resetHour(id: string = home) {
+    setHour([legalIdBlock(day.stations[id])]);
     setFlash(null);
     setFlashPending(false);
     setAiredHour(null);
@@ -60,7 +67,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
 
   function changeStation(id: string) {
     setHome(id);
-    resetHour();
+    resetHour(id);
   }
 
   // localStorage doesn't exist during SSR, so the initial render (and the server's HTML)
@@ -285,7 +292,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
                   <button type="button" className={pledge ? styles.pledgeOn : ''} onClick={togglePledge} aria-pressed={pledge}>Pledge week: {pledge ? 'on' : 'off'}</button>
                 </div>
                 <button type="button" className={styles.air} disabled={hour.length < 3} onClick={handleAir}>Put it on air</button>
-                <button type="button" className={styles.ghost} onClick={resetHour}>Clear the hour</button>
+                <button type="button" className={styles.ghost} onClick={() => resetHour()}>Clear the hour</button>
               </div>
             </section>
           </div>
@@ -301,7 +308,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
       {airedHour && done && result && (
         <div className={styles.onAir}>
           <Aircheck result={result} hour={airedHour} day={day} />
-          <button type="button" className={styles.ghost} onClick={resetHour}>Build another hour</button>
+          <button type="button" className={styles.ghost} onClick={() => resetHour()}>Build another hour</button>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { block, buildWire, rollable, used } from './wire';
+import { block, buildWire, legalIdBlock, rollable, used } from './wire';
 import { toWireItem } from './cds';
 import { toPlaylist } from './playlist';
 import type { DayFile, WireItem } from './types';
@@ -207,4 +207,38 @@ test('an unvoiced read keeps its playlist entry and plays silent — the shape o
   assert.equal(list.length, 1, 'the entry is kept, not dropped');
   assert.equal(list[0].audio, undefined, "the publisher's tape must never stream from a read");
   assert.equal(list[0].seconds, 30, 'so the player runs a 30-second timer with nothing playing');
+});
+
+// ─── The legal ID, which is the first sixty seconds of every hour ─────────────────────────
+// It opened on silence until now: one shared constant for six stations, so it could not say
+// anyone's call letters, and it carried no audio at all. A producer pressing play got a minute
+// of nothing and read the app as broken.
+
+test('a station with a recorded identification carries it as our own voiced read', () => {
+  const b = legalIdBlock({ legalId: 'https://blob.example/ids/wyms.wav' });
+  assert.equal(b.audio, 'https://blob.example/ids/wyms.wav');
+  assert.equal(b.spoken, true, 'our own recording — which is the only thing that lets a read carry audio');
+  assert.equal(b.fixed, true, 'still the fixed block that opens the hour');
+  assert.equal(b.len, 60);
+});
+
+// The rights gate in toPlaylist is not loosened for this — it is SATISFIED. A read streams only
+// when `spoken` says the audio is our own rather than a publisher's tape, and an identification
+// we recorded ourselves is exactly that. See lib/playlist.ts.
+test('the recorded identification actually reaches the player', () => {
+  const [entry] = toPlaylist([legalIdBlock({ legalId: 'https://blob.example/ids/wyms.wav' })]);
+  assert.equal(entry.audio, 'https://blob.example/ids/wyms.wav', 'the hour opens on words, not on silence');
+  assert.equal(entry.mode, 'read');
+  assert.equal(entry.seconds, 60);
+});
+
+// Five of the six stations have given us nothing, and a call sign guessed from general knowledge
+// is a licence violation spoken aloud. So they keep exactly today's behaviour — and the block
+// itself says why, rather than presenting as the dead player this whole gap came from.
+test('a station with no confirmed wording keeps its silent block, and says why', () => {
+  const b = legalIdBlock({});
+  assert.equal(b.audio, undefined, 'nothing to play, because nobody has given us the words');
+  assert.ok(!b.spoken);
+  assert.match(b.label, /no wording on file/i, 'the rail and the player say so instead of looking broken');
+  assert.equal(toPlaylist([b])[0].audio, undefined);
 });

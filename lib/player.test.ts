@@ -245,3 +245,31 @@ test('the clock still formats the ordinary cases', () => {
   assert.equal(clock(60), '1:00');
   assert.equal(clock(314), '5:14');
 });
+
+// ─── The first tap, now that the opening block can carry audio ────────────────────────────
+// Giving the legal ID a recording CHANGES THE UNLOCK PATH, which is the part of this that can
+// cost every iPhone the whole session. toggle() plays five milliseconds of silence only because
+// the opening block has no audio of its own; when it has some, the recording itself is the
+// gesture's play() and no silent clip is needed. Both of those must still start playback inside
+// the tap — a station with a recording, and a station without one. Run against the real block
+// builder and the real playlist, not a hand-made item, so the whole chain is what is tested.
+import { legalIdBlock } from './wire';
+import { toPlaylist } from './playlist';
+
+test('a station WITH a recorded legal ID unlocks on the recording itself — no silent clip', () => {
+  const { el, calls } = stubAudioCountingSrc();
+  const [entry] = toPlaylist([legalIdBlock({ legalId: 'https://blob.example/ids/wyms.wav' })]);
+  assert.equal(toggle(el, entry, false, () => {}), true, 'the hour is now running');
+  assert.deepEqual(calls, ['src=https://blob.example/ids/wyms.wav', 'play'], 'the identification IS the gesture play()');
+  assert.ok(!calls.some((c) => c.includes('data:audio/wav')), 'no five ms of silence when there are real words to say');
+});
+
+test('a station with NO confirmed wording still unlocks, exactly as it does today', () => {
+  const { el, calls } = stubAudioCountingSrc();
+  const [entry] = toPlaylist([legalIdBlock({})]);
+  assert.equal(entry.audio, undefined, 'nobody has given us the words, so there is nothing to play');
+  assert.equal(toggle(el, entry, false, () => {}), true);
+  assert.ok(calls.some((c) => c.startsWith('src=data:audio/wav')), 'silence is the only thing left to spend the gesture on');
+  assert.ok(calls.includes('play'), 'and play() must still happen inside the tap, or the session never unlocks');
+  assert.equal(calls[calls.length - 1], 'pause', 'the block itself still airs in silence');
+});

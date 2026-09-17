@@ -27,6 +27,24 @@ export const HOW_LABEL: Record<How, string> = { satellite: 'satellite', ours: 'o
 // already routes it around every check that would read them.
 export const LEGAL_ID: Block = { ...FIXED_ID, how: 'podcast', kind: 'seg', mode: 'read', topic: 'news' };
 
+// The block that opens the hour, for ONE station. LEGAL_ID above is the silent base shared by
+// all six; this is what gives it a voice, because the words are a station's own and a single
+// shared constant can never say anyone's call letters.
+//
+// `spoken: true` is not a loophole in the rights gate — it is the honest answer to it.
+// toPlaylist streams a read's audio only when `spoken` marks it as OUR OWN voice rather than a
+// publisher's tape, and this recording is exactly that: our own TTS call, in our own storage,
+// of words the station gave us. Nothing about the gate is loosened to let it through.
+//
+// With no recording the block is byte-for-byte what it has always been — sixty seconds of
+// silence — except that it now SAYS so. Five of the six stations have never confirmed their
+// wording, and a silent block that gives no reason is precisely what read as a broken app: the
+// producer needs to see that the silence is missing words, not a dead player.
+export function legalIdBlock(station: { legalId?: string }): Block {
+  if (!station.legalId) return { ...LEGAL_ID, label: 'Legal ID — no wording on file for this station' };
+  return { ...LEGAL_ID, audio: station.legalId, spoken: true };
+}
+
 // What came in for the producer at `home`, plus the first two things their neighbour filed —
 // read-and-credit only, never roll-able, which is the whole point of the exercise.
 export function buildWire(day: DayFile, home: string): WireItem[] {
