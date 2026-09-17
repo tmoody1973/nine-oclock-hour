@@ -25,6 +25,15 @@ export function Aircheck({ result, hour, day }: { result: ScoreResult; hour: Blo
   // Seeded with `low` so an hour with no curve at all can never produce -Infinity, the same
   // way result.low is seeded with 100 in lib/hour.ts.
   const high = Math.max(result.low, ...result.curve);
+  // ONE branch, shared by the announced label and the visible caption below, so the two
+  // cannot say different things. They used to: a perfectly flat curve read "steady at 100%"
+  // on screen while a screen reader heard "100% at best and 100% at worst". Nobody has seen
+  // that branch — it needs every minute of the hour to score identically — but this codebase
+  // has been deliberate about the page and the screen reader agreeing.
+  const steady = high === result.low;
+  const retentionLabel = steady
+    ? `Retention curve, steady at ${result.low}% the whole hour`
+    : `Retention curve, ${high}% at best and ${result.low}% at worst`;
   const rundown = day.network.filter((w) => w.src === 'Morning Edition');
   const missedTop = day.mostCarried.stations >= 2 && !hour.some((b) => b.label === day.mostCarried.title);
 
@@ -43,10 +52,10 @@ export function Aircheck({ result, hour, day }: { result: ScoreResult; hour: Blo
 
       <p className={styles.retention}>
         Who stayed, minute by minute:{' '}
-        <span className={`${styles.spark} figure`} role="img" aria-label={`Retention curve, ${high}% at best and ${result.low}% at worst`}>
+        <span className={`${styles.spark} figure`} role="img" aria-label={retentionLabel}>
           {sparkline(result.curve)}
         </span>{' '}
-        {high === result.low
+        {steady
           ? <>(steady at <span className="figure">{result.low}%</span> the whole hour)</>
           : <><span className="figure">{high}%</span> at best, bottomed at <span className="figure">{result.low}%</span></>}
       </p>
