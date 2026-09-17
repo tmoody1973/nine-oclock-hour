@@ -4,7 +4,7 @@
 // run here against a stub element rather than a rendered component.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cue } from '../components/Player';
+import { cue, toggle } from '../components/Player';
 import type { PlayItem } from './playlist';
 
 const item = (over: Partial<PlayItem> = {}): PlayItem =>
@@ -116,6 +116,38 @@ test('a genuinely different track still gets loaded — the guard must not freez
   calls.length = 0;
   cue(el, item({ id: 'b:tape', audio: 'https://npr.example/b.mp3' }), true, () => {});
   assert.deepEqual(calls, ['src=https://npr.example/b.mp3', 'play']);
+});
+
+// THE FIRST TAP, AND WHY IT IS A SPECIAL CASE. Every hour opens on the legal ID, a READ with
+// no audio of its own — checked against the real constant, not assumed: toPlaylist([LEGAL_ID])
+// yields an entry whose `audio` is undefined. cue() correctly pauses for a read and never calls
+// play(). So without an unlock the listener's first tap invokes play() NOWHERE, the element is
+// never unlocked, and the first real tape sixty seconds later is refused outside any gesture —
+// as is every effect-driven play() after it. cue()'s onRefused then flips the button back to
+// "Play my hour", so tapping again takes the same path and is refused again.
+test('the first tap on a read still calls play() on the element — that is what unlocks iOS', () => {
+  const { el, calls } = stubAudioCountingSrc();
+  const legalId = item({ id: 'legalid', audio: undefined, seconds: 60 });
+  assert.equal(toggle(el, legalId, false, () => {}), true, 'the hour is now running');
+  assert.ok(calls.includes('play'), 'play() must be invoked inside the gesture, or the session never unlocks');
+  assert.ok(calls.some((c) => c.startsWith('src=data:audio/wav')), 'and play() needs a source — five ms of silence');
+  assert.equal(calls[calls.length - 1], 'pause', 'the read itself still airs in silence');
+});
+
+test('the first tap on a track WITH tape unlocks by playing the tape itself, no silence needed', () => {
+  const { el, calls } = stubAudioCountingSrc();
+  const track = item();
+  assert.equal(toggle(el, track, false, () => {}), true);
+  assert.deepEqual(calls, [`src=${track.audio}`, 'play'], 'the real track IS the gesture play()');
+  assert.ok(!calls.some((c) => c.includes('data:audio/wav')), 'no silent clip when there is real audio to start');
+});
+
+// Pausing needs no gesture credit, and must not go anywhere near the unlock: spending a src
+// assignment on silence here would throw away the track the listener is halfway through.
+test('pausing never unlocks — the silent clip is only ever for starting the hour', () => {
+  const { el, calls } = stubAudioCountingSrc();
+  assert.equal(toggle(el, item({ audio: undefined }), true, () => {}), false);
+  assert.deepEqual(calls, ['pause']);
 });
 
 // play() rejects on its own whenever the browser refuses (an autoplay policy, a lost iOS

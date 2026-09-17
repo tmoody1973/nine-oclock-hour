@@ -33,6 +33,51 @@ export function cue(a: CueTarget, item: PlayItem, playing: boolean, onRefused: (
   else a.pause();
 }
 
+// Five milliseconds of silence, in the same container this app already produces for its reads
+// (16-bit PCM, 24kHz, mono — see pcmToWav in lib/reads.ts). It exists to be PLAYED, never heard.
+//
+// iOS grants an element permission to play only when play() is invoked from inside a user
+// gesture, and grants it to the element that gesture touched. Every hour opens on the legal ID,
+// which is a READ with no audio of its own — toPlaylist([LEGAL_ID]) yields an entry whose
+// `audio` is undefined — and cue() correctly pauses for a read and never calls play(). So the
+// listener's first tap would invoke play() nowhere at all, the element would stay locked for
+// the whole session, and the first real tape sixty seconds later would be refused outside any
+// gesture. Every effect-driven play() after it fails for the same reason: not one glitchy
+// transition, the entire hour, silently. Worse, cue()'s onRefused flips the button back to
+// "Play my hour", so the listener taps again, takes the same deferred path, and is refused
+// again — a button that looks responsive and never plays anything.
+//
+// Playing a few bytes of silence is the unlock, because it is a real play() on the real
+// element inside the real gesture.
+const SILENT_WAV = 'data:audio/wav;base64,UklGRhQBAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+
+export function unlock(a: CueTarget): void {
+  a.src = SILENT_WAV;
+  // Swallowed deliberately. If the browser refuses even this there is nothing to fall back to
+  // and nothing to tell the listener yet: the read airs on its timer either way, and the first
+  // real track's own play() reports the refusal through onRefused.
+  void a.play().catch(() => {});
+}
+
+// What the Play/Pause button does, extracted so it can be tested without rendering a component
+// — the same reason cue() is exported (there is no React harness in this build). Returns the
+// `playing` state the caller should move to.
+//
+// The entire point is that this runs SYNCHRONOUSLY inside the click handler. React defers
+// effects until after paint, in a later task, which is outside the gesture window. Pausing,
+// natural track transitions and the lock-screen skip can all keep flowing through cue() from
+// the effect, because those act on an element the first tap has already unlocked — but that
+// first tap has to spend itself on a real play() or there is nothing to inherit.
+export function toggle(a: CueTarget, item: PlayItem, playing: boolean, onRefused: () => void): boolean {
+  const next = !playing;
+  // Starting the hour on an item with no audio of its own — which is every hour, since the
+  // legal ID opens it. cue() below will correctly only pause, so this is the one chance to
+  // spend the gesture on an actual play() call.
+  if (next && !item.audio) unlock(a);
+  cue(a, item, next, onRefused);
+  return next;
+}
+
 export function Player({ list, station, onDone }: { list: PlayItem[]; station: string; onDone?: () => void }) {
   // One element for the session. iOS unlocks audio on the element the user tapped;
   // creating a new one per track loses that unlock and playback silently stops.
@@ -90,22 +135,22 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
     <section aria-label="Player">
       <audio ref={el} onEnded={() => setI((n) => n + 1)} preload="none" />
       <audio ref={next} preload="auto" style={{ display: 'none' }} />
-      {/* The tap itself starts the audio. iOS permits playback to begin only from inside the
-          gesture, and the first tap is what unlocks audio for the rest of the session; a React
-          effect runs after paint, in a later task, which is outside it — flipping `playing` and
-          leaving the effect to start playback risked no audio on iPhone at all. So cue() is
-          called synchronously here, within the tap.
+      {/* The tap itself starts the audio, synchronously, via toggle(). iOS permits playback to
+          begin only from inside the gesture, and the first tap is what unlocks this element for
+          the rest of the session; a React effect runs after paint, in a later task, which is
+          outside it. Flipping `playing` and leaving the effect to start playback means there is
+          no play() inside a gesture at all — so the element is never unlocked, and every later
+          effect-driven play() is refused too. Silent on iPhone, for the whole hour.
 
-          It goes through cue() rather than a direct a.play()/a.pause() because cue() is the
-          one place that decides what the element does — including the read check that a direct
-          call used to bypass, where resuming during a 30-second read replayed whatever tape had
-          been rolling before it. The effect above still calls cue() for every other reason the
-          track changes, and cue() no longer reassigns an unchanged `src`, so that second call
-          cannot abort the playback this one starts. */}
+          toggle() goes through cue() rather than a direct a.play()/a.pause(), so the read check
+          a direct call used to bypass stays on this path; and it plays five ms of silence first
+          when the current item is a read, because the hour always opens on one and cue() will
+          only pause for it. The effect above still calls cue() for every other reason the track
+          changes — by then the element is unlocked and no fresh gesture is needed. */}
       <button onClick={() => {
-        const next = !playing;
-        if (el.current) cue(el.current, item, next, () => setPlaying(false));
-        setPlaying(next);
+        const a = el.current;
+        if (!a) return;
+        setPlaying(toggle(a, item, playing, () => setPlaying(false)));
       }}>
         {playing ? 'Pause' : 'Play my hour'}
       </button>
