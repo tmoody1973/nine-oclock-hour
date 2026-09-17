@@ -293,7 +293,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
       )}
 
       {airedHour && !done && (
-        <div className={styles.onAir}>
+        <div className={styles.playerDock}>
           <Player key={airedHour.map((b) => b.id).join('|')} list={toPlaylist(airedHour)} station={station.name} onDone={() => setDone(true)} />
         </div>
       )}

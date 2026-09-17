@@ -1,14 +1,15 @@
 // Tests the element-driving half of <Player>'s track effect. Lives under lib/ because
 // `pnpm test` only globs lib/**/*.test.ts — same reason as lib/audition.test.ts — and there
 // is no React test harness in this build, so the effect's decision is exported as `cue` and
-// run here against a stub element rather than a rendered component.
+// run here against a stub element rather than a rendered component. The logic itself lives in
+// lib/player.ts, not beside the component: node cannot parse the CSS module <Player> imports.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cue, toggle } from '../components/Player';
+import { cue, toggle } from './player';
 import type { PlayItem } from './playlist';
 
 const item = (over: Partial<PlayItem> = {}): PlayItem =>
-  ({ id: 'a1:tape', title: 'The Fed holds rates', src: 'Morning Edition', seconds: 214, audio: 'https://npr.example/a1.mp3', ...over });
+  ({ id: 'a1:tape', title: 'The Fed holds rates', src: 'Morning Edition', seconds: 214, mode: 'tape', audio: 'https://npr.example/a1.mp3', ...over });
 
 // A stub element that records what was done to it, in order. Only the three members `cue`
 // touches — no jsdom, no DOM at all.
@@ -168,7 +169,7 @@ test('a refused play() reports back rather than throwing into the effect', async
 // silent by design, which is what made the whole app look dead four separate times in twenty
 // minutes (docs/roadmap.md, gap 1). These tests pin the half of that which is arithmetic; the
 // wiring into <Player> is browser-verified, since there is no React harness in this build.
-import { CLOCK_IDLE, clockElapsed, runClock, readLeft } from '../components/Player';
+import { CLOCK_IDLE, clockElapsed, runClock, readLeft } from './player';
 
 const legalId = (): PlayItem => item({ id: 'legalid', title: 'Legal ID and promo', audio: undefined, seconds: 60 });
 

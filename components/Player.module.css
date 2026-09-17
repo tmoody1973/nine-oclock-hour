@@ -1,0 +1,85 @@
+/* The transport. Same dark broadcast-desk look as HourBuilder.module.css and
+   Aircheck.module.css, and the same trick both of those use: the colours are declared as local
+   custom properties on this component's own root rather than on :root, so nothing here ever
+   fights app/globals.css's light/dark page background. The values match HourBuilder's because
+   this renders inside it — declared again rather than inherited so the transport still reads
+   correctly if it is ever shown anywhere else. */
+.dock {
+  --ink: #10131a; --panel: #171b24; --panel2: #1e2430; --rule: #2a313f; --edge: #3c4557;
+  --fg: #ece8e0; --fgSoft: #98a1b1; --amber: #e8a33d; --red: #e5484d; --green: #46b98a;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 14px;
+  color: var(--fg);
+}
+.dock button { font: inherit; color: inherit; cursor: pointer; }
+/* The panel is darker than the page furniture around it, so the browser default focus ring
+   (which follows the page's own colours) can land nearly invisible on it. */
+.dock :focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+.head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fgSoft);
+  border-bottom: 1px solid var(--rule); padding-bottom: 8px;
+}
+/* Mirrors .lamp/.lampLive in the page header: an outline when idle, a solid block when live.
+   The word inside it changes too — "rolling" vs "paused" — so the state never rests on colour. */
+.lamp { border: 1px solid var(--edge); border-radius: 3px; padding: 2px 8px; }
+.lampOn { background: var(--red); border-color: var(--red); color: var(--ink); }
+
+.now { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 10px; margin: 0; }
+.title { font-size: 19px; line-height: 1.3; font-weight: 600; }
+/* Three states, three treatments — solid fill, dashed outline, dotted outline — so they stay
+   tellable apart in greyscale and to anyone who does not separate amber from green. Each also
+   carries its own word, which is the signal that survives everything. Same rule, and the same
+   shapes, as .tag/.ok/.warn/.bad in Aircheck.module.css. */
+.tag {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  border: 1px solid var(--edge); border-radius: 3px; padding: 2px 7px;
+  min-width: 56px; text-align: center; color: var(--fgSoft); flex: 0 0 auto;
+}
+.tagTape { border-color: var(--green); background: var(--green); color: var(--ink); }
+.tagVoice { border-style: dashed; border-color: var(--amber); color: var(--amber); }
+.tagSilent { border-style: dotted; }
+.say { margin: 0; font-size: 13px; color: var(--fgSoft); }
+
+.barRow { display: flex; align-items: center; gap: 12px; }
+.bar {
+  flex: 1; min-width: 0; height: 10px; border-radius: 999px;
+  background: var(--panel2); border: 1px solid var(--rule); overflow: hidden;
+}
+/* The bright leading edge is the playhead: at 2% of a four-minute story the fill itself is a
+   couple of pixels, and without it the bar reads as empty — which is the exact misreading
+   this whole panel exists to stop. */
+.fill { display: block; height: 100%; background: var(--amber); border-right: 2px solid var(--fg); }
+/* A block with nothing to play is hatched rather than solid: the same "second channel that is
+   not colour" the hot clock uses for its wedges. A moving hatch and a moving solid bar are
+   distinguishable at a glance, in greyscale, and to a producer who has stopped reading words. */
+.fillSilent { background: repeating-linear-gradient(90deg, var(--edge) 0 5px, transparent 5px 10px); }
+.time { font-size: 14px; color: var(--fg); white-space: nowrap; }
+.time span { color: var(--fgSoft); }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.play {
+  background: var(--amber); color: var(--ink); border: 0; border-radius: 3px;
+  padding: 10px 20px; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase;
+  min-height: 44px; min-width: 156px;
+}
+.skip {
+  background: transparent; border: 1px solid var(--edge); border-radius: 3px;
+  padding: 6px 14px; font-size: 13px; min-height: 44px;
+}
+.skip:hover:not(:disabled) { border-color: var(--amber); color: var(--amber); }
+.skip:disabled { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+
+.foot {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline;
+  gap: 6px 16px;
+  border-top: 1px solid var(--rule); padding-top: 10px; font-size: 13px; color: var(--fgSoft);
+}
+.foot b { color: var(--fg); font-weight: 600; }

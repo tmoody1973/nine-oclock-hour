@@ -21,7 +21,7 @@ A four-minute story and a frozen app are pixel-identical.
 and it stays visible while you scroll.
 
 **Do not break:** playback must start inside the user's tap. See the comment above `unlock()` in
-`components/Player.tsx` — this was broken twice and costs every iPhone the entire session.
+`lib/player.ts` — this was broken twice and costs every iPhone the entire session.
 
 ## 2. A legal ID and weather that actually say something
 
