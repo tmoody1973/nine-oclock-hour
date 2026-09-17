@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlayItem } from '@/lib/playlist';
 import styles from './Player.module.css';
-import { CLOCK_IDLE, clockElapsed, cue, readLeft, runClock, toggle, type ReadClock, clock, hourElapsed} from '@/lib/player';
+import { cue, landOn, toggle, clock, hourElapsed } from '@/lib/player';
 
 // Same one-liner the other five components carry (HourBuilder, Desks, HotClock, Aircheck,
 // lib/hour.ts). Left duplicated rather than centralised: hoisting it is a six-file change that
@@ -22,15 +22,14 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
   const next = useRef<HTMLAudioElement>(null);
   const [i, setI] = useState(0);
   const [playing, setPlaying] = useState(false);
-  // Where we are inside the CURRENT block, and how long that block runs. Two sources feed
-  // these and they must never cross: a block with tape is counted by the media element itself
-  // (the timeupdate/durationchange handlers below), a read by our own wall clock, because a
-  // read has no media at all. Every handler that writes `pos` or `dur` is guarded on
-  // `item.audio` for that reason — the five milliseconds of silence that unlock() plays run
-  // through this same element and would otherwise report themselves as the block's duration.
+  // Where we are inside the CURRENT block, and how long that block runs. Both come from the
+  // media element itself (the timeupdate/durationchange handlers below), because every block
+  // the hour rests on now has media: one with nothing to play is skipped, not aired. The
+  // handlers stay guarded on `item.audio` anyway — the five milliseconds of silence that
+  // unlock() plays run through this same element and would otherwise report themselves as the
+  // block's duration.
   const [pos, setPos] = useState(0);
   const [dur, setDur] = useState(0);
-  const readRun = useRef<ReadClock>(CLOCK_IDLE);
   // Mirrors `i` for the callbacks below. The lock-screen handlers are installed once per item
   // and would otherwise close over whichever index was current when they were wired up.
   const at = useRef(0);
@@ -40,51 +39,38 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
   // and the end of a read all come through here, so the readout is reset in exactly one place
   // — and so the lock screen and the on-screen buttons cannot drift apart, which is what the
   // brief asks for. A move that changes nothing really does nothing: resetting on a clamped
-  // Back at the first block would send a read's countdown back to 0:00 on screen while the
-  // timeout actually carrying the hour forward went on counting from where it already was.
+  // Back at the first block, or on a Back that has only silence behind it, would send the
+  // readout back to 0:00 while the block it belongs to went on playing underneath it.
   const go = useCallback((move: (n: number) => number) => {
-    const to = move(at.current);
-    if (to === at.current) return;
+    // landOn() carries the move past any block with nothing to play, the way it was already
+    // travelling. It is applied HERE rather than at each button because this is the one way
+    // the hour moves — so the end of a tape, Next, Back and the lock screen cannot disagree
+    // about it, and a block that airs nothing cannot become the one we are sitting on.
+    const to = landOn(list, move(at.current), at.current);
+    if (to < 0 || to === at.current) return;
     at.current = to;
-    readRun.current = CLOCK_IDLE;
     setPos(0);
     setDur(0);
     setI(to);
-  }, []);
+  }, [list]);
 
   useEffect(() => {
     const a = el.current;
     if (!a || !item) return;
-    // Warm the next file FIRST. This line used to sit below the branch, where a spoken read's
-    // `return () => clearTimeout(t)` exited the effect before reaching it — so the track after
-    // every read started cold. Reads are 30 seconds; an un-warmed mp3 on a phone is exactly
-    // where a gap opens in the hour. Traced through the real control flow, not spotted by eye.
-    if (next.current && list[i + 1]?.audio) next.current.src = list[i + 1].audio!;
+    // Warm the file that will actually play next — which is landOn()'s answer, not i + 1.
+    // A block with nothing to play is skipped over, so warming i + 1 would warm a music bed
+    // that never airs and leave the newscast behind it cold. An un-warmed mp3 on a phone is
+    // exactly where a gap opens in the hour, and it would open on the transition that matters.
+    const after = list[landOn(list, i + 1, i)];
+    if (next.current && after?.audio) next.current.src = after.audio;
     cue(a, item, playing, () => setPlaying(false));
-    // A read has no audio of its own, so the hour is carried forward by a timer instead — and
-    // the timer is armed for what the read still OWES, not for its full length. Armed for the
-    // full length (which is what this did before), a legal ID paused at 0:55 and resumed aired
-    // for another sixty seconds while the bar beside it counted down the five that were left:
-    // the two disagreed, and the bar was the one telling the truth.
-    if (!item.audio && playing) {
-      readRun.current = runClock(readRun.current, true, Date.now());
-      const t = setTimeout(() => go((n) => n + 1), readLeft(item, readRun.current, Date.now()) * 1000);
-      // Settling on the way out is what makes a pause cost the hour nothing. This cleanup runs
-      // on pause, on a skip, and on any re-run of the effect; runClock() folds the open run
-      // into the settled total every time, so none of those paths loses or double-counts.
-      return () => { clearTimeout(t); readRun.current = runClock(readRun.current, false, Date.now()); };
-    }
-  }, [i, playing, item, list, go]);
-
-  // The number on screen for a read has to come from somewhere. There is no media element
-  // emitting timeupdate — cue() deliberately gives a read no source — so our own clock is read
-  // four times a second while it runs. Only while it runs: paused, the last value stands, which
-  // is exactly what a frozen countdown should do.
-  useEffect(() => {
-    if (!item || item.audio || !playing) return;
-    const t = setInterval(() => setPos(clockElapsed(readRun.current, Date.now())), 250);
-    return () => clearInterval(t);
-  }, [item, playing]);
+    // Nothing is armed for a block with no audio of its own any more. It used to be carried
+    // forward by a timer running for what it still owed the hour; it is now skipped outright
+    // by landOn() in go() and in the Play button, so the hour never rests on one and there is
+    // no slot left to wait out. The wall-clock machinery that counted those seconds honestly
+    // (ReadClock, runClock, readLeft, clockElapsed) is still in lib/player.ts, still tested:
+    // putting the wait back is a one-line change there if the decision is ever reversed.
+  }, [i, playing, item, list]);
 
   useEffect(() => {
     if (!('mediaSession' in navigator) || !item) return;
@@ -129,7 +115,7 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
   const left = Math.max(0, total - into);
   const source = item.src ? ` — ${item.src}` : '';
   const say = silent
-    ? 'Nothing to play — this block airs on the clock'
+    ? 'Nothing to play — the hour moves straight past this'
     : kind === 'voice' ? `Read in our own voice${source}` : `Rolling tape${source}`;
 
   // The whole hour, for the "am I nearly there" question the block-level numbers cannot answer.
@@ -185,7 +171,11 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
       </div>
 
       <div className={styles.controls}>
-        <button type="button" className={styles.skip} onClick={() => go((n) => Math.max(n - 1, 0))} disabled={i === 0} aria-label="Skip back to the previous block">
+        {/* Disabled on "nothing audible behind me" rather than on "I am the first block":
+            with the opening silence skipped, the first block the hour rests on is rarely
+            block 1, and a Back button that is enabled and does nothing is the dead control
+            this build keeps having to answer for. */}
+        <button type="button" className={styles.skip} onClick={() => go((n) => Math.max(n - 1, 0))} disabled={landOn(list, i - 1, i) < 0} aria-label="Skip back to the previous block">
           &lsaquo; Back
         </button>
         {/* The tap itself starts the audio, synchronously, via toggle(). iOS permits playback to
@@ -206,11 +196,27 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
         <button type="button" className={styles.play} onClick={() => {
           const a = el.current;
           if (!a) return;
-          setPlaying(toggle(a, item, playing, () => setPlaying(false)));
+          // Starting: the block the listener is waiting to hear is the first one from here
+          // with audio of its own, because silence is not aired. Move there and spend the tap
+          // on THAT — the gesture's play() is then the real recording, which is the strongest
+          // unlock there is and the same path a station with a recorded legal ID has always
+          // taken. Pausing moves nothing: it must not go near the unlock, or it would throw
+          // away the track the listener is halfway through.
+          const to = playing ? i : landOn(list, i, i);
+          if (to !== i) go(() => to);
+          const start = list[to];
+          // Nothing left with audio at all. go() has just run the hour off the end, which the
+          // effect below turns into the aircheck; there is no gesture to spend and nothing to
+          // spend it on.
+          if (!start) return;
+          setPlaying(toggle(a, start, playing, () => setPlaying(false)));
         }}>
           {playing ? 'Pause' : 'Play my hour'}
         </button>
-        <button type="button" className={styles.skip} onClick={() => go((n) => Math.min(n + 1, list.length - 1))} disabled={i >= list.length - 1} aria-label="Skip forward to the next block">
+        {/* The mirror of Back: disabled on "nothing audible ahead of me". Without this, Next
+            on the last block anyone will hear would run the hour off the end and straight
+            into the aircheck, which is not what a skip button should do. */}
+        <button type="button" className={styles.skip} onClick={() => go((n) => Math.min(n + 1, list.length - 1))} disabled={landOn(list, i + 1, i) >= list.length} aria-label="Skip forward to the next block">
           Next &rsaquo;
         </button>
       </div>
