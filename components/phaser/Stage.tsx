@@ -13,16 +13,26 @@ import { unlock, type UnlockResult } from '@/lib/audio';
 import { audioLog, disagreement } from '@/lib/audiolog';
 import { MORNING_MINUTES, canAfford, costOf, morningClock, remaining, spend, whyNot } from '@/lib/morning';
 import { nothingToHear, previewSource, sourceNote } from '@/lib/preview';
-import { READ } from '@/lib/hour';
+import { BULLETIN, READ, score, type FlashChoice } from '@/lib/hour';
+import { airGate } from '@/lib/rules';
+import { weightsFor } from '@/lib/taste';
 import { clock } from '@/lib/player';
 import { CAN_ROLL, WHY_NOT, block, used } from '@/lib/wire';
 import type { Block, WireItem } from '@/lib/types';
 import { Card } from './Card';
 import { Rundown } from './Rundown';
+import { Bulletin } from './Bulletin';
+import { Aircheck } from './Aircheck';
 import type { PlaceControl, PreviewControl, RemoveControl } from './card-controls';
 import type { ApplyMarks } from './wireScene';
 
-export default function Stage({ items, now }: { items: readonly WireItem[]; now: number }) {
+export default function Stage({ items, now, station }: {
+  items: readonly WireItem[];
+  now: number;
+  // City and neighbouring station, purely so score() can phrase its notes in this station's
+  // own terms — "an hour someone in Milwaukee could have heard anywhere".
+  station: { city: string; neighbour: string };
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<PhaserNS.Game | null>(null);
   const logRef = useRef(audioLog());
@@ -52,6 +62,15 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
   // The hour as built so far. layout() turns it into a running order and reports what crashes
   // into what; nothing else needs to know the geometry.
   const [hour, setHour] = useState<readonly Block[]>([]);
+  const [pendingAir, setPendingAir] = useState(false);
+  const [flash, setFlash] = useState<FlashChoice | null>(null);
+  // What actually aired: the producer's blocks plus the bulletin, if they took it. Held apart
+  // from `hour` so the rundown keeps showing what they built.
+  const [airedHour, setAiredHour] = useState<readonly Block[] | null>(null);
+  // Untimed tape's real-world drift, rolled ONCE for the whole hour. Rolled in the handler and
+  // never during render: score() must be deterministic for a given aired hour, and a fresh
+  // random number on every re-render would make the card change while you read it.
+  const [drift, setDrift] = useState<number | null>(null);
 
   const picked = useMemo(() => items.find((i) => i.id === pickedId) ?? null, [items, pickedId]);
   const paidFor = !!picked && read.has(picked.id);
@@ -166,6 +185,41 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
       onPlace: onPlace,
     };
   }, [picked, hour, spent, onPlace]);
+
+  // Three items before an hour can air — lib/rules.ts owns that rule and the sentence that
+  // explains it, so there is no second copy to fall out of step.
+  const gate = useMemo(() => airGate([...hour]), [hour]);
+
+  const chooseFlash = useCallback((choice: FlashChoice) => {
+    setFlash(choice);
+    setPendingAir(false);
+    // Splice logic taken from the React build rather than re-derived: walk until the running
+    // total reaches the bulletin's slot, then put it after that block if taken live, or one
+    // block further on if held for the next break.
+    let finalHour: readonly Block[] = hour;
+    if (choice !== 'skip') {
+      const blk: Block = { ...BULLETIN, bulletin: true, how: 'satellite', kind: 'seg', mode: 'read' };
+      let at = 0;
+      let i = hour.length;
+      for (let n = 0; n < hour.length; n++) {
+        at += hour[n].len;
+        if (at >= BULLETIN.at) { i = choice === 'now' ? n + 1 : Math.min(n + 2, hour.length); break; }
+      }
+      finalHour = [...hour.slice(0, i), blk, ...hour.slice(i)];
+    }
+    setDrift(Math.round((Math.random() * 2 - 1) * 40));
+    setAiredHour(finalHour);
+  }, [hour]);
+
+  const result = useMemo(() => {
+    if (!airedHour || drift === null || !flash) return null;
+    // No topic picker in this build yet, so no picks: weightsFor([]) is the generic listener,
+    // who loses two points of patience to every heavy story. Honest rather than flattering.
+    return score([...airedHour], {
+      pledge: false, flash, drift, weights: weightsFor([]),
+      city: station.city, neighbour: station.neighbour,
+    });
+  }, [airedHour, drift, flash, station]);
 
   const onRemove = useCallback((blockId: string) => {
     if (!canAfford('move', spent)) return;
@@ -316,8 +370,23 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
           {/* Directly under the card, not at the foot of the page. You are building this hour
               while you read; having to scroll away from the wire to see what you have built is
               how you lose your place in it. */}
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 20, display: 'grid', gap: 20 }}>
             <Rundown hour={hour} remove={remove} />
+
+            {/* Nine o'clock. The gate's sentence comes from lib/rules.ts and is shown rather
+                than the button simply refusing to work. */}
+            {!airedHour && !pendingAir && (
+              <div style={{ display: 'grid', gap: 6, justifyItems: 'start' }}>
+                <button type="button" onClick={() => gate.ready && setPendingAir(true)} disabled={!gate.ready}
+                        style={{ padding: '10px 18px', fontSize: 14 }}>
+                  Put it on air
+                </button>
+                {gate.reason ? <p style={{ margin: 0, fontSize: 12, color: '#8a4b00' }}>{gate.reason}</p> : null}
+              </div>
+            )}
+
+            {pendingAir && <Bulletin onChoose={chooseFlash} />}
+            {result && <Aircheck result={result} />}
           </div>
         </div>
       </div>

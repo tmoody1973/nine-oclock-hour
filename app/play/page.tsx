@@ -23,12 +23,19 @@ export default async function Play() {
   const at = new Date();
   const today = at.toISOString().slice(0, 10);
   const day = (await getDay(today)) ?? (await getLatestDay());
+  // Only what score() needs to phrase its notes in this station's own terms.
+  const home = day?.stations[HOME];
+  const neighbour = home ? day?.stations[home.neighbour] : undefined;
 
   return (
     <main style={{ padding: 24, display: 'grid', gap: 16, fontFamily: 'system-ui, sans-serif' }}>
       <h1 style={{ margin: 0, fontSize: 20 }}>Canvas scaffold</h1>
       {day ? (
-        <Stage items={buildWire(day, HOME)} now={at.getTime()} />
+        <Stage
+          items={buildWire(day, HOME)}
+          now={at.getTime()}
+          station={{ city: home?.city ?? '', neighbour: neighbour?.name ?? home?.neighbour ?? '' }}
+        />
       ) : (
         <p style={{ margin: 0 }}>
           No day file yet — the 5 a.m. build hasn&rsquo;t run. Trigger <code>/api/cron/build-day</code> by hand.
