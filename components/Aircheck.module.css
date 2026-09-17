@@ -1,0 +1,136 @@
+/* The end card. Same dark broadcast-desk look as HourBuilder.module.css and
+   HotClock.module.css, and the same trick they both use: the colours are declared as local
+   custom properties on this component's own root rather than on :root, so nothing here ever
+   fights app/globals.css's light/dark page background. The values match HourBuilder's
+   because this renders inside it — declared again rather than inherited so the card still
+   reads correctly if it is ever shown anywhere else. */
+.aircheck {
+  --ink: #10131a; --panel: #171b24; --panel2: #1e2430; --rule: #2a313f; --edge: #3c4557;
+  --fg: #ece8e0; --fgSoft: #98a1b1; --amber: #e8a33d; --red: #e5484d; --green: #46b98a;
+  color: var(--fg);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fgSoft);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+.head .total { font-size: 30px; letter-spacing: 0; color: var(--fg); }
+
+/* The scoreboard row. Each score keeps its label and its number together in one panel, and
+   the whole row collapses to a single column on a narrow screen rather than squeezing five
+   two-digit numbers into a phone's width. */
+.scores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.score {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 8px 10px;
+}
+.l { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fgSoft); }
+.n { font-size: 24px; line-height: 1.2; color: var(--fg); }
+.n span { font-size: 13px; color: var(--fgSoft); }
+
+.retention { font-size: 13px; color: var(--fgSoft); margin-bottom: 20px; }
+/* A text sparkline is 59 characters wide — one per minute of the hour — so it is sized in
+   viewport units rather than pixels: big enough to read as a curve on a desktop, narrow
+   enough that a phone never has to scroll sideways to see the end of the hour. The rule
+   underneath is the axis it is read against. */
+.spark {
+  /* inline-block, not block: the curve is one character per minute of CONTENT, so an
+     under-filled hour is a short curve. Stretched to the full width it read as a stub in an
+     empty trough — as though the chart were broken rather than the hour being short. */
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+  font-size: clamp(10px, 1.7vw, 20px);
+  line-height: 1;
+  color: var(--amber);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-bottom: 2px solid var(--edge);
+  border-radius: 3px;
+  padding: 8px 8px 2px;
+  margin: 6px 0;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+/* The tag gets its own grid column, so a severity chip can never run into the sentence it is
+   labelling — "badYou passed on the bulletin." was exactly that, a bare word glued to the
+   start of a note. The reason it is `why` underneath rather than beside: the note is the
+   finding, the small print is the argument for it. */
+.notes { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 10px; }
+.notes li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: baseline;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.notes small { grid-column: 2; font-size: 12px; color: var(--fgSoft); line-height: 1.45; }
+
+/* Colour is never the only signal here, which is this codebase's standing rule: each chip
+   carries its own word, and the three treatments differ in weight and fill as well as hue —
+   a quiet outline, a dashed outline, and a solid block — so they stay tellable apart in
+   greyscale, in forced colours, and to anyone who does not separate red from amber. */
+.tag {
+  justify-self: start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  padding: 2px 7px;
+  min-width: 46px;
+  text-align: center;
+  border: 1px solid var(--edge);
+  color: var(--fgSoft);
+}
+.ok { border-color: var(--edge); color: var(--fgSoft); }
+.warn { border-style: dashed; border-color: var(--amber); color: var(--amber); }
+.bad { border-color: var(--red); background: var(--red); color: var(--ink); }
+
+.rundown { border-top: 1px solid var(--rule); padding-top: 14px; }
+.rundownLabel {
+  font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fgSoft);
+  margin: 0 0 8px;
+}
+.rundown ul { list-style: none; padding: 0; margin: 0; }
+.rundown li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 14px;
+  font-size: 13px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.rundown li:last-child { border-bottom: 0; }
+
+/* The one line on this card that is a verdict rather than a number. */
+.missed {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--amber);
+  border-radius: 3px;
+  padding: 10px 12px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--fgSoft);
+}
