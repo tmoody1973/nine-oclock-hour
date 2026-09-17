@@ -46,11 +46,32 @@ test('a track with tape is cued onto the same element and rolls when the hour is
   assert.deepEqual(calls, ['play']);
 });
 
+// cue() has to fully own both directions, not just "start playing" — the manual Play/Pause
+// button used to call a.pause()/a.play() on the DOM node itself for this exact case (toggling
+// the SAME track), which is the bypass the next test is about. Once the button only flips
+// `playing` and leaves the element to cue(), pausing an actively-rolling tape has nowhere
+// else to happen, so cue() must call pause() itself rather than assume the element is already
+// stopped.
 test('a track with tape is loaded but not started while the hour is paused', () => {
   const { el, calls } = stubAudio();
   cue(el, item(), false, () => {});
   assert.equal(el.src, 'https://npr.example/a1.mp3');
-  assert.deepEqual(calls, []);
+  assert.deepEqual(calls, ['pause']);
+});
+
+// THE OTHER BUG THIS FILE EXISTS FOR. The manual Play/Pause button called a.play()/a.pause()
+// directly on the DOM node, bypassing cue() — so resuming during a 30-second read (cue()
+// never touches `src` for a read) momentarily replayed whatever tape had been rolling before
+// the read, because the direct a.play() call had no idea the current item was a read. Once
+// the button routes every toggle through cue() instead, "resume during a read" is just
+// cue(el, sameReadItem, true, ...) — and that must never touch src or start playback,
+// regardless of what the element is still holding from before.
+test('resuming during a read never plays or touches src, even though the element still holds the previous tape', () => {
+  const { el, calls } = stubAudio();
+  el.src = 'https://npr.example/previous-tape.mp3';
+  cue(el, item({ id: 'a2:read', audio: undefined, seconds: 30 }), true, () => {});
+  assert.deepEqual(calls, ['pause'], 'resuming a read must only ever pause, never play');
+  assert.equal(el.src, 'https://npr.example/previous-tape.mp3', 'a read must never touch src');
 });
 
 // play() rejects on its own whenever the browser refuses (an autoplay policy, a lost iOS

@@ -17,6 +17,7 @@ export function cue(a: CueTarget, item: PlayItem, playing: boolean, onRefused: (
   if (!item.audio) { a.pause(); return; }
   a.src = item.audio;
   if (playing) void a.play().catch(onRefused);
+  else a.pause();
 }
 
 export function Player({ list, station, onDone }: { list: PlayItem[]; station: string; onDone?: () => void }) {
@@ -76,7 +77,12 @@ export function Player({ list, station, onDone }: { list: PlayItem[]; station: s
     <section aria-label="Player">
       <audio ref={el} onEnded={() => setI((n) => n + 1)} preload="none" />
       <audio ref={next} preload="auto" style={{ display: 'none' }} />
-      <button onClick={() => { setPlaying((p) => !p); const a = el.current; if (!a) return; if (playing) a.pause(); else void a.play().catch(() => setPlaying(false)); }}>
+      {/* Only flips `playing` — the effect above is the one place that calls cue() and
+          decides what the element does. A direct a.play()/a.pause() here used to bypass
+          cue()'s read check: resuming during a 30-second read replayed whatever tape had
+          been rolling before it, because the direct call had no idea the current item had
+          no audio of its own. */}
+      <button onClick={() => setPlaying((p) => !p)}>
         {playing ? 'Pause' : 'Play my hour'}
       </button>
       <p>{item.title} — {item.src}{item.audio ? '' : ' (read)'}</p>
