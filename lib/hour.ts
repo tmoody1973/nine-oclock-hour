@@ -72,6 +72,25 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60))
 // Exported so the topic picker can say, truthfully, which picks change anything — the
 // weights map (lib/taste.ts) is only ever consulted on these five (see the retention curve
 // below), so this is the one list a caller needs, not a second hardcoded copy of it.
+// How a crash reads, in ONE place. The aircheck says it after the fact and the rundown says it
+// while you are building; those must never drift into two different accounts of the same
+// collision. `figure` lets the scorecard wrap the number in its own markup while the live
+// rundown takes it plain — one wording, two renderings.
+//
+// Consequence, not punishment: the walk in layout() already knows a 4:40 piece at position
+// three sends the newscast into the weather window, so the hour can simply say so.
+export function crashLine(c: Crash, figure: (s: string) => string = (s) => s): [string, string] {
+  return 'over' in c
+    ? [
+        `You ran ${figure(clock(c.over ?? 0))} into the ${c.label.toLowerCase()}.`,
+        `"${c.by}" was still going when the window opened. Weather and traffic do not wait for a segment to finish.`,
+      ]
+    : [
+        `The ${c.label.toLowerCase()} opened ${figure(clock(c.late ?? 0))} late.`,
+        'People set their morning by these. Late is the same as missing.',
+      ];
+}
+
 export const HEAVY_TOPICS: Topic[] = ['politics', 'world', 'economy', 'health', 'news'];
 
 export type FlashChoice = 'now' | 'late' | 'skip';
@@ -167,9 +186,8 @@ export function score(hour: Block[], opts: ScoreOpts): ScoreResult {
   const plan = layout(timed, opts.pledge);
   for (const c of plan.crashes) {
     onair -= 5;
-    notes.push('over' in c
-      ? ['bad', `You ran <span class="figure">${clock(c.over ?? 0)}</span> into the ${c.label.toLowerCase()}.`, `"${c.by}" was still going when the window opened. Weather and traffic do not wait for a segment to finish.`]
-      : ['bad', `The ${c.label.toLowerCase()} opened <span class="figure">${clock(c.late ?? 0)}</span> late.`, 'People set their morning by these. Late is the same as missing.']);
+    const [headline, detail] = crashLine(c, (s) => `<span class="figure">${s}</span>`);
+    notes.push(['bad', headline, detail]);
   }
 
   // The credit that pays for the hour.

@@ -13,9 +13,13 @@ import { unlock, type UnlockResult } from '@/lib/audio';
 import { audioLog, disagreement } from '@/lib/audiolog';
 import { MORNING_MINUTES, canAfford, costOf, morningClock, remaining, spend, whyNot } from '@/lib/morning';
 import { nothingToHear, previewSource, sourceNote } from '@/lib/preview';
-import type { WireItem } from '@/lib/types';
+import { READ } from '@/lib/hour';
+import { clock } from '@/lib/player';
+import { CAN_ROLL, WHY_NOT, block, used } from '@/lib/wire';
+import type { Block, WireItem } from '@/lib/types';
 import { Card } from './Card';
-import type { PreviewControl } from './preview-control';
+import { Rundown } from './Rundown';
+import type { PlaceControl, PreviewControl } from './card-controls';
 import type { ApplyMarks } from './wireScene';
 
 export default function Stage({ items, now }: { items: readonly WireItem[]; now: number }) {
@@ -45,6 +49,9 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
   // recreating the game would take the sound manager with it and throw away the audio grant.
   const applyMarksRef = useRef<ApplyMarks | null>(null);
   const [sceneReady, setSceneReady] = useState(0);
+  // The hour as built so far. layout() turns it into a running order and reports what crashes
+  // into what; nothing else needs to know the geometry.
+  const [hour, setHour] = useState<readonly Block[]>([]);
 
   const picked = useMemo(() => items.find((i) => i.id === pickedId) ?? null, [items, pickedId]);
   const paidFor = !!picked && read.has(picked.id);
@@ -126,6 +133,39 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
       onToggle: onPreview,
     };
   }, [picked, heard, playingId, spent, onPreview]);
+
+  const onPlace = useCallback((mode: 'tape' | 'read') => {
+    if (!picked || used([...hour], picked)) return;
+    if (!canAfford('place', spent)) return;
+    setHour((h) => [...h, block(picked, mode, now)]);
+    setSpent((sp) => spend('place', sp));
+  }, [picked, hour, spent, now]);
+
+  const place: PlaceControl = useMemo(() => {
+    const noop = () => {};
+    if (!picked) {
+      return { price: null, already: false, tape: null, read: { label: 'Read 0:30', blocked: 'Nothing picked.' }, onPlace: noop };
+    }
+    const already = used([...hour], picked);
+    const short = whyNot('place', spent);
+    // There is tape to offer whenever the item has a runtime or an estimate; whether it may be
+    // ROLLED is a rights question, and the answer is spelled out rather than greyed away.
+    const hasTape = picked.len > 0 || !!picked.est;
+    return {
+      price: already ? null : costOf('place', spent),
+      already,
+      tape: hasTape
+        ? {
+            label: `Roll tape ${clock(picked.len || picked.est || 0)}`,
+            blocked: CAN_ROLL[picked.how] ? short : (WHY_NOT[picked.how] ?? 'Not cleared to roll.'),
+          }
+        : null,
+      // A read is always available: it is how another newsroom's story reaches air at all —
+      // their reporting, our voice, their name on it.
+      read: { label: `Read ${clock(READ)}`, blocked: short },
+      onPlace: onPlace,
+    };
+  }, [picked, hour, spent, onPlace]);
 
   const onFlip = useCallback(() => {
     if (!picked) return;
@@ -252,13 +292,20 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
 
         <div style={{ flex: '1 1 340px', minWidth: 300 }}>
           {picked ? (
-            <Card item={picked} flipped={flipped} onFlip={onFlip} now={now} flipPrice={flipPrice} flipBlocked={flipBlocked} preview={preview} />
+            <Card item={picked} flipped={flipped} onFlip={onFlip} now={now} flipPrice={flipPrice} flipBlocked={flipBlocked} preview={preview} place={place} />
           ) : (
             <p style={{ margin: 0, color: '#666', maxWidth: '44ch' }}>
               Every story that came in this morning is in the strip, grouped by desk. Nothing is hidden —
               you simply cannot open all of it before nine. Pick one to see its five signals.
             </p>
           )}
+
+          {/* Directly under the card, not at the foot of the page. You are building this hour
+              while you read; having to scroll away from the wire to see what you have built is
+              how you lose your place in it. */}
+          <div style={{ marginTop: 20 }}>
+            <Rundown hour={hour} />
+          </div>
         </div>
       </div>
 

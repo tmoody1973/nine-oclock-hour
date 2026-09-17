@@ -12,7 +12,7 @@
 import { DESK_COLOR, DESK_NAME } from '@/lib/desks';
 import { clock } from '@/lib/player';
 import { CAN_ROLL, HOW_LABEL, WHY_NOT, placementNote } from '@/lib/wire';
-import type { PreviewControl } from './preview-control';
+import type { PlaceControl, PreviewControl } from './card-controls';
 import type { WireItem } from '@/lib/types';
 
 const cell: React.CSSProperties = { display: 'grid', gap: 2 };
@@ -22,7 +22,7 @@ const value: React.CSSProperties = { fontSize: 14 };
 // `now` is passed in rather than read here, following the same seam as block() in lib/wire.ts.
 // Reading the clock during render is impure, and on this component it would also be a
 // server/client hydration mismatch: freshness is decided once, on the server, at request time.
-export function Card({ item, flipped, onFlip, now, flipPrice, flipBlocked, preview }: {
+export function Card({ item, flipped, onFlip, now, flipPrice, flipBlocked, preview, place }: {
   item: WireItem;
   flipped: boolean;
   onFlip: () => void;
@@ -34,6 +34,7 @@ export function Card({ item, flipped, onFlip, now, flipPrice, flipBlocked, previ
   // in text rather than greying it out and hoping; colour is never the only signal.
   flipBlocked: string | null;
   preview: PreviewControl;
+  place: PlaceControl;
 }) {
   const expired = !!item.expires && Date.parse(item.expires) < now;
   // The `≈` the design asks for: no duration in the feed means rolling it is a gamble, so it
@@ -126,6 +127,31 @@ export function Card({ item, flipped, onFlip, now, flipPrice, flipBlocked, previ
         {preview.blocked ? <p style={{ margin: 0, fontSize: 12, color: '#8a4b00' }}>{preview.blocked}</p> : null}
         {/* Whose server the sound comes off. Auditioning must never look like we host it. */}
         {preview.note ? <p style={{ margin: 0, fontSize: 12, color: '#555' }}>{preview.note}</p> : null}
+
+        {/* Offering it to the hour. Tape-or-read is the editorial call the whole rights system
+            exists around: a 4:40 tape becomes a thirty-second read when the hour is tight, and
+            another newsroom's story can only ever be the read. Wording kept identical to the
+            React build's, which producers have already been reading. */}
+        {place.already ? (
+          <p style={{ margin: 0, fontSize: 12, color: '#555' }}>Already in the hour.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {place.tape ? (
+                <button type="button" onClick={() => place.onPlace('tape')} disabled={!!place.tape.blocked}
+                        style={{ padding: '6px 12px', fontSize: 13 }}>
+                  {place.tape.label}{place.price === null ? '' : ` — ${place.price} min`}
+                </button>
+              ) : null}
+              <button type="button" onClick={() => place.onPlace('read')} disabled={!!place.read.blocked}
+                      style={{ padding: '6px 12px', fontSize: 13 }}>
+                {place.read.label}{place.price === null ? '' : ` — ${place.price} min`}
+              </button>
+            </div>
+            {place.tape?.blocked ? <p style={{ margin: 0, fontSize: 12, color: '#8a4b00' }}>{place.tape.blocked}</p> : null}
+            {place.read.blocked ? <p style={{ margin: 0, fontSize: 12, color: '#8a4b00' }}>{place.read.blocked}</p> : null}
+          </div>
+        )}
       </div>
     </article>
   );

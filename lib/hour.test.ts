@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layout, score } from './hour';
+import { layout, score, crashLine } from './hour';
 import type { Block } from './types';
 
 const seg = (id: string, len: number, extra: Partial<Block> = {}): Block =>
@@ -117,4 +117,21 @@ test('no score goes negative across several adversarial hours', () => {
       assert.ok(value >= 0, `${label}: ${key} went negative (${value})`);
     }
   }
+});
+
+// The aircheck describes a crash after the fact; the rundown describes it while you build.
+// They must never become two different accounts of the same collision, so they share one
+// wording and differ only in how the number is marked up.
+test('the scorecard and the live rundown describe a crash in the same words', () => {
+  const crash = { label: 'Weather window', over: 30, by: 'A long piece' };
+  const [plainHead, plainDetail] = crashLine(crash);
+  const [markedHead, markedDetail] = crashLine(crash, (s) => `<b>${s}</b>`);
+  assert.equal(markedHead.replace(/<\/?b>/g, ''), plainHead);
+  assert.equal(markedDetail, plainDetail);
+  assert.match(plainHead, /ran 0:30 into the weather window/);
+});
+
+test('a window that opened late reads as late, not as an overrun', () => {
+  const [head] = crashLine({ label: 'Traffic window', late: 65 });
+  assert.match(head, /traffic window opened 1:05 late/);
 });
