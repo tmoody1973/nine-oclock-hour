@@ -127,14 +127,15 @@ const defaultStoreBlobDeps: StoreBlobDeps = { list, del };
 // is what makes a sweep failure visible, by recording it into day.degraded.
 //
 // `alsoReferenced` exists because "referenced by a STORED day file" and "referenced right
-// now" can disagree within a single cron run: putDay's own day-file sweep can evict a day
-// that turns 7 days old this morning, and a cache hit can then set item.audio in memory to
-// that same now-orphaned blob (same story, same readKey) before today's file is ever
-// written. Building the referenced set purely from storage would treat that blob as
-// unreferenced and delete it seconds before today's file goes on to point at it — a bug that
-// depends on statement order rather than fixing it. Passing the run's own in-memory
-// item.audio values here states "referenced by definition", regardless of where in the cron
-// the sweep happens to sit.
+// now" can disagree within a single cron run. The reason is NOT eviction ordering: the cron's
+// first putDay passes `sweep: false`, and its only day-file eviction runs after sweepReads,
+// so no day file is ever evicted before the referenced set is built from it. The reason is
+// that today's stored day file PREDATES VOICING — the cron writes it pessimistically before
+// any item.audio has been assigned — so it names none of this morning's reads, whether
+// freshly voiced or served from the read cache. Built purely from storage, the referenced set
+// would miss every one of them. Passing the run's own in-memory item.audio values here says
+// "referenced by definition", and keeps that true wherever in the cron the sweep sits, rather
+// than resting on a statement order that a future edit could quietly change.
 export async function sweepReads(now = new Date(), blob: StoreBlobDeps = defaultStoreBlobDeps, alsoReferenced: Iterable<string> = []): Promise<string[]> {
   const { blobs: days, hasMore: moreDays } = await blob.list({ prefix: 'days/' });
   // The dangerous direction: a truncated days/ page means a truncated referenced set, which
