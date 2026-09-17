@@ -24,10 +24,26 @@ export function cue(a: CueTarget, item: PlayItem, playing: boolean, onRefused: (
   // outside the gesture, where iOS refuses it: no audio on iPhone, ever. It also stops pause
   // and resume restarting the current track from the top.
   //
-  // Load-bearing assumption: every audio URL here is absolute (a CDS enclosure href or a
-  // Vercel Blob href), so a real element's `src` getter returns the same string that was
-  // assigned to it. A relative URL would resolve, never compare equal, reassign on every
-  // cue, and quietly put the iOS gesture chain back the way it was.
+  // Load-bearing assumption, and NOT the one an earlier draft of this comment named. The
+  // hazard is not a relative URL — both writers are absolute (lib/cds.ts's enclosure href,
+  // lib/reads.ts's blob.put().url). It is NORMALISATION: the `src` getter returns the resolved,
+  // re-encoded form, so an href carrying an uppercase character in the host (hosts are
+  // lowercased), an explicit `:443`, a literal space, a non-ASCII character, or any of
+  // " < > ` { } comes back changed and never compares equal. CDS hrefs are publisher-controlled,
+  // so that is live-data risk rather than code risk.
+  //
+  // What it costs is smaller than "no audio ever", and worth stating so nobody over-corrects:
+  // the iOS unlock SURVIVES, because toggle() calls play() inside the tap regardless of this
+  // guard. What breaks is everything after — each effect re-run reassigns `src`, aborts the
+  // in-flight play(), and the AbortError reaches onRefused, which pauses. Tap, a fraction of a
+  // second, button resets, repeat. That ONE story is unplayable, silently and for good, on
+  // every platform — it reproduces in desktop Chrome, it is not an iOS story.
+  //
+  // Measured 2026-09-16 against the captured CDS response: all 79 absolute hrefs round-trip
+  // byte-for-byte through the WHATWG parser, so this is latent, not live. If it ever fires,
+  // the fix is one line here:
+  //     const wanted = new URL(item.audio).href;
+  //     if (a.src !== wanted) a.src = item.audio;
   if (a.src !== item.audio) a.src = item.audio;
   if (playing) void a.play().catch(onRefused);
   else a.pause();
@@ -51,6 +67,15 @@ export function cue(a: CueTarget, item: PlayItem, playing: boolean, onRefused: (
 // element inside the real gesture.
 const SILENT_WAV = 'data:audio/wav;base64,UklGRhQBAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
 
+// PRE-DEPLOY, ON A REAL IPHONE. This is the one link in the chain that is reasoning rather than
+// observation: that iOS grants the unlock for a `data:` URI of silence. It is the standard
+// technique, but nothing in this repo can settle it. The check, and the obvious version of it
+// passes while proving nothing — open a normal hour, tap Play ONCE, then do not touch the screen.
+// The first block is the legal ID, a read, silent by design, so hearing nothing for ~60s is
+// expected and proves nothing either way. WATCH THE BUTTON, not the audio. Success: it still
+// reads "Pause" at the end of that minute and the first tape rolls on its own. Failure: it flips
+// back to "Play my hour" at any point, and no tape ever rolls. Do not tap twice — a second tap is
+// a fresh gesture and masks exactly the failure being tested.
 export function unlock(a: CueTarget): void {
   a.src = SILENT_WAV;
   // Swallowed deliberately. If the browser refuses even this there is nothing to fall back to
