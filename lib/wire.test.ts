@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { block, buildWire, used } from './wire';
+import { readFileSync } from 'node:fs';
+import { block, buildWire, rollable, used } from './wire';
+import { toWireItem } from './cds';
+import { toPlaylist } from './playlist';
 import type { DayFile, WireItem } from './types';
 
 const item = (over: Partial<WireItem> = {}): WireItem => ({
@@ -119,4 +122,50 @@ test('used() finds a block regardless of whether it was added as tape or read', 
   assert.equal(used([tapeBlock], item({ id: 'x' })), true);
   assert.equal(used([readBlock], item({ id: 'y' })), true);
   assert.equal(used([tapeBlock], item({ id: 'z' })), false);
+});
+
+// ─── The untimed item, and the dead air it used to cause ──────────────────────────────────
+const untimedDoc = JSON.parse(readFileSync(new URL('./fixtures/untimed.json', import.meta.url), 'utf8')).resources[0];
+
+// THE POINT OF THE est PRODUCER, and it was never the number. An item that arrives with the
+// publisher's audio but no duration used to fall through BOTH paths at once:
+//   - rollable() was false (len 0, est undefined), so the wire offered a disabled "No tape";
+//   - the cron skips voicing anything already carrying an audio href — see
+//     `if (item.audio || seenIds.has(item.id)) return false` in the build-day route — so it
+//     was never spoken and item.spoken was never set;
+//   - block(item, 'read') carries audio only for OUR OWN voiced take, so the block got none;
+//   - toPlaylist then keeps the entry with audio undefined, and <Player> runs a timer for the
+//     block's full length with nothing playing.
+// Thirty seconds of dead air, on a radio product, for the one item class that neither path
+// could serve. With est set the roll path opens again, which is what the front page promises
+// the producer: "Untimed tape is a gamble. Roll one and you find out live."
+test('an untimed item with publisher audio is rollable, not stranded between both paths', () => {
+  const untimed = toWireItem(untimedDoc, 'satellite', 'WBEZ');
+  assert.equal(untimed.len, 0, 'the feed never timed it');
+  assert.ok(untimed.audio, 'but the tape itself is there to roll');
+  assert.equal(rollable(untimed), true, 'so the producer must be offered it, at an estimate');
+});
+
+test('rolling an untimed item streams real audio, at its estimated length', () => {
+  const untimed = toWireItem(untimedDoc, 'satellite', 'WBEZ');
+  const [entry] = toPlaylist([block(untimed, 'tape')]);
+  assert.equal(entry.audio, untimed.audio, 'satellite tape is ours to roll, so it streams');
+  assert.equal(entry.seconds, untimed.est, 'scheduled at the estimate, not at the 30s read fallback');
+});
+
+// CHARACTERISATION, not a fix — this pins the SHAPE of dead air so it cannot return unnoticed,
+// and it corrects a claim made during review: toPlaylist does NOT drop an unvoiced read. It
+// keeps the entry and blanks its audio, which is why the failure is a silent timer rather than
+// a missing track. A test asserting the entry is absent would fail against correct code.
+//
+// Both gates that produce this are deliberate RIGHTS protections with their reasoning written
+// beside them: a read may carry audio only when it is our own voiced take, and toPlaylist
+// streams tape only for satellite/ours. Neither may be loosened to chase the silence. The cure
+// is upstream — let the producer roll it (est), or voice it.
+test('an unvoiced read keeps its playlist entry and plays silent — the shape of dead air', () => {
+  const unvoiced = item({ audio: 'https://wbez.example/tape.mp3' });
+  const list = toPlaylist([block(unvoiced, 'read')]);
+  assert.equal(list.length, 1, 'the entry is kept, not dropped');
+  assert.equal(list[0].audio, undefined, "the publisher's tape must never stream from a read");
+  assert.equal(list[0].seconds, 30, 'so the player runs a 30-second timer with nothing playing');
 });
