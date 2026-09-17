@@ -1,6 +1,6 @@
 import 'server-only';
 import { head, list, put, del, BlobNotFoundError } from '@vercel/blob';
-import type { DayFile } from './types';
+import type { DayFile, WireItem } from './types';
 
 const key = (date: string) => `days/${date}.json`;
 
@@ -149,6 +149,21 @@ export type StoreBlobDeps = {
 };
 const defaultStoreBlobDeps: StoreBlobDeps = { list, del };
 
+// Every audio URL an item can be holding. The publisher's tape and our own voiced read live
+// in two separate fields now, and BOTH have to reach the sweep's referenced set — along with
+// a third case nothing writes any more but the store is full of: day files older than that
+// split put the voiced read in `audio` behind `spoken`. Collecting `audio` unconditionally
+// covers those without anyone having to know which shape a given file is in, which matters
+// because stored day files cannot be rewritten and live for seven days.
+//
+// Sweeping up a publisher tape href along the way is harmless — it can never match a reads/
+// object, so it protects nothing and costs nothing. Missing a voiced read is NOT harmless: it
+// deletes a recording we paid Gemini to make, in some cases minutes after making it. One
+// function with two callers — this file's own day-file loop and the cron's `alsoReferenced`
+// argument — so the two can never drift apart on which fields count.
+export const audioUrls = (items: WireItem[]): string[] =>
+  items.flatMap((item) => [item.audio, item.spokenAudio]).filter((u): u is string => !!u);
+
 // Deletes a voiced read only when it is BOTH older than the retention window AND not
 // referenced by any surviving day file. Day files sweep at 7 days (isStale, above); reads
 // sweep at 3 — and that gap is the whole trap this function exists to avoid. Deleting purely
@@ -186,8 +201,8 @@ export async function sweepReads(now = new Date(), blob: StoreBlobDeps = default
     const res = await fetch(day.url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`day file ${day.pathname} unreadable: ${res.status}`);
     const file: DayFile = await res.json();
-    for (const item of [...file.network, ...Object.values(file.stations).flatMap((s) => s.local)]) {
-      if (item.audio) referenced.add(item.audio);
+    for (const url of audioUrls([...file.network, ...Object.values(file.stations).flatMap((s) => s.local)])) {
+      referenced.add(url);
     }
   }
 

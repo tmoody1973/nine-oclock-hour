@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isStale, isOldRead, sweepReads, putDay, getDayOrThrow, type StoreBlobDeps } from './store';
+import { isStale, isOldRead, sweepReads, putDay, getDayOrThrow, audioUrls, type StoreBlobDeps } from './store';
 import { BlobNotFoundError } from '@vercel/blob';
 import type { DayFile, WireItem } from './types';
 
@@ -38,6 +38,28 @@ test('the read boundary is exactly three days, not seven', () => {
 
 test('a malformed read timestamp is kept, never deleted', () => {
   assert.equal(isOldRead(new Date('nonsense')), false);
+});
+
+// The cron hands this exact list to sweepReads as `alsoReferenced`, because the day file
+// stored this morning predates voicing and names none of today's reads — so this is the only
+// thing standing between a freshly voiced read and the delete list. There is no test harness
+// that can run the cron (it would need live CDS, Gemini and Blob), which is why the logic it
+// depends on lives here instead of inline in the route.
+test('audioUrls collects the publisher tape, our voiced read, and the old shape alike', () => {
+  assert.deepEqual(
+    audioUrls([
+      item({ id: 'tape-only', audio: 'https://npr.example/tape.mp3' }),
+      item({ id: 'both', audio: 'https://npr.example/t2.mp3', spokenAudio: 'https://blob.example/reads/new.wav' }),
+      item({ id: 'legacy', audio: 'https://blob.example/reads/old.wav', spoken: true }),
+      item({ id: 'text-only' }),
+    ]),
+    [
+      'https://npr.example/tape.mp3',
+      'https://npr.example/t2.mp3',
+      'https://blob.example/reads/new.wav',
+      'https://blob.example/reads/old.wav',
+    ],
+  );
 });
 
 const DAY_MS = 864e5;
@@ -89,7 +111,13 @@ test('a read older than 3 days and unreferenced is deleted', async () => {
 
 // This is the one protecting the player: day files sweep at 7 days, reads at 3, so a read
 // referenced by a day file aged 4-7 must survive even though it's past its own window.
-test('a read older than 3 days but still referenced by a surviving day file is kept', async () => {
+//
+// It now doubles as the MIGRATION guard, which is why the fixture keeps the old shape
+// (`audio` holding the voiced read, behind `spoken: true`) rather than moving to
+// `spokenAudio`. Day files already in the store were written that way and cannot be
+// rewritten; a sweep that learned to read only the new field would look straight past them
+// and delete recordings those files still play. This test goes red on exactly that mistake.
+test('a read stored the OLD way — voiced audio in `audio` — is still protected from the sweep', async () => {
   const dayUrl = 'https://blob.example/days/2026-09-16.json';
   const readUrl = 'https://blob.example/reads/still-used.wav';
   const deleted: string[] = [];
@@ -103,6 +131,34 @@ test('a read older than 3 days but still referenced by a surviving day file is k
   try {
     const result = await sweepReads(NOW, blob);
     assert.deepEqual(result, []);
+    assert.deepEqual(deleted, []);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+// THE MOST DANGEROUS LINE IN THIS CHANGE, from the other side. The referenced set is built
+// from stored day files, and our voiced reads now live in `spokenAudio` — a sweep still
+// collecting only `audio` sees this morning's recordings as unreferenced and deletes them
+// minutes after we paid Gemini to make them. The tape href sitting in `audio` is a decoy: it
+// gets collected, it is harmless, and it protects nothing, because a publisher's mp3 can
+// never match a reads/ object.
+test('a voiced read referenced only through spokenAudio survives the sweep', async () => {
+  const dayUrl = 'https://blob.example/days/2026-09-16.json';
+  const readUrl = 'https://blob.example/reads/voiced.wav';
+  const deleted: string[] = [];
+  const blob = fakeBlob(
+    [{ url: dayUrl, pathname: 'days/2026-09-16.json', uploadedAt: NOW }],
+    [{ url: readUrl, pathname: 'reads/voiced.wav', uploadedAt: new Date(NOW.getTime() - 5 * DAY_MS) }],
+    (urls) => deleted.push(...urls),
+  );
+  const realFetch = globalThis.fetch;
+  // A story that came in WITH publisher tape and was voiced anyway — the exact shape this
+  // whole round of work creates, and the one the old sweep could not see.
+  const voiced = item({ audio: 'https://npr.example/tape.mp3', spokenAudio: readUrl });
+  globalThis.fetch = (async () => new Response(JSON.stringify(dayFile([voiced])))) as unknown as typeof fetch;
+  try {
+    assert.deepEqual(await sweepReads(NOW, blob), [], 'this morning\'s recording must not be swept');
     assert.deepEqual(deleted, []);
   } finally {
     globalThis.fetch = realFetch;
