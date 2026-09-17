@@ -425,6 +425,14 @@ export function HourBuilder({ day }: { day: DayFile }) {
       {airedHour && !done && (
         <div className={styles.playerDock}>
           <Player key={airedHour.map((b) => b.id).join('|')} list={airedList} station={station.name} onDone={() => setDone(true)} />
+          {/* The aircheck used to arrive ONLY when the player walked off the end of the hour, so
+              the score for an hour you had just spent a morning building was behind however many
+              minutes of listening it contained. Tarik: "what happen to the aircheck score???" —
+              he had aired an hour and there was no way to reach it.
+              The full listen stays the honest default; this is the way out of it. */}
+          <button type="button" className={styles.ghost} onClick={() => setDone(true)}>
+            Skip to the aircheck
+          </button>
         </div>
       )}
 
