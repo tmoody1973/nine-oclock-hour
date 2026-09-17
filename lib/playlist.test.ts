@@ -35,3 +35,18 @@ test('network and our own tape DO stream — the guard must not block everything
   assert.equal(list[0].audio, 'https://npr.example/n.mp3');
   assert.equal(list[1].audio, 'https://ours.example/o.mp3');
 });
+
+// The player has to SAY which of three things is happening — the publisher's tape is rolling,
+// our own recorded voice is reading, or there is nothing to play and the block is airing on the
+// clock — and `audio` alone cannot tell the first two apart, because a voiced read carries audio
+// too (lib/wire.ts: `audio: mode === 'tape' ? item.audio : voiced`). `mode` is where that
+// distinction already lives on Block, so it has to survive the trip into the playlist rather
+// than being sniffed back out of the `:tape`/`:read` suffix on the id.
+test('a playlist entry remembers whether it is tape or a read', () => {
+  const list = toPlaylist([
+    { id: 'a', label: 'With tape', len: 120, audio: 'https://npr.example/a.mp3', how: 'satellite', kind: 'seg', mode: 'tape', topic: 'news' },
+    { id: 'b', label: 'Our read', len: 30, audio: 'https://blob.example/b.wav', how: 'ours', kind: 'seg', mode: 'read', topic: 'local', spoken: true },
+  ]);
+  assert.equal(list[0].mode, 'tape', "the publisher's tape, rolling");
+  assert.equal(list[1].mode, 'read', 'our own voice — same shape in the playlist, a different thing to tell the producer');
+});
