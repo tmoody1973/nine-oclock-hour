@@ -235,6 +235,12 @@ function fakePutDayBlob() {
     },
     list: async () => ({ blobs: [] as { url: string; uploadedAt: Date }[] }),
     del: async () => {},
+    // Faithful to a real store in the one way that matters for the empty-overwrite guard:
+    // a write can see what an earlier write to the same date left behind.
+    existingDay: async (date: string) => {
+      const body = written.get(`days/${date}.json`);
+      return body ? (JSON.parse(body) as DayFile) : null;
+    },
   };
 }
 
@@ -258,4 +264,50 @@ test('putDay skips its own day-file sweep when told to', async () => {
   assert.equal(listCalls, 0);
   await putDay(dayFile(), blob, true);
   assert.equal(listCalls, 1);
+});
+
+// CRITICAL, and the one direction of the unattended write path nothing else covers.
+// `buildDay()` never throws — every source is wrapped in `safe()`, which records the failure
+// and returns [] — so a morning where the NPR token has expired produces a perfectly
+// well-formed day file with an empty network, six empty stations, and nine `degraded`
+// labels. Written over the same date's healthy file, that destroys a good morning's stories,
+// and the page does not fall back: `getDay(today)` succeeds, so `getLatestDay()` is never
+// reached and the producer gets an empty wire with a banner. The loss is loud but total.
+test('an empty build refuses to overwrite a day file that still has stories in it', async () => {
+  const blob = fakePutDayBlob();
+  const healthy = dayFile([item({ id: 'a1' }), item({ id: 'a2' })]);
+  await putDay(healthy, blob);
+  const before = blob.written.get('days/2026-09-16.json');
+
+  // The same date, built again after something broke: no network, no locals, all degraded.
+  const ruined: DayFile = { ...dayFile(), degraded: ['Morning Edition', 'All Things Considered'] };
+  await assert.rejects(() => putDay(ruined, blob), /refusing to overwrite/);
+  assert.equal(blob.written.get('days/2026-09-16.json'), before, 'the healthy file must still be there, byte for byte');
+});
+
+// The guard is on the CONTENT, not on the mechanism: `allowOverwrite` stays on, because the
+// cron deliberately writes the same key twice every run (pessimistically before voicing,
+// then again after). A guard on overwriting at all would break the design; this one only
+// ever fires on "something for nothing".
+test("the cron's own double write of a day with stories in it still goes through", async () => {
+  const blob = fakePutDayBlob();
+  const day = dayFile([item({ id: 'a1' })]);
+  await putDay(day, blob, false);           // the pessimistic pre-voicing write
+  await assert.doesNotReject(() => putDay(day, blob));  // and the real one after voicing
+});
+
+// Nothing to lose is not the same as something to lose. A genuinely empty first build of the
+// day must still be written, or a quiet morning looks identical to a broken guard.
+test('an empty build is written when no file exists for that date yet', async () => {
+  const blob = fakePutDayBlob();
+  await assert.doesNotReject(() => putDay(dayFile(), blob));
+  assert.ok(blob.written.has('days/2026-09-16.json'));
+});
+
+// And an empty file is not a healthy file: re-running after a failed build must be able to
+// replace one empty day with another, or a bad morning becomes permanently unrepairable.
+test('an empty build may replace a stored day that is also empty', async () => {
+  const blob = fakePutDayBlob();
+  await putDay(dayFile(), blob);
+  await assert.doesNotReject(() => putDay({ ...dayFile(), degraded: ['NPR News Now'] }, blob));
 });

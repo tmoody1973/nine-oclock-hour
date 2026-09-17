@@ -20,8 +20,16 @@ type PutDayBlobDeps = {
   put: (pathname: string, body: string, opts: { access: 'public'; contentType: string; addRandomSuffix: boolean; allowOverwrite: boolean }) => Promise<{ url: string }>;
   list: (options: { prefix: string }) => Promise<{ blobs: { url: string; uploadedAt: Date }[] }>;
   del: (urls: string[]) => Promise<void>;
+  // How putDay finds out what is already stored for this date, for the empty-overwrite guard
+  // below. Same seam as the rest of this type: real callers never pass it and get getDay.
+  existingDay: (date: string) => Promise<DayFile | null>;
 };
-const defaultPutDayBlobDeps: PutDayBlobDeps = { put, list, del };
+const defaultPutDayBlobDeps: PutDayBlobDeps = { put, list, del, existingDay: getDay };
+
+// Every story in a day file, network and local. `buildDay()` never throws — each source is
+// wrapped in a `safe()` that records the failure and returns [] — so a morning when the NPR
+// token has expired still produces a perfectly well-formed file with this count at zero.
+const itemCount = (day: DayFile) => day.network.length + Object.values(day.stations).reduce((n, s) => n + s.local.length, 0);
 
 // The cron calls putDay twice per run — once pessimistically before voicing, once after —
 // both times for the SAME date. Without `allowOverwrite: true`, @vercel/blob refuses the
@@ -32,6 +40,30 @@ const defaultPutDayBlobDeps: PutDayBlobDeps = { put, list, del };
 // that call that the second one won't also find, so running it twice is pure waste, not a
 // correctness question.
 export async function putDay(day: DayFile, blob: PutDayBlobDeps = defaultPutDayBlobDeps, sweep = true): Promise<string> {
+  // Refuse to trade a morning's stories for nothing. The guard is on the CONTENT, never on
+  // the mechanism: `allowOverwrite` below stays unconditionally true because the cron really
+  // does write this key twice per run by design, and refusing overwrites as such would break
+  // the build every morning. What must never happen is an empty file landing on top of a full
+  // one — a re-run after an expired token produces exactly that, and the loss is total and
+  // unrecoverable, with the page not even falling back (getDay(today) still succeeds, so
+  // getLatestDay() is never reached; the producer just gets an empty wire with a banner).
+  //
+  // It lives here, not in the cron, because the cron's FIRST putDay is the one that does the
+  // damage — by the time the second runs, the healthy file is already gone. One check on the
+  // path every caller goes through covers both writes and anything added later.
+  //
+  // Empty-over-empty is deliberately allowed: an empty stored file is not a healthy one, and
+  // a bad morning has to stay repairable by re-running.
+  //
+  // What a caller sees when it fires: this throws. In the cron that surfaces as a 500 with
+  // the reason in the logs, nothing voiced (no Gemini spend on a build with no stories in
+  // it), and the stored day file left exactly as it was.
+  if (itemCount(day) === 0) {
+    const stored = await blob.existingDay(day.date);
+    if (stored && itemCount(stored) > 0) {
+      throw new Error(`refusing to overwrite days/${day.date}.json with an empty build: the stored file has ${itemCount(stored)} items and this one has none`);
+    }
+  }
   const { url } = await blob.put(key(day.date), JSON.stringify(day), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true });
   if (sweep) {
     // The day file is not an archive: a week is enough to compare yesterday with today.
