@@ -1,5 +1,5 @@
 import { buildDay } from '@/lib/day';
-import { putDay, sweepReads } from '@/lib/store';
+import { putDay, sweepReads, audioUrls } from '@/lib/store';
 import { voiceRead } from '@/lib/reads';
 import { DEFAULT_VOICE } from '@/lib/voices';
 import { pool } from '@/lib/pool';
@@ -48,17 +48,28 @@ export async function GET(req: Request) {
   // day that simply had no reads to voice. Each item's own marker is cleared the moment it
   // actually succeeds, so a clean run still ends with an empty (or absent) degraded list.
   const items = [...day.network, ...Object.values(day.stations).flatMap((s) => s.local)];
-  // Deduped by id, not just filtered by !item.audio: the three network queries in
-  // lib/day.ts are concatenated with no dedupe, so the same CDS story can in principle
-  // appear twice with the same id. Two entries sharing an id would pre-mark two IDENTICAL
-  // `voice:${id}` strings — and the clear below uses `filter`, which removes every matching
-  // occurrence in one call, not one. If the twins ever got different outcomes (one succeeds,
-  // one fails), the successful clear would wipe out the failing twin's marker too, and that
-  // failure would go invisible — exactly the silence the pessimistic write exists to
-  // prevent. Deduping here also means the same story never gets voiced (and paid for) twice.
+  // EVERY story gets voiced, the ones that arrived with the publisher's own tape included.
+  // This used to skip anything already carrying an audio href, on the reasoning that it had
+  // audio already — but that audio is the publisher's TAPE, and reading a story instead of
+  // rolling it is a normal editorial call (a 4:40 tape becomes a 30-second read when the hour
+  // is tight). Those reads therefore had no voiced take of their own and played as thirty
+  // seconds of silence. Two on a typical wire cannot be rolled at all, another newsroom's
+  // tape not being ours to broadcast, so silence was the only outcome they had. The read now
+  // lands in `spokenAudio`, beside the tape rather than on top of it, so voicing a story
+  // costs the producer nothing and every story has a way to air.
+  //
+  // Still deduped by id: the three network queries in lib/day.ts are concatenated with no
+  // dedupe, so the same CDS story can in principle appear twice with the same id. Two entries
+  // sharing an id would pre-mark two IDENTICAL `voice:${id}` strings — and the clear below
+  // uses `filter`, which removes every matching occurrence in one call, not one. If the twins
+  // ever got different outcomes (one succeeds, one fails), the successful clear would wipe out
+  // the failing twin's marker too, and that failure would go invisible — exactly the silence
+  // the pessimistic write exists to prevent. Deduping also means the same story is never
+  // voiced (and paid for) twice. The extra spend for the stories that used to be skipped is
+  // about six reads a morning, and voiceRead's readKey cache makes a repeat run near-free.
   const seenIds = new Set<string>();
   const toVoice = items.filter((item) => {
-    if (item.audio || seenIds.has(item.id)) return false;
+    if (seenIds.has(item.id)) return false;
     seenIds.add(item.id);
     return true;
   });
@@ -71,8 +82,10 @@ export async function GET(req: Request) {
 
   await pool(toVoice, READ_CONCURRENCY, async (item) => {
     try {
-      item.audio = await voiceRead(item, READ_VOICE);
-      item.spoken = true;
+      // Into `spokenAudio`, NEVER `item.audio`. That field holds the publisher's tape, and
+      // assigning over it is exactly what used to destroy the producer's ability to roll the
+      // story — which is why this route refused to voice such stories in the first place.
+      item.spokenAudio = await voiceRead(item, READ_VOICE);
       // Clear only this item's own marker — never anyone else's. Safe under concurrency:
       // the read of `day.degraded` and the write back happen on the same line, with no
       // `await` between them, so this whole statement runs to completion before the event
@@ -96,21 +109,25 @@ export async function GET(req: Request) {
   // ends — invisible to any monitor that reads the stored file instead.
   //
   // `items` (not `toVoice`) is passed as `alsoReferenced` — not because "minutes old" makes
-  // today's reads safe (it doesn't: a cache hit can set item.audio to a blob from a day file
+  // today's reads safe (it doesn't: a cache hit can set item.spokenAudio to a blob from a day file
   // that putDay's own 7-day sweep just evicted earlier in this very call, orphaning it in
   // storage before today's file is ever written), but because the sweep's referenced set is
   // built from STORED day files, and today's stored copy predates voicing — the pessimistic
-  // write at the top of this handler put it there before any item.audio was assigned, so it
-  // carries none of this run's audio. Every item.audio this run actually holds — freshly
-  // voiced or a cache hit — is referenced by definition, regardless of what's on disk yet.
-  // Publisher tape URLs in `items` are harmless: they can never match a reads/ object.
+  // write at the top of this handler put it there before any read was assigned, so it carries
+  // none of this run's audio. Every read this run actually holds — freshly voiced or a cache
+  // hit — is referenced by definition, regardless of what's on disk yet.
+  //
+  // `audioUrls` is what collects them, and it reads `spokenAudio` as well as `audio`. Handing
+  // the sweep a list built from `audio` alone would name none of this morning's reads and
+  // watch it delete every one of them minutes after we paid to make them. The publisher tape
+  // URLs it also collects are harmless: they can never match a reads/ object.
   //
   // Known assumption, alongside the 1000-per-page one in lib/store.ts: this protection works
   // by URL string equality between what voiceRead()/head() returns and what list() reports
   // for the same object. Holds against the real store today (confirmed live) — if Blob ever
   // changed the form of one but not the other, alsoReferenced would silently stop protecting.
   try {
-    const swept = await sweepReads(new Date(), undefined, items.map((item) => item.audio).filter((a): a is string => !!a));
+    const swept = await sweepReads(new Date(), undefined, audioUrls(items));
     if (swept.length) console.log(`swept ${swept.length} expired read(s): ${swept.join(', ')}`);
   } catch (e) {
     console.error(`read sweep failed — ${(e as Error).message}`);
