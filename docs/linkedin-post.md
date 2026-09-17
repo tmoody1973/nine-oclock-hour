@@ -37,11 +37,11 @@ Everything that arrived with real tape keeps the newsroom's own audio, streamed 
 
 One wrinkle worth admitting, because it's the kind of thing you only find by looking: WBEZ files no web link on any story. None. So rather than drop Chicago out of a six-newsroom product, those items credit the newsroom instead of the article. Weaker, deliberate, written down rather than hidden.
 
-A side effect of building this: NPR documents that feed in prose but has never published a machine-readable description of it. So our team wrote one — 63 content types, 19 shared schemas — and open-sourced it, so the next station doesn't have to reverse-engineer the same thing we did.
+A side effect of building this: NPR documents that feed in prose but has never published a machine-readable description of it. So our team wrote one — 63 content types, 19 shared schemas — and open-sourced it, so the next station doesn't have to reverse-engineer what we did.
 
 ## The part I care most about: it's a real news product
 
-The hour you build isn't a scored attempt that gets thrown away. **It's a news hour you can put on for the commute.** You can play the whole thing, start to finish, and scrub to any point — drag to 9:19 and you land on the weather, because 9:19 *is* the weather.
+The hour you build isn't a scored attempt you throw away. **It's a news hour you can put on for the commute.** You can play the whole thing, start to finish, and scrub to any point — drag to 9:19 and you land on the weather, because 9:19 *is* the weather.
 
 That inverts the usual thing. You don't consume the news and then get quizzed. You go *looking* through 26 stories from six cities, decide what a listener needs to hear at nine in the morning, and then hear the result. You end up more informed because you had to make calls about what mattered — which is a very different kind of attention than scrolling.
 
