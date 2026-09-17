@@ -20,17 +20,18 @@ It is built on real material, so the day you play is the day that actually happe
 
 ## Status
 
-**Early. The skeleton runs; the product does not yet.** This is honest rather than modest —
-the repo is public from the first commit, so here is exactly where it stands:
+**The loop runs end to end.** A real morning's wire comes in, you build the hour, put it on
+air, and get an aircheck. The repo is public from the first commit, so here is exactly where
+it stands:
 
 | | |
 |---|---|
-| ✅ Done | Next.js skeleton, shared types, test runner |
-| 🔨 Next | Server-side CDS reads and the desk classifier |
-| ⬜ Planned | Day-file builder · 5 a.m. cron to Blob · rules engine · the player · the retention meter · deploy · spoken reads · the front page · the hot clock |
+| ✅ Done | Server-side CDS reads · the desk classifier · the day-file builder · the 5 a.m. cron to Blob · the rules engine · the player · the retention meter · spoken reads · the front page · the hot clock |
+| 🔨 Next | The first deploy. The Vercel config and the cron schedule are committed; nothing is deployed yet. |
+| ⬜ Planned | Decision records under `docs/decisions/` |
 
-There is no deployed URL yet. A working prototype of the rules and scoring exists and is
-the reference the engine is ported from.
+There is no deployed URL yet. The prototype the rules and scoring were ported from is still
+in the repo, at `prototype/index.html`, as the reference.
 
 The full plan, task by task with the code and the tests, is in
 [`docs/superpowers/plans/2026-09-16-hour-player.md`](docs/superpowers/plans/2026-09-16-hour-player.md).
@@ -162,8 +163,9 @@ Server-side only. **None of these ever reaches the browser.**
 | `NPR_CDS_TOKEN` | NPR Content Distribution Service bearer token | Reading the wire. Required. |
 | `CRON_SECRET` | Any long random string; the daily job rejects requests without it | The 5 a.m. build. Required in production. |
 | `BLOB_READ_WRITE_TOKEN` | Issued automatically when Blob storage is added to the Vercel project | Storing the day file. Required in production. |
-| `ELEVENLABS_API_KEY` | ElevenLabs API key | Voicing reads. Optional — falls back to Gemini. |
-| `GEMINI_API_KEY` | Google AI Studio key | Voicing reads when ElevenLabs is absent. Optional. |
+| `GEMINI_API_KEY` | Google AI Studio key | Writing and voicing the reads. Required. |
+| `READ_VOICE` | One of the voice names in `lib/voices.ts`, case-sensitive | Optional. Which voice the 5 a.m. build speaks in; defaults to `DEFAULT_VOICE`. The in-app picker only previews voices in the browser — this is the actual lever. |
+| `AUDITION_ENABLED` | Set to `1` to turn on `POST /api/audition` | Optional, and off by default: that route is public, unauthenticated, and spends the same Gemini quota the morning build depends on. |
 
 Locally the CDS token is read from `~/.config/npr-cds/token` (mode `600`). It is never
 printed, never committed, and never sent to the client.
@@ -173,18 +175,32 @@ printed, never committed, and never sent to the client.
 ```
 nine-oclock-hour/
 ├── app/
-│   ├── page.tsx                        # the hour builder
-│   └── api/cron/build-day/route.ts     # the 5 a.m. job          (planned)
+│   ├── page.tsx                        # serves today's day file, or the most recent one
+│   ├── layout.tsx
+│   ├── globals.css
+│   └── api/
+│       ├── cron/build-day/route.ts     # the 5 a.m. job
+│       └── audition/route.ts           # preview a voice; off unless AUDITION_ENABLED=1
 ├── lib/
 │   ├── types.ts                        # the only shared shapes
-│   ├── cds.ts                          # server-side CDS reads    (planned)
-│   ├── topics.ts                       # the desk classifier      (planned)
-│   ├── day.ts                          # builds the day file      (planned)
-│   ├── hour.ts                         # pure rules engine        (planned)
-│   ├── clock.ts                        # hot-clock geometry       (planned)
+│   ├── cds.ts                          # server-side CDS reads
+│   ├── topics.ts                       # the desk classifier
+│   ├── desks.ts                        # the desks, their names and their colours
+│   ├── day.ts                          # builds the day file
+│   ├── store.ts                        # Blob reads, writes and retention
+│   ├── reads.ts                        # writes and voices a 30-second read
+│   ├── voices.ts                       # the voice list, shared with the picker
+│   ├── pool.ts                         # bounded concurrency for the voicing loop
+│   ├── wire.ts                         # the day file as one producer's wire
+│   ├── hour.ts                         # pure rules engine and the aircheck
+│   ├── clock.ts                        # hot-clock geometry
+│   ├── playlist.ts                     # the hour as something playable
+│   ├── taste.ts                        # the listener's topic picks, as score weights
+│   ├── fixtures/                       # one captured CDS response, one hand-built
 │   └── *.test.ts                       # node --test, beside each module
-├── components/                         # Player, Aircheck, Desks, HotClock (planned)
+├── components/                         # HourBuilder, Desks, HotClock, Player, Aircheck
 ├── prototype/index.html                # the working prototype the engine is ported from
+├── vercel.json                         # the cron schedule
 └── docs/
     ├── superpowers/plans/              # the build plan, task by task
     └── decisions/                      # why things are the way they are  (planned)
@@ -201,7 +217,7 @@ nine-oclock-hour/
 | Scheduled job | Vercel Cron |
 | Storage | Vercel Blob (metadata only) |
 | Content | NPR Content Distribution Service |
-| Voice | ElevenLabs, with Gemini 2.5 Flash TTS as fallback |
+| Voice | Gemini — `gemini-2.5-flash` writes each read, `gemini-3.1-flash-tts-preview` speaks it |
 
 ## Not built yet, deliberately
 
