@@ -9,9 +9,19 @@ import { DESK_COLOR } from '@/lib/desks';
 import { stripLayout, STRIP_DEFAULTS } from '@/lib/strip';
 import type { WireItem } from '@/lib/types';
 
+// What you have already spent the morning on. Marked on the tiles because otherwise the strip
+// cannot tell you the shape of your own morning: once hearing a story costs fifteen minutes,
+// re-deciding a card you already paid for is a real way to lose the hour.
+export type Marks = { readonly read: ReadonlySet<string>; readonly heard: ReadonlySet<string> };
+export type ApplyMarks = (marks: Marks) => void;
+
 export type WireSceneOpts = {
   readonly items: readonly WireItem[];
   readonly onPick: (id: string) => void;
+  // Handed back once the tiles exist, so React can re-mark them WITHOUT rebuilding the game.
+  // Recreating it would take the sound manager with it and throw away the audio grant the tap
+  // already earned — the one thing this build is most careful about.
+  readonly onReady: (apply: ApplyMarks) => void;
 };
 
 export function wireSceneSize(items: readonly WireItem[]) {
@@ -20,10 +30,13 @@ export function wireSceneSize(items: readonly WireItem[]) {
 
 export function makeWireScene(Phaser: typeof PhaserNS, opts: WireSceneOpts) {
   return class WireScene extends Phaser.Scene {
-    private marks: PhaserNS.GameObjects.Rectangle[] = [];
-
     create() {
       const strip = stripLayout(opts.items);
+      // Two different SHAPES rather than two colours: a bar under a story you have read, a play
+      // glyph on one you have heard. Colour is never the only signal in this codebase, and on a
+      // 72px tile there is no room for a word.
+      const readBars = new Map<string, PhaserNS.GameObjects.Rectangle>();
+      const heardMarks = new Map<string, PhaserNS.GameObjects.Triangle>();
 
       for (const group of strip.groups) {
         // The desk NAME, not just its colour. lib/desks.ts reuses eight hues across ten desks
@@ -49,9 +62,23 @@ export function makeWireScene(Phaser: typeof PhaserNS, opts: WireSceneOpts) {
           mark.on('pointerover', () => mark.setAlpha(0.75));
           mark.on('pointerout', () => mark.setAlpha(1));
           mark.on('pointerdown', () => opts.onPick(tile.id));
-          this.marks.push(mark);
+
+          // Added after the tile so they draw over it, and hidden until the morning is spent.
+          readBars.set(
+            tile.id,
+            this.add.rectangle(tile.x, tile.y + tile.h - 3, tile.w, 3, 0xffffff).setOrigin(0, 0).setVisible(false),
+          );
+          heardMarks.set(
+            tile.id,
+            this.add.triangle(tile.x + tile.w - 11, tile.y + 4, 0, 0, 7, 4, 0, 8, 0xffffff).setOrigin(0, 0).setVisible(false),
+          );
         }
       }
+
+      opts.onReady((marks) => {
+        for (const [id, bar] of readBars) bar.setVisible(marks.read.has(id));
+        for (const [id, glyph] of heardMarks) glyph.setVisible(marks.heard.has(id));
+      });
     }
   };
 }

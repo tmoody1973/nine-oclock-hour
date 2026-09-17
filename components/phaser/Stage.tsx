@@ -16,6 +16,7 @@ import { nothingToHear, previewSource, sourceNote } from '@/lib/preview';
 import type { WireItem } from '@/lib/types';
 import { Card } from './Card';
 import type { PreviewControl } from './preview-control';
+import type { ApplyMarks } from './wireScene';
 
 export default function Stage({ items, now }: { items: readonly WireItem[]; now: number }) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -40,12 +41,22 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
   // ONE element for the session, the way the React build kept one. Publisher tape streams from
   // the newsroom's own server; nothing is copied here.
   const audioRef = useRef<HTMLAudioElement>(null);
+  // Re-marks the tiles in place. Held in a ref rather than rebuilt with the game, because
+  // recreating the game would take the sound manager with it and throw away the audio grant.
+  const applyMarksRef = useRef<ApplyMarks | null>(null);
+  const [sceneReady, setSceneReady] = useState(0);
 
   const picked = useMemo(() => items.find((i) => i.id === pickedId) ?? null, [items, pickedId]);
   const paidFor = !!picked && read.has(picked.id);
   // Turning a card back over is free, and so is re-reading one you already paid for.
   const flipPrice = flipped || paidFor ? null : costOf('flip', spent);
   const flipBlocked = flipped || paidFor ? null : whyNot('flip', spent);
+
+  // The strip is the only place you can see the shape of your own morning: which stories you
+  // have paid to read, and which you have paid to hear.
+  useEffect(() => {
+    applyMarksRef.current?.({ read, heard });
+  }, [read, heard, sceneReady]);
 
   const onPreview = useCallback(() => {
     if (!picked) return;
@@ -150,6 +161,13 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
         backgroundColor: '#141414',
         scene: makeWireScene(Phaser, {
           items,
+          onReady: (apply) => {
+            applyMarksRef.current = apply;
+            // Bump rather than calling apply() here: the effect below owns marking, and calling
+            // from inside create() would close over whatever `read`/`heard` were when the game
+            // was built, which is not what is on screen by the time the tiles exist.
+            setSceneReady((n) => n + 1);
+          },
           onPick: (id) => {
             // A newly pulled card always lands signals-first. Flipping is a deliberate spend
             // of the morning, so it must never be inherited from the last card you read.
@@ -222,6 +240,12 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
             <strong style={{ fontSize: 20 }}>{morningClock(spent)}</strong>
             {' · '}
             {remaining(spent)} of {MORNING_MINUTES} minutes left
+          </p>
+          {/* The same counts in words. The strip is a canvas — no labels, no focus order,
+              nothing a screen reader can reach — so anything it says visually has to be said
+              here too, or it is not said at all to half the people who might play. */}
+          <p style={{ margin: '0 0 8px', fontSize: 12, color: '#555' }}>
+            Read {read.size} and heard {heard.size} of {items.length} stories.
           </p>
           <div ref={hostRef} style={{ background: '#141414' }} />
         </div>
