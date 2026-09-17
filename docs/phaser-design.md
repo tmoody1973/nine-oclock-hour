@@ -173,6 +173,51 @@ in that gap and tell you honestly where you sat. It should never refuse to build
 - **Reads have to be genuinely listenable**, because people will actually listen to them end to end
   rather than previewing fifteen seconds. That raises the bar on the voice and the script.
 
+## The hour player: whole hour, and scrub anywhere
+
+**Tarik, 2026-09-17:** *"player should be able to listen to whole hour, scrub the player to move and
+listen to any point."*
+
+So it is a podcast player, not a block sequencer. That follows from the hour being a news product: if
+people listen to it properly they will expect to move around in it.
+
+### Scrub along the RUNDOWN clock, not along the audio
+
+**The decision, and it collides with skipping silence.** The hot clock shows 9:00 to 9:59. Silence
+does not air, so the audio is shorter than the hour. Drag to the middle of the bar and you might mean
+*9:30* or *halfway through what actually plays* — different places.
+
+**Scrub the rundown clock.** It is the hour on screen, it is what the scoring talks about, and it is
+what a producer means when they say "the weather's at nineteen past". Drag to 9:19 and you land on
+the weather, because 9:19 **is** the weather.
+
+### The mapping, which is pure logic and belongs in `lib/`
+
+Beside `landOn()` in `lib/player.ts`, testable without rendering, and it survives the rewrite:
+
+> **clock position → which block, and how far into it**
+>
+> 1. Find the block whose scheduled span contains that position (`at <= t < at + len`).
+> 2. Offset within it is `t - at`.
+> 3. **If the block's real audio is shorter than its slot** — a 26-second forecast in a 45-second
+>    window, a 6-second legal ID in a 60-second block — and the offset lands past the end of the
+>    audio, carry forward to the next block that has sound. Same rule `landOn()` already applies.
+> 4. If the block has no audio at all, carry forward likewise.
+
+**The clock stays the truth and the audio follows it.** That keeps one number on screen meaning one
+thing, which the React build learned the hard way: the hour readout that jumped forward whenever a
+recording ended early was the same class of lie.
+
+### Consequences
+
+- **Position must be expressible both ways** — clock time for the display and the scrub bar, played
+  time for whatever is actually feeding the speakers. The React player already kept two clocks for
+  the same reason; keep the distinction explicit rather than letting one masquerade as the other.
+- **Scrubbing into a silent stretch cannot strand the player.** Dragging into the middle of a traffic
+  window should land on the next thing with sound, not stop.
+- **The first scrub is still a gesture.** Whatever starts audio must start inside the tap — see the
+  browser-audio section of `docs/roadmap.md`. A scrub that resumes playback counts.
+
 ## Still open
 
 - **How long is the morning?** Four hours of story time compressed into how much real play.
