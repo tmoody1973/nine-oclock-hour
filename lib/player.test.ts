@@ -301,3 +301,61 @@ test('a silent window counts exactly the seconds the rundown gave it', () => {
   assert.equal(hourElapsed(list, 0, 45), 45);
   assert.equal(hourElapsed(list, 1, 0), 45, 'no jump, no gap');
 });
+
+// ─── Silent blocks do not occupy listening time ───────────────────────────────────────────
+// The decision (docs/decisions/004): when a block has no audio of its own, the hour does not
+// wait out its slot on the clock — it moves straight on. Traffic and weather windows with no
+// recording, a legal ID with no confirmed wording, and every music bed are all this block.
+// So the hour must never LAND on one: landOn() is where a move actually ends up, and it is
+// the single place that knows it, because <Player>'s go() is the one way the hour moves.
+import { landOn } from './player';
+
+const silent = (id: string, seconds = 45): PlayItem => item({ id, audio: undefined, seconds, mode: 'read' });
+const heard = (id: string): PlayItem => item({ id, audio: `https://npr.example/${id}.mp3` });
+
+test('a block with audio of its own is where the move lands — nothing to skip', () => {
+  const list = [silent('legalid', 60), heard('a'), heard('b')];
+  assert.equal(landOn(list, 1, 0), 1);
+});
+
+test('travelling forward, the hour walks past silence to the next thing it can play', () => {
+  const list = [silent('legalid', 60), silent('wx'), silent('tx'), heard('a')];
+  assert.equal(landOn(list, 0, 0), 3, 'the opening silence is not listening time');
+  assert.equal(landOn(list, 1, 0), 3, 'and neither are the two windows behind it');
+});
+
+// The end of the hour, which <Player> reads as "no item" and turns into the aircheck. Without
+// this an hour that trails off into silence would sit on the last silent block for ever.
+test('an hour that ends in silence runs off the end rather than resting on it', () => {
+  const list = [heard('a'), silent('bed', 180), silent('tx')];
+  assert.equal(landOn(list, 1, 0), 3, 'past the end is the end of the hour');
+});
+
+test('an hour with nothing to play at all is over the moment it starts', () => {
+  const list = [silent('legalid', 60), silent('wx'), silent('bed', 180)];
+  assert.equal(landOn(list, 0, 0), 3);
+});
+
+// Back has to walk the other way, or it is a dead button: pressing it from the first newscast
+// would land on the silent legal ID and be thrown forward onto the newscast again.
+test('travelling back, the hour walks BACKWARDS past silence', () => {
+  const list = [heard('a'), silent('wx'), silent('tx'), heard('b')];
+  assert.equal(landOn(list, 2, 3), 0, 'back from the second newscast reaches the first');
+});
+
+// And when there is nothing audible behind, -1 says so: the caller stays where it is, and the
+// Back button beside it is disabled rather than enabled and inert.
+test('back past the opening silence has nowhere to land and says so', () => {
+  const list = [silent('legalid', 60), silent('wx'), heard('a')];
+  assert.equal(landOn(list, 1, 2), -1);
+});
+
+// The lead's standing invariant, re-checked under skipping: the index now moves in jumps, so
+// the hour readout's base jumps with it. It must still only ever go forwards.
+test('the hour clock still never runs backwards when silence is skipped over', () => {
+  const list = [silent('legalid', 60), silent('wx'), heard('a')];
+  const before = hourElapsed(list, 0, 0);
+  const after = hourElapsed(list, landOn(list, 0, 0), 0);
+  assert.ok(after >= before, `hour clock went backwards: ${before} -> ${after}`);
+  assert.equal(after, 105, 'the skipped minute and the skipped window are behind us on the rundown');
+});

@@ -115,6 +115,37 @@ export function toggle(a: CueTarget, item: PlayItem, playing: boolean, onRefused
   return next;
 }
 
+// ── Where a move actually lands ───────────────────────────────────────────────────────────
+// A block with no audio of its own does not occupy listening time (docs/decisions/004). The
+// hour does not wait out its slot on the clock; it moves straight on. That is not one kind of
+// block but four: a legal ID at a station with no confirmed wording, a weather window whose
+// recording failed, a traffic window nobody voiced, and every music bed — none of them carry
+// a file. The played hour is therefore deliberately shorter than the rundown beside it, which
+// is the trade the product owner chose. score() is untouched: it judges the rundown.
+//
+// So the hour must never LAND on one, and this is the single place that knows it, because
+// <Player>'s go() is the one way the hour moves. Keep going the way we were already
+// travelling — forward for the end of a tape, Next, and the lock-screen skip; BACKWARDS for
+// Back, which would otherwise be a dead button, thrown forward onto the block it just left.
+//
+// Off the end (`list.length`) is the end of the hour, which <Player> already reads as "no
+// item" and turns into the aircheck. Off the start is -1: there is nothing audible behind, so
+// the caller stays where it is and the Back button beside it is disabled rather than inert.
+//
+// THIS IS ALSO WHAT KEEPS THE iOS UNLOCK SAFE, and it is worth being explicit about, because
+// the obvious version of this change is not safe. Making a silent block skip on a zero-length
+// timer leaves the first tap spending itself on unlock()'s five milliseconds of silence and
+// then replacing `src` a moment later, which is a race against the one call the whole session
+// depends on. Landing the tap on a block that HAS audio means the gesture's play() is the
+// real thing, it is never interrupted, and no silence is spent at all — the same path a
+// station with a recorded legal ID has always taken, and the strongest unlock available.
+export function landOn(list: PlayItem[], to: number, from: number): number {
+  const step = to < from ? -1 : 1;
+  let n = to;
+  while (n >= 0 && n < list.length && !list[n].audio) n += step;
+  return n;
+}
+
 // ── How far into a block we are ───────────────────────────────────────────────────────────
 // A block WITH tape has real media time: the element counts `currentTime` against `duration`
 // and the browser owns it. A READ has none of that — no media element state at all, because
