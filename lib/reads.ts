@@ -53,6 +53,21 @@ export const TTS_MODEL = 'gemini-3.1-flash-tts-preview';
 export const readKey = (item: WireItem, voice: string = DEFAULT_VOICE) =>
   `reads/${item.id}-${createHash('sha256').update(`${voice}:${item.src}:${item.title}:${item.teaser}`).digest('hex').slice(0, 12)}.wav`;
 
+// The legal ID's key, and it is keyed on the WORDS — never on the day. The wording almost never
+// changes, so the same text in the same voice must resolve to the same stored object every
+// morning: recorded once, then free on every run after. A date in the key would buy an identical
+// recording daily, which is the whole cost of the feature paid over and over for nothing.
+//
+// The `ids/` prefix is load-bearing, not decoration. sweepReads (lib/store.ts) deletes objects
+// under `reads/` older than three days that no stored day file still references, and it builds
+// that referenced set with audioUrls(), which reads `audio`/`spokenAudio` on WIRE ITEMS only. A
+// legal ID is referenced from a STATION record, so nothing would ever name it: under `reads/` it
+// would be collected on the fourth morning and the hour would go back to opening on sixty
+// seconds of silence, days later and invisibly. The sweep never lists this prefix. It is also
+// simply the honest description — a legal ID is permanent, not one of today's reads.
+export const legalIdKey = (text: string, voice: string = DEFAULT_VOICE) =>
+  `ids/${createHash('sha256').update(`${voice}:${text}`).digest('hex').slice(0, 12)}.wav`;
+
 async function gemini(model: string, body: unknown) {
   const res = await fetch(`${API}/${model}:generateContent`, {
     method: 'POST',
@@ -128,6 +143,27 @@ export async function voiceRead(item: WireItem, voice: string = DEFAULT_VOICE, b
   }
 
   const wav = await speak(script, voice);
+  const { url } = await blob.put(key, wav, { access: 'public', contentType: 'audio/wav', addRandomSuffix: false });
+  return url;
+}
+
+
+// Records one station's legal identification and returns its URL.
+//
+// Deliberately NOT voiceRead(). That function sends the item to the script model to be rewritten
+// in its own words and records whatever comes back — right for a news read, catastrophic here. A
+// station identification is a regulatory obligation that airs verbatim, so the station's text
+// goes straight to TTS with nothing in between. There is no prompt on this path, by design, and
+// lib/reads.test.ts pins that: exactly one model call, and the script model never sees it.
+//
+// Same `blob` seam as voiceRead — real callers never pass it and get the real @vercel/blob
+// functions via the default.
+export async function voiceId(text: string, voice: string = DEFAULT_VOICE, blob: BlobDeps = defaultBlobDeps): Promise<string> {
+  const key = legalIdKey(text, voice);
+  // Before the only paid call on this path. After the first morning this is the whole function.
+  try { return (await blob.head(key)).url; } catch { /* not recorded yet */ }
+
+  const wav = await speak(text, voice);
   const { url } = await blob.put(key, wav, { access: 'public', contentType: 'audio/wav', addRandomSuffix: false });
   return url;
 }

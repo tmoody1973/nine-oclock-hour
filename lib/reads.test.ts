@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scriptPrompt, readKey, stripPreamble, voiceRead } from './reads';
+import { scriptPrompt, readKey, stripPreamble, voiceRead, legalIdKey, voiceId, TTS_MODEL, SCRIPT_MODEL } from './reads';
 import type { WireItem } from './types';
 
 const item: WireItem = { id: 'g-s308-6913', src: 'WBEZ', how: 'station', kind: 'seg',
@@ -101,4 +101,84 @@ test('wrapping quotes are stripped too', () => {
 test('a lead-in that names the source is credit, not preamble, and must survive', () => {
   const raw = "WBEZ reports:\n\nChicago's arts spending is under review after the mayor's proposal.";
   assert.equal(stripPreamble(raw, 'WBEZ'), raw);
+});
+
+// ─── The legal ID ─────────────────────────────────────────────────────────────────────────
+// Recorded with speak() — text to speech and nothing else. voiceRead() above sends an item to
+// the script model FIRST and records whatever it writes, which is right for a news read and
+// catastrophic for a legal identification: an AI paraphrasing a station's licence wording is
+// the single worst outcome available here. These tests pin that separation.
+
+const ID_TEXT = "You're listening to 88Nine Radio Milwaukee, WYMS Milwaukee";
+
+// Keyed on the TEXT, never on the date. The wording almost never changes, so the same words in
+// the same voice must land on the same stored object every morning — recorded once, then free
+// on every run after. A date in the key would buy a fresh recording of identical words daily.
+test('the legal ID key is the same every day for the same words and voice', () => {
+  assert.equal(legalIdKey(ID_TEXT, 'Orus'), legalIdKey(ID_TEXT, 'Orus'));
+});
+
+test('changing a single character of the wording earns a new recording', () => {
+  assert.notEqual(legalIdKey(ID_TEXT, 'Orus'), legalIdKey(`${ID_TEXT}.`, 'Orus'));
+});
+
+test('the same words in a different voice are a different recording', () => {
+  assert.notEqual(legalIdKey(ID_TEXT, 'Orus'), legalIdKey(ID_TEXT, 'Kore'));
+});
+
+// THE TRAP THE ids/ PREFIX EXISTS FOR. sweepReads deletes anything under reads/ older than
+// three days unless a stored day file still references it — and the referenced set is built by
+// audioUrls(), which reads only `audio`/`spokenAudio` on WIRE ITEMS. A legal ID is referenced
+// from a STATION record, so nothing would ever name it: stored under reads/ it would look
+// unreferenced, age out, and be deleted, and the hour would go back to opening on sixty seconds
+// of silence days later with nothing to show what broke. It is also simply true that a legal ID
+// is permanent rather than a daily read. Matching guard in lib/store.test.ts.
+test('a legal ID is stored under ids/, never reads/, so the three-day sweep can never reach it', () => {
+  assert.ok(legalIdKey(ID_TEXT, 'Orus').startsWith('ids/'), 'anything under reads/ is swept at three days');
+});
+
+test('a cached legal ID costs no API call at all — recorded once, free every morning after', async () => {
+  const fakeUrl = 'https://blob.example/ids/already-recorded.wav';
+  let headCalls = 0;
+  const blob = {
+    head: async () => { headCalls++; return { url: fakeUrl }; },
+    put: async () => { throw new Error('put must never run on a cache hit'); },
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => { throw new Error('no network call should happen on a cache hit'); }) as unknown as typeof fetch;
+  try {
+    assert.equal(await voiceId(ID_TEXT, 'Orus', blob), fakeUrl);
+    assert.equal(headCalls, 1);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+// THE ONE THAT PROVES IT IS NOT A READ. Two claims in one: exactly ONE model call happens (so
+// the script model is never consulted), and the bytes handed to text-to-speech are the station's
+// words unchanged. If anyone ever routes a legal ID through voiceRead() for tidiness, this goes
+// red on both counts at once.
+test('a legal ID is spoken verbatim — one TTS call, and the script model never sees it', async () => {
+  const urls: string[] = [];
+  const bodies: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: unknown, init: { body: string }) => {
+    urls.push(String(url));
+    bodies.push(String(init.body));
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ inlineData: { data: Buffer.from('fake pcm').toString('base64') } }] } }] }) };
+  }) as unknown as typeof fetch;
+  const blob = {
+    head: async () => { throw new Error('not recorded yet'); },
+    put: async (key: string) => ({ url: `https://blob.example/${key}` }),
+  };
+  try {
+    const url = await voiceId(ID_TEXT, 'Orus', blob);
+    assert.equal(urls.length, 1, 'exactly one model call, and it is the TTS one');
+    assert.ok(urls[0].includes(TTS_MODEL), 'text to speech');
+    assert.ok(!urls[0].includes(SCRIPT_MODEL), 'never the model that writes its own words');
+    assert.equal(JSON.parse(bodies[0]).contents[0].parts[0].text, ID_TEXT, 'the words go to TTS exactly as the station gave them');
+    assert.ok(url.startsWith('https://blob.example/ids/'), 'and it is stored where the sweep cannot reach it');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
