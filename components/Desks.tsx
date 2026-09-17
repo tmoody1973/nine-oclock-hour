@@ -3,7 +3,7 @@
 // `HourBuilder`, which is already the client boundary these live inside.
 import type { Block, WireItem } from '@/lib/types';
 import { byDesk, mixOf, DESK_NAME, DESK_COLOR } from '@/lib/desks';
-import { HOW_LABEL, WHY_NOT, rollable, used } from '@/lib/wire';
+import { HOW_LABEL, WHY_NOT, expiryLabel, rollable, used } from '@/lib/wire';
 import { nothingToHear, previewSource, sourceNote } from '@/lib/preview';
 import styles from './HourBuilder.module.css';
 
@@ -65,8 +65,15 @@ export function Wire({ items, hour, degraded, onAdd, onOpen, onPreview, playingI
                       <span>{w.when}</span>
                       <span>{lenText}</span>
                       <span className={`${styles.flag} ${w.how === 'satellite' || w.how === 'ours' ? styles.flagOk : styles.flagHold}`}>{HOW_LABEL[w.how]}</span>
-                      {w.expires && <span>good until {w.expires}</span>}
+                      {w.expires && <span>good until {expiryLabel(w.expires)}</span>}
                     </p>
+                    {/* WHAT THE STORY IS ABOUT. 52 of this morning's 54 items carry a teaser and
+                        not one was shown: the wire listed headlines and runtimes and left the
+                        producer to open a sheet to find out what anything was. Skipped when it
+                        only repeats the headline, which is what newscasts file. */}
+                    {w.teaser && w.teaser.trim() !== w.title.trim() && (
+                      <p className={styles.teaser}>{w.teaser}</p>
+                    )}
                   </div>
                   <div className={styles.acts}>
                     <button type="button" disabled={!canRoll} onClick={() => onAdd(w, 'tape')}>

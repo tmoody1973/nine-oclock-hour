@@ -375,3 +375,27 @@ test('a weather window with no forecast says so; a traffic window does not apolo
   const ok = toPlaylist(airBlocks(rows, { weather: 'https://blob.example/wx/today.wav' }));
   assert.equal(ok.find((x) => x.id === 'wx')!.title, 'Weather window', 'with a forecast it is just the window again');
 });
+
+import { expiryLabel } from './wire';
+
+// "good until 2026-09-17T08:20:00-04:00" is not something anyone reads at five in the morning.
+test('a newscast expiry reads as a time of day, not an ISO string', () => {
+  assert.equal(expiryLabel('2026-09-17T08:20:00-04:00'), '8:20 a.m. Eastern');
+  assert.equal(expiryLabel('2026-09-17T13:05:00-05:00'), '1:05 p.m. Eastern');
+});
+
+test('midnight and noon do not read as 0 o\'clock', () => {
+  assert.equal(expiryLabel('2026-09-17T00:30:00-04:00'), '12:30 a.m. Eastern');
+  assert.equal(expiryLabel('2026-09-17T12:00:00-04:00'), '12:00 p.m. Eastern');
+});
+
+// The zone name comes from the offsets CDS actually files, and nothing else. Guessing a zone
+// from an unfamiliar number is how "Atlantic" quietly becomes "Eastern".
+test('an offset NPR does not file keeps its offset rather than being named', () => {
+  assert.equal(expiryLabel('2026-09-17T08:20:00+02:00'), '8:20 a.m. (UTC+2)');
+  assert.equal(expiryLabel('2026-09-17T08:20:00Z'), '8:20 a.m. UTC');
+});
+
+test('something that is not a timestamp is returned untouched rather than mangled', () => {
+  assert.equal(expiryLabel('not a date'), 'not a date');
+});

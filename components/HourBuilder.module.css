@@ -197,3 +197,10 @@ dialog.sheet::backdrop { background: rgba(6, 8, 12, 0.72); }
 .listen button { background: transparent; border: 1px solid var(--amber); color: var(--amber);
   border-radius: 3px; padding: 4px 12px; min-height: 30px; font-size: 12px; }
 .listen button:hover { background: var(--amber); color: var(--ink); }
+
+/* What the story is about, on the wire itself. 52 of 54 items file one and none were shown —
+   the producer had to open a sheet to find out what anything was. Clamped to three lines so a
+   long teaser cannot push the next headline off the screen. */
+.teaser { font-size: 12px; line-height: 1.45; color: var(--fgSoft); margin-top: 6px;
+  max-width: 62ch; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; }

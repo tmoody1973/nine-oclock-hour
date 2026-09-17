@@ -181,11 +181,33 @@ export function used(hour: Block[], item: WireItem): boolean {
   return hour.some((b) => b.id === tape || b.id === read);
 }
 
+// "good until 2026-09-17T08:20:00-04:00" is what a newscast's expiry looked like on screen.
+// Nobody reads an ISO string at five in the morning.
+//
+// Formatted from the STRING, never through `new Date().toLocaleString()`: that would render in
+// whatever timezone the reader's machine is in, disagree between server and client, and trip a
+// hydration mismatch. The clock time in the string is already the newsroom's own.
+//
+// The zone name is derived only from the offsets CDS actually uses. NPR files Eastern, so
+// -04:00 and -05:00 are EDT and EST; anything else keeps the raw offset rather than guessing a
+// zone from a number, which is how "Atlantic" becomes "Eastern" silently.
+export function expiryLabel(iso: string): string {
+  const m = /T(\d{2}):(\d{2})(?::\d{2})?(Z|[+-]\d{2}:\d{2})?/.exec(iso);
+  if (!m) return iso;
+  const h24 = Number(m[1]);
+  const hour = h24 % 12 === 0 ? 12 : h24 % 12;
+  const time = `${hour}:${m[2]} ${h24 < 12 ? 'a.m.' : 'p.m.'}`;
+  const off = m[3];
+  if (off === '-04:00' || off === '-05:00') return `${time} Eastern`;
+  if (off === 'Z' || off === '+00:00') return `${time} UTC`;
+  return off ? `${time} (UTC${off.replace(':00', '').replace(/^([+-])0/, '$1')})` : time;
+}
+
 // The one line that decides where a story can sit in the hour — shown in its detail sheet.
 export function placementNote(item: WireItem): string {
   if (item.how === 'station') return `${item.src}'s reporting. You may credit it and read it, but their tape stays on their air.`;
   if (item.how === 'podcast') return 'Podcast audio. Not cleared for broadcast: talk about it, link it, never roll it.';
-  if (item.expires && Date.parse(item.expires) < Date.now()) return `Already expired. This cut was good until ${item.expires}. At nine it is history.`;
+  if (item.expires && Date.parse(item.expires) < Date.now()) return `Already expired. This cut was good until ${expiryLabel(item.expires)}. At nine it is history.`;
   if (!item.len && item.est) return `No duration in the feed. Roughly ${Math.round(item.est / 60)} minutes, but nobody timed it. Roll it and you find out live.`;
   if (!item.len) return 'Text only. There is no tape, so this is a thirty-second read or nothing.';
   if (item.len > 900) return `A full show at ${Math.round(item.len / 60)} minutes. It will eat the hour whole.`;
