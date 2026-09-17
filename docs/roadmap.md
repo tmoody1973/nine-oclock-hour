@@ -102,3 +102,41 @@ end of that minute and tape rolls on its own. Failure: it flips back to "Play my
 rolls. **Do not tap twice** — a second tap is a fresh gesture and masks the exact failure being tested.
 
 This is the one link in the audio path that is reasoning rather than observation.
+
+---
+
+## Open decisions — for Tarik, not for an implementer
+
+**1. Does a fixed block hold its full scheduled length?** A block with audio ends when the audio
+ends, not when its slot is up. A 26-second forecast sits in a 45-second window; a 6-second legal ID
+sits in a 60-second block. So the played hour runs shorter than the rundown beside it. Holding the
+full length is more honest about the clock and adds silence a host would fill live; advancing early
+is shorter and jumps the hour counter forward. **Real time or compressed time — the answer decides
+both this and the traffic question below.**
+
+**2. Traffic's 45 seconds of labelled silence.** The player now airs every window the rundown
+promises, so traffic reads "Nothing to play — this block airs on the clock" for 45 seconds, and a
+pledge hour gains about four minutes across separate labelled pitch breaks. That is the hour finally
+being its true length. Reverting is a one-line filter in `airBlocks`.
+
+**3. Does the recorded legal ID say the call sign correctly?** "W-Y-M-S" or "wims"? No test can
+reach this. If it is wrong the fix is spelling it phonetically in `lib/legalid.ts`.
+
+**4. Does the weather read sound like broadcast copy?** The script leads each period with its bare
+name — "Thursday." then "Thursday Night." — and keeps the wind detail. Both are the National Weather
+Service's own words, used verbatim on purpose, but verbatim is not the same as sayable.
+
+## Known gaps, deliberately not fixed
+
+- **The six TTS calls in the morning job are unbounded.** `speak()` (`lib/reads.ts`) passes no
+  `AbortSignal`, so a stalled Gemini response has no ceiling. Shares the path with the ~26 story
+  reads, so it is pre-existing rather than new. The weather fetch was bounded at 8s
+  (`lib/weather.ts`, modelled on `lib/cds.ts`) because it was the one that could cost the whole day;
+  this one costs the reads and the final write. Same shape of fix, not yet applied.
+- **Nothing sweeps `ids/` or `wx/`.** Legal IDs are permanent by design, so orphaning a superseded
+  one is the accepted cost (see decision 001). Weather is not permanent: six files a day, ~1.4 MB
+  each, roughly 3 GB a year, and nothing deletes them. A plain age check is the fix (decision 002).
+- **Nobody has opened this on an iPhone.** Still the one link in the audio path that is reasoning
+  rather than observation. The check is written beside `unlock()` in `lib/player.ts`.
+- **Nobody has heard a weather read inside the app.** One was produced outside it, through the real
+  code and the real voice, and sent to Tarik.
