@@ -195,3 +195,37 @@ anywhere in the log.
 
 **For a Phaser build:** the same rule should hold. Resume the audio context inside the tap, and let
 that tap start something real. Do not build a silent-priming step and assume it ran.
+
+### Phaser can check what React had to assume — do it
+
+`HTMLMediaElement` exposes **no** way to ask whether the gesture grant landed, which is the whole
+reason the code above takes it on faith. **Web Audio does.** In a Phaser build:
+
+```js
+await ctx.resume();            // inside the tap, not after it
+if (ctx.state !== 'running') { /* the grant did NOT land — say so, do not pretend */ }
+```
+
+That turns the load-bearing assumption into an assertion. It is the single biggest thing the rewrite
+gains, and it should be one of the first things built rather than an afterthought.
+
+### Three more things carried over from the instrumented run
+
+- **Keep the skip rule in whatever "the one way the hour moves" becomes.** In the React player every
+  move funnelled through one `go()`, and the rule lived there. Split it between the end-of-clip
+  handler and the skip buttons and **Back quietly dies** — pressing it from the first audible block
+  lands on the silent one and gets thrown forward again.
+- **An "has it unlocked yet" flag that holds only the first silent block is safe, one line, and
+  useless.** That block is the opening legal ID on nearly every station, so it preserves exactly the
+  minute of dead air the whole change exists to remove.
+- **Holding a silent block is not structurally necessary.** The requirement is only that the tap
+  starts audio and that what it starts is what keeps playing. Any hour with audio anywhere satisfies
+  that with no dead air at all.
+
+### The method, which matters more than any of the above
+
+**196 tests passed through both the broken version and the fixed one.** Every real finding in this
+section came from instrumenting the audio element — monkey-patching `play`, `pause` and the `src`
+setter to log what the browser actually did, refusal reasons included — and then watching an hour
+run. **Build that harness early in Phaser.** A green suite says nothing about whether sound comes
+out of the speakers.
