@@ -41,7 +41,7 @@ station** (2026-09-17) and still silent for the other five, because nobody has g
   **The other five stations' wording is still NOT confirmed** — WBEZ, WNYC, WABE, KQED and KCRW each
   need their own, and guessing a call sign or city of licence from general knowledge is exactly how
   this goes wrong on air. Ask for each; do not infer. Until then their hour opens on a silent block
-  labelled "Legal ID — no wording on file for this station", which is honest rather than broken.
+  labelled "Legal ID (no wording on file)", which is honest rather than broken.
   Adding a station is one line in `lib/legalid.ts`; a test goes red if one appears without words.
 
   **Still unheard by a human:** nobody has listened to the recording, so how the voice says the call

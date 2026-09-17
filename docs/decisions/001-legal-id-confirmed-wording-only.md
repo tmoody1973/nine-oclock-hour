@@ -33,8 +33,8 @@ broadcast on somebody else's licence, not a bug.
 ## What we chose and why
 
 Option 2, with the silence made honest: a station with no confirmed wording shows the block as
-"Legal ID — no wording on file for this station", so a producer can see the silence is missing
-words rather than a dead player. The call was the team lead's, set out in the task brief and in
+"Legal ID (no wording on file)", so a producer can see the silence is missing words rather than a
+dead player. The call was the team lead's, set out in the task brief and in
 `docs/roadmap.md`; Claude implemented it and added the test that goes red if a station ever
 appears in the wording map without confirmed words.
 

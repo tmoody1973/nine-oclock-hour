@@ -40,8 +40,17 @@ export const LEGAL_ID: Block = { ...FIXED_ID, how: 'podcast', kind: 'seg', mode:
 // silence — except that it now SAYS so. Five of the six stations have never confirmed their
 // wording, and a silent block that gives no reason is precisely what read as a broken app: the
 // producer needs to see that the silence is missing words, not a dead player.
+//
+// A PARENTHETICAL, not a dash, and lib/wire.test.ts pins it: the rail appends its own " — read"
+// to any read block's label, so a dash here renders as "Legal ID — no wording on file for this
+// station — read" — two dashes and a sentence trailing into a stray word. "Legal ID (no wording
+// on file) — read" parses on first reading, and it fixes that without changing the shared row
+// that weather and traffic also render through.
+//
+// The station a producer is actually at sees no trace of any of this: with a recording the label
+// is plain "Legal ID and promo".
 export function legalIdBlock(station: { legalId?: string }): Block {
-  if (!station.legalId) return { ...LEGAL_ID, label: 'Legal ID — no wording on file for this station' };
+  if (!station.legalId) return { ...LEGAL_ID, label: 'Legal ID (no wording on file)' };
   return { ...LEGAL_ID, audio: station.legalId, spoken: true };
 }
 

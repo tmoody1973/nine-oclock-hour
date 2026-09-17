@@ -239,6 +239,11 @@ test('a station with no confirmed wording keeps its silent block, and says why',
   const b = legalIdBlock({});
   assert.equal(b.audio, undefined, 'nothing to play, because nobody has given us the words');
   assert.ok(!b.spoken);
-  assert.match(b.label, /no wording on file/i, 'the rail and the player say so instead of looking broken');
+  // Pinned exactly, punctuation included, because the RAIL APPENDS ITS OWN SUFFIX to any read
+  // block's label. A dash here would render as "Legal ID — no wording on file for this station —
+  // read": two dashes and a sentence trailing into a stray word. The parenthetical parses on first
+  // reading as "Legal ID (no wording on file) — read", and it fixes that without touching the row
+  // weather and traffic share.
+  assert.equal(b.label, 'Legal ID (no wording on file)', 'the rail and the player say so instead of looking broken');
   assert.equal(toPlaylist([b])[0].audio, undefined);
 });
