@@ -5,7 +5,16 @@ import styles from './Aircheck.module.css';
 const MAX = { Clock: 30, 'On air': 25, Freshness: 15, Mix: 15, Hold: 15 } as const;
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 // A text sparkline needs no chart library and no layout CSS: each minute's hold (20-100)
-// maps to one of eight block-height characters.
+// maps to one of eight block-height characters. The glyphs render fine — verified on the real
+// page, where a bad hour draws a visibly stepped curve — so this is not a font-coverage
+// problem, whatever a solid bar looks like.
+//
+// The scale is ABSOLUTE on purpose, never fitted to the hour's own range: a good hour and a
+// bad one have to look different from each other, and an auto-fitted curve would draw both
+// with the same shape. The cost is that the top of the range is coarse — (95-20)/80*8 floors
+// to 7, so every value from 95 up lands on the tallest block and a healthy hour draws as a
+// flat bar. That is honest (nobody left) but it reads as a broken image, which is why the
+// figures beside it carry the range the glyphs cannot resolve.
 const BLOCKS = '▁▂▃▄▅▆▇█';
 const sparkline = (curve: number[]) => curve.map((v) => BLOCKS[Math.min(7, Math.max(0, Math.floor(((v - 20) / 80) * 8)))]).join('');
 
@@ -13,6 +22,9 @@ const sparkline = (curve: number[]) => curve.map((v) => BLOCKS[Math.min(7, Math.
 // to it. Shown once the hour airs (Task 8 wires the trigger); nothing here plays audio.
 export function Aircheck({ result, hour, day }: { result: ScoreResult; hour: Block[]; day: DayFile }) {
   const total = Object.values(result.scores).reduce((n, v) => n + v, 0);
+  // Seeded with `low` so an hour with no curve at all can never produce -Infinity, the same
+  // way result.low is seeded with 100 in lib/hour.ts.
+  const high = Math.max(result.low, ...result.curve);
   const rundown = day.network.filter((w) => w.src === 'Morning Edition');
   const missedTop = day.mostCarried.stations >= 2 && !hour.some((b) => b.label === day.mostCarried.title);
 
@@ -31,10 +43,12 @@ export function Aircheck({ result, hour, day }: { result: ScoreResult; hour: Blo
 
       <p className={styles.retention}>
         Who stayed, minute by minute:{' '}
-        <span className={`${styles.spark} figure`} role="img" aria-label={`Retention curve, bottoming at ${result.low}%`}>
+        <span className={`${styles.spark} figure`} role="img" aria-label={`Retention curve, ${high}% at best and ${result.low}% at worst`}>
           {sparkline(result.curve)}
         </span>{' '}
-        (bottomed at <span className="figure">{result.low}%</span>)
+        {high === result.low
+          ? <>(steady at <span className="figure">{result.low}%</span> the whole hour)</>
+          : <><span className="figure">{high}%</span> at best, bottomed at <span className="figure">{result.low}%</span></>}
       </p>
 
       <ul className={styles.notes}>
