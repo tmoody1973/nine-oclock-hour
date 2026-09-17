@@ -281,9 +281,14 @@ test('a read passed via alsoReferenced survives even though no stored day file m
 // is exactly how the missing allowOverwrite survived three reviews and 93 tests.
 function fakePutDayBlob() {
   const written = new Map<string, string>();
+  // Every option each write was given. The `put` double used to drop these on the floor, which
+  // is how a month-long cache lifetime on a file the cron rewrites mid-run went unnoticed.
+  const puts: { pathname: string; opts: { allowOverwrite: boolean; cacheControlMaxAge?: number } }[] = [];
   return {
     written,
-    put: async (pathname: string, body: string, opts: { allowOverwrite: boolean }) => {
+    puts,
+    put: async (pathname: string, body: string, opts: { allowOverwrite: boolean; cacheControlMaxAge?: number }) => {
+      puts.push({ pathname, opts });
       if (written.has(pathname) && !opts.allowOverwrite) {
         throw new Error(`blob already exists: ${pathname}`);
       }
@@ -310,6 +315,27 @@ test('putDay can be called twice for the same date without throwing', async () =
   const day = dayFile();
   await putDay(day, blob);
   await assert.doesNotReject(() => putDay(day, blob));
+});
+
+// CRITICAL, and observed live rather than reasoned about: @vercel/blob caches public blobs for
+// a MONTH by default, and overwriting a path does not evict the edge copy. This file is the one
+// mutable object at a fixed path in the whole store — the cron rewrites it mid-run every morning
+// — so the default turned a deliberate two-write design into readers being served the
+// half-finished body for thirty days. On 2026-09-17 head() reported 38483 bytes while the body
+// came back as 33142: metadata and bytes describing different objects. The app duly told the
+// producer 54 reads had failed to voice and no station had a forecast, both false.
+//
+// Everything else this app stores (reads/, ids/, wx/) carries a content hash in its name, so a
+// long cache is correct there and untouched. This guard is only about the day file.
+test('the day file is written with a cache lifetime short enough to repair itself', async () => {
+  const blob = fakePutDayBlob();
+  await putDay(dayFile(), blob, false);
+  const day = blob.puts.find((p) => p.pathname.startsWith('days/'));
+  assert.ok(day, 'the day file was never written');
+  assert.equal(typeof day.opts.cacheControlMaxAge, 'number',
+    'no cache lifetime set, so @vercel/blob applies its one-month default to a file rewritten mid-run');
+  assert.ok(day.opts.cacheControlMaxAge! <= 60,
+    `day file cached for ${day.opts.cacheControlMaxAge}s; a reader served a stale body waits that long to see the real hour`);
 });
 
 test('putDay skips its own day-file sweep when told to', async () => {

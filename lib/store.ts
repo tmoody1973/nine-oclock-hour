@@ -17,7 +17,7 @@ export const isStale = (uploadedAt: Date, now = Date.now()) => uploadedAt.getTim
 // from StoreBlobDeps rather than widened into it — put/list/del here have different option
 // shapes than sweepReads' list/del, and two small honest types beat one loose one.
 type PutDayBlobDeps = {
-  put: (pathname: string, body: string, opts: { access: 'public'; contentType: string; addRandomSuffix: boolean; allowOverwrite: boolean }) => Promise<{ url: string }>;
+  put: (pathname: string, body: string, opts: { access: 'public'; contentType: string; addRandomSuffix: boolean; allowOverwrite: boolean; cacheControlMaxAge: number }) => Promise<{ url: string }>;
   list: (options: { prefix: string }) => Promise<{ blobs: { url: string; downloadUrl?: string; uploadedAt: Date }[] }>;
   del: (urls: string[]) => Promise<void>;
   // How putDay finds out what is already stored for this date, for the empty-overwrite guard
@@ -73,7 +73,25 @@ export async function putDay(day: DayFile, blob: PutDayBlobDeps = defaultPutDayB
       throw new Error(`refusing to overwrite days/${day.date}.json with an empty build: the stored file has ${itemCount(stored)} items and this one has none`);
     }
   }
-  const { url } = await blob.put(key(day.date), JSON.stringify(day), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true });
+  // The day file is MUTABLE at a fixed path, and @vercel/blob's default cache lifetime is a
+  // month. That default is right for everything else this app stores — reads/, ids/ and wx/
+  // all carry a content hash in the name, so a given URL's bytes never change — and it is
+  // catastrophic here.
+  //
+  // Observed live on 2026-09-17, not reasoned about. The cron writes this key twice per run
+  // by design (pessimistically before voicing, then for real), and something read the file in
+  // the 85 seconds between. Overwriting a path does NOT evict the edge copy, so the CDN pinned
+  // the half-finished body and served it back while head() reported the finished one:
+  // `meta.size` 38483 against a body of 33142 — metadata and bytes describing different
+  // objects. The app read the stale body and told the producer that 54 reads had failed to
+  // voice and that no station had a forecast. Both false; every recording was made and stored.
+  //
+  // 60 is the minimum @vercel/blob accepts, and the right value: this file is rewritten
+  // mid-run every morning, so any caching at all is a window in which readers are told
+  // something untrue. A minute bounds that window instead of a month. It does not close it —
+  // a reader inside the same minute as the pessimistic write still sees it — but the next
+  // fetch repairs itself, which a month does not.
+  const { url } = await blob.put(key(day.date), JSON.stringify(day), { access: 'public', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
   if (sweep) {
     // The day file is not an archive: a week is enough to compare yesterday with today.
     // `list` returns at most 1000 per page and we ignore its cursor — safe here because one
