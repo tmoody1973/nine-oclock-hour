@@ -65,7 +65,11 @@ export type Period = {
 // the service's business, not ours, and it has moved before.
 export async function forecast(lat: number, lon: number, fetchImpl: typeof fetch = fetch): Promise<Period[]> {
   const get = async (url: string) => {
-    const res = await fetchImpl(url, { headers: { 'User-Agent': UA }, cache: 'no-store' });
+    // Bounded, like lib/cds.ts:23. Without a signal this inherits undici's ~300s body timeout —
+    // the same as the whole function's budget — so ONE slow response from a free public agency
+    // burns the entire run and the morning ends with no day file at all. A throw becomes a
+    // `wx:` marker and one silent window; a STALL used to cost every story. Eight seconds, as CDS.
+    const res = await fetchImpl(url, { headers: { 'User-Agent': UA }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(`weather.gov ${res.status} for ${url}`);
     return res.json();
   };

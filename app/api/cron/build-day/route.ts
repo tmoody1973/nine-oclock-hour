@@ -113,6 +113,9 @@ export async function GET(req: Request) {
     }
   }
 
+
+  await putDay(day, undefined, false);
+
   // The 19:00 weather window, per station — the other half of the fixed content, and the same
   // verbatim path as the legal ID above for the same reason: voiceWeather() goes straight to
   // text-to-speech, and no model is ever allowed to reword a forecast. A rewritten forecast is
@@ -131,8 +134,11 @@ export async function GET(req: Request) {
   // written. Three at a time is two waves, ~40s, and stays modest against a public agency's
   // free service.
   //
-  // Placed HERE, before the pessimistic putDay, exactly like the legal ID: a run killed later
-  // in the reads pool still leaves a stored day whose weather window has something in it.
+// Placed AFTER the pessimistic putDay, unlike the legal ID above, and the difference is what
+// each one costs when it hangs. A legal ID is one cached call. This is twelve uncached calls
+// to a free public agency plus six TTS calls — in front of the write, one stalled response
+// costs every story of the morning rather than one silent window. The stories are the
+// product; the forecast is furniture. A run killed here keeps the day and loses the weather.
   //
   // Failure is silence, never invention. A station whose forecast or recording fails keeps
   // `weather` unset, its window stays quiet, and `wx:<id>` goes into `degraded`. There is no
@@ -151,8 +157,6 @@ export async function GET(req: Request) {
       day.degraded = [...(day.degraded ?? []), `wx:${id}`];
     }
   });
-
-  await putDay(day, undefined, false);
 
   await pool(toVoice, READ_CONCURRENCY, async (item) => {
     try {

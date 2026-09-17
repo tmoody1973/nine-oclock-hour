@@ -96,7 +96,13 @@ The played hour is longer than it was — because it is finally the right length
   one does.
 - The spoken read stays inside 45 seconds. Measured once against the real model: 60 words ran 26.4
   seconds, and the word budget is set from that rate rather than from a guess.
-- The played hour and the rail agree on length.
+- The played hour and the rail agree on *which blocks* run and in what order. They do NOT yet
+  agree on length: a window holding a recording advances when the audio ends, not when its
+  scheduled time is up, so a 26-second forecast in a 45-second window finishes 19 seconds early
+  and the hour clock jumps forward. The legal ID already does the same — a 6-second
+  identification in a 60-second block. Whether a fixed block should hold its full scheduled
+  length is a product decision about whether the app plays real time or compressed time, and
+  it is open.
 - A morning when weather.gov is down produces a silent window and a `wx:<station>` marker, never a
   stale or invented forecast.
 
