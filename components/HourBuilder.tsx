@@ -11,15 +11,17 @@
 // back and forth as props.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Block, DayFile, Topic, WireItem } from '@/lib/types';
-import { BULLETIN, HEAVY_TOPICS, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
+import { BULLETIN, HOUR, layout, score, type FlashChoice } from '@/lib/hour';
 import { arcs } from '@/lib/clock';
 import { airBlocks, block, buildWire, legalIdBlock, placementNote } from '@/lib/wire';
 import { toPlaylist } from '@/lib/playlist';
 import { ALL_TOPICS, weightsFor } from '@/lib/taste';
+import { airGate, countsForScore } from '@/lib/rules';
 import { VOICES, DEFAULT_VOICE } from '@/lib/voices';
 import { Player } from '@/components/Player';
 import { Aircheck } from '@/components/Aircheck';
 import { HotClock } from '@/components/HotClock';
+import { Rules } from '@/components/Rules';
 import { Wire, MixBar } from '@/components/Desks';
 import styles from './HourBuilder.module.css';
 
@@ -50,6 +52,10 @@ export function HourBuilder({ day }: { day: DayFile }) {
   const wire = useMemo(() => buildWire(day, home), [day, home]);
   const plan = useMemo(() => layout(hour, pledge), [hour, pledge]);
   const left = HOUR + 60 - plan.end;
+  // Why the air button is grey, and why a second underwriting credit will not go in. Both were
+  // silent rules the producer could only discover by being stopped by them.
+  const gate = airGate(hour);
+  const hasCredit = hour.some((b) => b.credit);
   const ringArcs = useMemo(() => arcs(plan.rows), [plan.rows]);
 
   // Takes the station id because the hour now OPENS with something station-specific. Inside
@@ -178,7 +184,7 @@ export function HourBuilder({ day }: { day: DayFile }) {
   }
 
   function handleAir() {
-    if (hour.length < 3) return;
+    if (!gate.ready) return;
     setFlashPending(true);
   }
 
@@ -249,30 +255,49 @@ export function HourBuilder({ day }: { day: DayFile }) {
 
       {!airedHour && (
         <>
-          <div className={styles.rules}>
-            <p><b>Network tape is yours to air.</b> NPR programs come down the satellite. Roll them.</p>
-            <p><b>Another station&rsquo;s tape is not.</b> Credit it and read it, or call them for the cut.</p>
-            <p><b>Podcast audio isn&rsquo;t cleared for broadcast.</b> Talk about it, don&rsquo;t roll it.</p>
-            <p><b>Untimed tape is a gamble.</b> Some pieces arrive with no duration. Roll one and you find out live.</p>
-          </div>
+          {/* These four rights rules used to sit here permanently and read as background colour.
+              They now live inside <Rules>, because the wire already answers each of them at the
+              moment it matters -- a piece of tape that cannot be rolled has its Roll button
+              disabled with the reason beside it (WHY_NOT, lib/wire.ts), and the story sheet
+              spells the rest out per item (placementNote). Stating a rule once and enforcing it
+              every time beats restating it above the fold forever. */}
+          <Rules />
 
+          {/* Ten buttons, five of which did nothing. weightsFor() records a weight for every
+              topic, but score()'s retention walk reads that map on heavy blocks only, so a pick
+              of tech, culture, climate, local or music could never move a number -- and the
+              interface marked that difference with an asterisk. A producer spent two of his
+              three picks on inert choices and only noticed when the aircheck did not move.
+
+              Fixed structurally rather than typographically, and by REMOVING the affordance
+              rather than disabling it: the five that count are the only five rendered as
+              buttons, so a pick cannot be wasted at all. Disabling the other five would have
+              left five dead controls to explain; dropping them silently would have left a
+              producer wondering where the music desk went. They are named in the sentence
+              underneath instead, with the reason they are not on offer.
+
+              Nothing about scoring changes -- togglePick and weightsFor still take any topic. */}
           <div className={styles.topics}>
-            <span>Pick up to three topics you care about — starred ones change your score:</span>
-            {ALL_TOPICS.map((t) => {
-              const counts = HEAVY_TOPICS.includes(t);
-              return (
+            <span id="topics-label">Who is listening? Pick up to three subjects you have patience for.</span>
+            <div className={styles.topicRow} role="group" aria-labelledby="topics-label">
+              {ALL_TOPICS.filter(countsForScore).map((t) => (
                 <button
                   key={t}
                   type="button"
                   className={`${styles.topicBtn} ${picks.includes(t) ? styles.topicOn : ''}`}
                   onClick={() => togglePick(t)}
                   aria-pressed={picks.includes(t)}
-                  aria-label={`${t}, ${counts ? 'changes your score' : 'does not change your score'}`}
                 >
-                  {t}{counts ? ' *' : ''}
+                  {t}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+            <p className={styles.topicsWhy}>
+              A heavy story costs you a slice of the audience; one on a subject you picked costs
+              you none. <b>Those five are the only subjects the tune-out model tracks.</b> The
+              other desks on the wire — {new Intl.ListFormat('en').format(ALL_TOPICS.filter((t) => !countsForScore(t)))} —
+              never cost anyone a listener, so there is nothing there to pick.
+            </p>
           </div>
 
           <div className={styles.board}>
@@ -284,6 +309,9 @@ export function HourBuilder({ day }: { day: DayFile }) {
               <div className={styles.railShell}>
                 <div className={styles.rackLabel}><span>The hour</span><span>9:00 – 9:59</span></div>
                 <HotClock arcs={ringArcs} />
+                {/* The page assumed the trade's word for this diagram. It costs one line to say it,
+                    and unlike the panel it cannot be dismissed. */}
+                <p className={styles.ringNote}>Hot clock — where each element sits in the hour, clockwise from 9:00.</p>
                 <MixBar hour={hour} />
                 <div className={styles.readout}>
                   <span className={`${styles.big} ${left < 0 ? styles.bigOver : Math.abs(left) <= 5 ? styles.bigTight : ''}`}>
@@ -307,10 +335,16 @@ export function HourBuilder({ day }: { day: DayFile }) {
                   <button type="button" onClick={() => addMusic(180)}>+ Music 3:00</button>
                   <button type="button" onClick={() => addMusic(270)}>+ Music 4:30</button>
                   <button type="button" onClick={() => addMusic(390)}>+ Music 6:30</button>
-                  <button type="button" onClick={addCredit}>+ Underwriting 0:30</button>
+                  <button type="button" onClick={addCredit} disabled={hasCredit}>+ Underwriting 0:30</button>
                   <button type="button" className={pledge ? styles.pledgeOn : ''} onClick={togglePledge} aria-pressed={pledge}>Pledge week: {pledge ? 'on' : 'off'}</button>
                 </div>
-                <button type="button" className={styles.air} disabled={hour.length < 3} onClick={handleAir}>Put it on air</button>
+                {hasCredit && (
+                  <p className={styles.fillerNote}>
+                    One underwriting credit an hour, and it is already in. It has to clear by 9:30 to count.
+                  </p>
+                )}
+                <button type="button" className={styles.air} disabled={!gate.ready} onClick={handleAir}>Put it on air</button>
+                {!gate.ready && <p className={styles.airWhy}>{gate.reason}</p>}
                 <button type="button" className={styles.ghost} onClick={() => resetHour()}>Clear the hour</button>
               </div>
             </section>

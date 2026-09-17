@@ -1,8 +1,12 @@
 import type { Block, DayFile } from '@/lib/types';
-import type { ScoreResult } from '@/lib/hour';
+import type { ScoreLabel, ScoreResult } from '@/lib/hour';
+import { SCORES } from '@/lib/rules';
 import styles from './Aircheck.module.css';
 
-const MAX = { Clock: 30, 'On air': 25, Freshness: 15, Mix: 15, Hold: 15 } as const;
+// The same five maxima the rules panel quotes before the hour airs (lib/rules.ts). Derived
+// rather than restated: this card and that panel describing different hundreds is precisely
+// the kind of quiet disagreement a producer would have to discover by arithmetic.
+const MAX = Object.fromEntries(SCORES.map((s) => [s.label, s.max])) as Record<ScoreLabel, number>;
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 // A text sparkline needs no chart library and no layout CSS: each minute's hold (20-100)
 // maps to one of eight block-height characters. The glyphs render fine — verified on the real

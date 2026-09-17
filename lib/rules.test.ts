@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MIN_HOUR_BLOCKS, SCORES, airGate, countsForScore } from './rules';
-import { HOUR, score } from './hour';
+import { score } from './hour';
 import { LEGAL_ID } from './wire';
 import type { Block } from './types';
 
@@ -78,5 +78,3 @@ test('the five maxima add up to the hundred the aircheck reports', () => {
 test('each score says what earns it', () => {
   for (const s of SCORES) assert.ok(s.what.length > 0, `${s.label} has no description`);
 });
-
-void HOUR;

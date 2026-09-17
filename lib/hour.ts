@@ -75,7 +75,9 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60))
 export const HEAVY_TOPICS: Topic[] = ['politics', 'world', 'economy', 'health', 'news'];
 
 export type FlashChoice = 'now' | 'late' | 'skip';
-type ScoreLabel = 'Clock' | 'On air' | 'Freshness' | 'Mix' | 'Hold';
+// Exported so the rules panel and the aircheck can share one list of the five scores and
+// their maxima (lib/rules.ts) instead of each keeping a copy. Type only -- score() is unchanged.
+export type ScoreLabel = 'Clock' | 'On air' | 'Freshness' | 'Mix' | 'Hold';
 // Per-topic penalty for a heavy story in the retention walk, not a cap on the five headline
 // scores. Task 7 builds this from the listener's picks: 0 for a topic they chose, 2 for one
 // they didn't. Falls back to the prototype's flat 2 wherever a topic isn't listed.
