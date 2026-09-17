@@ -18,7 +18,7 @@ export const isStale = (uploadedAt: Date, now = Date.now()) => uploadedAt.getTim
 // shapes than sweepReads' list/del, and two small honest types beat one loose one.
 type PutDayBlobDeps = {
   put: (pathname: string, body: string, opts: { access: 'public'; contentType: string; addRandomSuffix: boolean; allowOverwrite: boolean }) => Promise<{ url: string }>;
-  list: (options: { prefix: string }) => Promise<{ blobs: { url: string; uploadedAt: Date }[] }>;
+  list: (options: { prefix: string }) => Promise<{ blobs: { url: string; downloadUrl?: string; uploadedAt: Date }[] }>;
   del: (urls: string[]) => Promise<void>;
   // How putDay finds out what is already stored for this date, for the empty-overwrite guard
   // below. Same seam as the rest of this type: real callers never pass it and get
@@ -87,10 +87,18 @@ export async function putDay(day: DayFile, blob: PutDayBlobDeps = defaultPutDayB
   return url;
 }
 
+// Read through `downloadUrl`, never `url`. Both point at the same object, but `url` is served
+// through the CDN and hands back whatever the edge already has: measured live, the same URL
+// returned 33,109 stale bytes while Blob reported the object as 37,827. That is not a cosmetic
+// staleness — this route's own cron writes the day file TWICE per run, once pessimistically
+// before voicing, so the cached copy is the version with no audio and every failure marker set.
+// `cache: 'no-store'` does not help; it governs our fetch, not what the edge already cached, and
+// a query-string cache-buster is ignored here. `?? url` only so the test doubles, which return
+// bare { url }, keep working.
 export async function getDay(date: string): Promise<DayFile | null> {
   try {
     const meta = await head(key(date));
-    return await fetch(meta.url, { cache: 'no-store' }).then((r) => r.json());
+    return await fetch(meta.downloadUrl ?? meta.url, { cache: 'no-store' }).then((r) => r.json());
   } catch { return null; }
 }
 
@@ -103,7 +111,7 @@ export async function getDay(date: string): Promise<DayFile | null> {
 //
 // `headFn` defaults to the real @vercel/blob `head`, injectable so this is testable without
 // Blob credentials — same narrowing seam as PutDayBlobDeps above.
-type HeadFn = (pathname: string) => Promise<{ url: string }>;
+type HeadFn = (pathname: string) => Promise<{ url: string; downloadUrl?: string }>;
 export async function getDayOrThrow(date: string, headFn: HeadFn = head): Promise<DayFile | null> {
   let meta;
   try {
@@ -112,7 +120,7 @@ export async function getDayOrThrow(date: string, headFn: HeadFn = head): Promis
     if (err instanceof BlobNotFoundError) return null;
     throw err;
   }
-  const res = await fetch(meta.url, { cache: 'no-store' });
+  const res = await fetch(meta.downloadUrl ?? meta.url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`day file fetch failed with status ${res.status}`);
   return res.json();
 }
@@ -126,7 +134,7 @@ export async function getLatestDay(): Promise<DayFile | null> {
     const { blobs } = await list({ prefix: 'days/' });
     if (!blobs.length) return null;
     const latest = blobs.reduce((a, b) => (a.uploadedAt > b.uploadedAt ? a : b));
-    return await fetch(latest.url, { cache: 'no-store' }).then((r) => r.json());
+    return await fetch(latest.downloadUrl ?? latest.url, { cache: 'no-store' }).then((r) => r.json());
   } catch { return null; }
 }
 
@@ -142,7 +150,7 @@ export const isOldRead = (uploadedAt: Date, now = Date.now()) => uploadedAt.getT
 // calls — so a test double doesn't have to fake a whole ListBlobResultBlob. Same seam
 // pattern as voiceRead's `blob` parameter in lib/reads.ts: real callers never pass this and
 // get the real @vercel/blob functions via the default.
-type SweepBlob = { url: string; pathname: string; uploadedAt: Date };
+type SweepBlob = { url: string; downloadUrl?: string; pathname: string; uploadedAt: Date };
 export type StoreBlobDeps = {
   list: (options: { prefix: string }) => Promise<{ blobs: SweepBlob[]; hasMore: boolean }>;
   del: (urls: string[]) => Promise<void>;
@@ -198,7 +206,7 @@ export async function sweepReads(now = new Date(), blob: StoreBlobDeps = default
     // from the referenced set and the very next filter deletes audio a live file still
     // plays. One unreadable day file costs a failed sweep (caught by the cron, recorded into
     // degraded, visible) — that is a fully recoverable cost. Deleted audio is not.
-    const res = await fetch(day.url, { cache: 'no-store' });
+    const res = await fetch(day.downloadUrl ?? day.url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`day file ${day.pathname} unreadable: ${res.status}`);
     const file: DayFile = await res.json();
     for (const url of audioUrls([...file.network, ...Object.values(file.stations).flatMap((s) => s.local)])) {
