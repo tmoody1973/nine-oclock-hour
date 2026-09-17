@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as PhaserNS from 'phaser';
 import { unlock, type UnlockResult } from '@/lib/audio';
 import { audioLog, disagreement } from '@/lib/audiolog';
+import { MORNING_MINUTES, canAfford, costOf, morningClock, remaining, spend, whyNot } from '@/lib/morning';
 import type { WireItem } from '@/lib/types';
 import { Card } from './Card';
 
@@ -23,8 +24,29 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
   const [booted, setBooted] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
+  // Minutes of the morning already spent. Only actions spend it — no clock ticks while you
+  // think, which is the whole point: this is a game about judgement. See lib/morning.ts.
+  const [spent, setSpent] = useState(0);
+  // Stories already read this morning. Reading one twice costs nothing, because a producer who
+  // has read it has read it; the price is for the reading, not for the gesture.
+  const [read, setRead] = useState<ReadonlySet<string>>(() => new Set());
 
   const picked = useMemo(() => items.find((i) => i.id === pickedId) ?? null, [items, pickedId]);
+  const paidFor = !!picked && read.has(picked.id);
+  // Turning a card back over is free, and so is re-reading one you already paid for.
+  const flipPrice = flipped || paidFor ? null : costOf('flip', spent);
+  const flipBlocked = flipped || paidFor ? null : whyNot('flip', spent);
+
+  const onFlip = useCallback(() => {
+    if (!picked) return;
+    if (flipped) { setFlipped(false); return; }
+    if (read.has(picked.id)) { setFlipped(true); return; }
+    if (!canAfford('flip', spent)) return;
+    // New Set rather than a mutation, per the immutability rule this codebase follows.
+    setRead((r) => new Set([...r, picked.id]));
+    setSpent((s) => spend('flip', s));
+    setFlipped(true);
+  }, [picked, flipped, read, spent]);
 
   useEffect(() => {
     // React runs effects twice in development and Phaser is not idempotent: a second
@@ -115,12 +137,19 @@ export default function Stage({ items, now }: { items: readonly WireItem[]; now:
           <h2 style={{ margin: '0 0 8px', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8a8a8a' }}>
             What came in — {items.length} items
           </h2>
+          {/* The morning, spent rather than ticking. Both numbers are shown because the time of
+              day is what a producer feels and the minutes left are what they can plan against. */}
+          <p style={{ margin: '0 0 8px', fontSize: 13 }}>
+            <strong style={{ fontSize: 20 }}>{morningClock(spent)}</strong>
+            {' · '}
+            {remaining(spent)} of {MORNING_MINUTES} minutes left
+          </p>
           <div ref={hostRef} style={{ background: '#141414' }} />
         </div>
 
         <div style={{ flex: '1 1 340px', minWidth: 300 }}>
           {picked ? (
-            <Card item={picked} flipped={flipped} onFlip={() => setFlipped((f) => !f)} now={now} />
+            <Card item={picked} flipped={flipped} onFlip={onFlip} now={now} flipPrice={flipPrice} flipBlocked={flipBlocked} />
           ) : (
             <p style={{ margin: 0, color: '#666', maxWidth: '44ch' }}>
               Every story that came in this morning is in the strip, grouped by desk. Nothing is hidden —

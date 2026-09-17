@@ -21,7 +21,18 @@ const value: React.CSSProperties = { fontSize: 14 };
 // `now` is passed in rather than read here, following the same seam as block() in lib/wire.ts.
 // Reading the clock during render is impure, and on this component it would also be a
 // server/client hydration mismatch: freshness is decided once, on the server, at request time.
-export function Card({ item, flipped, onFlip, now }: { item: WireItem; flipped: boolean; onFlip: () => void; now: number }) {
+export function Card({ item, flipped, onFlip, now, flipPrice, flipBlocked }: {
+  item: WireItem;
+  flipped: boolean;
+  onFlip: () => void;
+  now: number;
+  // What reading this one costs, or null when it is free — either because you have already
+  // paid for it this morning, or because turning it back over costs nothing.
+  flipPrice: number | null;
+  // Why the control is unavailable, in words. The React build explained every disabled control
+  // in text rather than greying it out and hoping; colour is never the only signal.
+  flipBlocked: string | null;
+}) {
   const expired = !!item.expires && Date.parse(item.expires) < now;
   // The `≈` the design asks for: no duration in the feed means rolling it is a gamble, so it
   // must never render as a confident number.
@@ -96,9 +107,12 @@ export function Card({ item, flipped, onFlip, now }: { item: WireItem; flipped: 
         </>
       )}
 
-      <button type="button" onClick={onFlip} style={{ justifySelf: 'start', padding: '6px 12px', fontSize: 13 }}>
-        {flipped ? 'Back to the signals' : 'Flip to read'}
-      </button>
+      <div style={{ display: 'grid', gap: 6, justifyItems: 'start' }}>
+        <button type="button" onClick={onFlip} disabled={!!flipBlocked} style={{ padding: '6px 12px', fontSize: 13 }}>
+          {flipped ? 'Back to the signals' : flipPrice === null ? 'Flip to read' : `Flip to read — ${flipPrice} min`}
+        </button>
+        {flipBlocked ? <p style={{ margin: 0, fontSize: 12, color: '#8a4b00' }}>{flipBlocked}</p> : null}
+      </div>
     </article>
   );
 }
