@@ -204,3 +204,7 @@ dialog.sheet::backdrop { background: rgba(6, 8, 12, 0.72); }
 .teaser { font-size: 12px; line-height: 1.45; color: var(--fgSoft); margin-top: 6px;
   max-width: 62ch; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
   overflow: hidden; }
+
+/* The local flag. Deliberately not a desk colour: it says something ABOUT a story, not what the
+   story is about, and the two must be readable at the same time. */
+.flagLocal { border-color: var(--green); color: var(--green); }

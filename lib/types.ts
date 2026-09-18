@@ -16,6 +16,11 @@ export type WireItem = {
   audio?: string;         // the PUBLISHER's tape; absent when there is no tape
   expires?: string;       // ISO time, newscasts only
   old?: boolean;          // filed before today
+  // LOCAL IS A FLAG, NOT A DESK. A story can be music AND local — an SF Opera strike is both —
+  // and making `local` compete with the subject desks meant station copy lost one or the other.
+  // Set by the Jev pass in the 5 a.m. cron (lib/jev.ts); absent when that pass did not run, in
+  // which case lib/topics.ts's `local` fallback is still the only thing saying so.
+  local?: boolean;
   // OUR voiced read, written by voiceRead() in the cron. A separate field from `audio`, not a
   // flag on it: reading a story that arrived WITH tape is a normal editorial call, so the two
   // have to coexist. While they shared one field, voicing such a story overwrote the tape href

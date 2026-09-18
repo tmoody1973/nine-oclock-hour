@@ -5,6 +5,7 @@ import { COORDS, forecast, weatherScript } from '@/lib/weather';
 import { LEGAL_IDS } from '@/lib/legalid';
 import { DEFAULT_VOICE } from '@/lib/voices';
 import { pool } from '@/lib/pool';
+import { fileStory, isLocal, trust } from '@/lib/jev';
 
 export const dynamic = 'force-dynamic';
 // Measured live against real Gemini + Blob: one read (script + TTS) takes ~25s. A real wire
@@ -29,6 +30,10 @@ const READ_CONCURRENCY = 6;
 // ceiling on a free service run by a public agency. ponytail: a fixed number, not a setting —
 // there is exactly one caller and six stations.
 const WEATHER_CONCURRENCY = 3;
+
+// Six filings in flight, matching the reads. A judgment is one small call — 323 input tokens on
+// the measured run — so this is the cheap pass in this handler, not the expensive one.
+const DESK_CONCURRENCY = 6;
 
 export async function GET(req: Request) {
   // Refuse when the secret is UNSET, before comparing anything. Without this the comparison
@@ -157,6 +162,44 @@ export async function GET(req: Request) {
       day.degraded = [...(day.degraded ?? []), `wx:${id}`];
     }
   });
+
+  // The desk each story belongs to, and whether it is local — asked of TypeSafe's Jev.
+  //
+  // Measured on 2026-09-18's wire before this was written: 17 of 54 stories, every one of them
+  // station copy, had NO subject desk at all. lib/topics.ts's keyword list cannot cover local
+  // vocabulary and never will — "Nobuya Brings Elegant Late-Night Sushi Boxes" matches nothing,
+  // and the culture pattern only knows `restaurant|chef`. All 17 filed as `local`, which meant a
+  // station music story could never satisfy the Mix score's music check and, worse, `local` is
+  // not in HEAVY_TOPICS, so a Legionnaires outbreak with a rising death toll cost the listener
+  // model nothing.
+  //
+  // PLACED HERE, after the pessimistic write, for the same reason the weather is: a run killed
+  // at this point keeps the day and loses only the filing. The regex answer is already in the
+  // file and stays there.
+  //
+  // The rule beats the model when the model is unsure. trust() holds the threshold at 0.75,
+  // taken from that spike rather than picked: every disagreement at or above it was a real
+  // misfiling, and everything below was a toss-up between two defensible desks.
+  //
+  // OPTIONAL. With no key the morning is exactly what it was yesterday — regex desks, `local`
+  // as a catch-all — and nothing is recorded as degraded, because nothing was attempted.
+  const typesafeKey = process.env.TYPESAFE_API_KEY;
+  if (typesafeKey) {
+    await pool(items, DESK_CONCURRENCY, async (item) => {
+      try {
+        const j = await fileStory(item, typesafeKey);
+        // Localness is recorded whatever the desk confidence says: they are separate questions
+        // and a shaky subject does not make the story less local.
+        item.local = isLocal(j);
+        if (trust(j)) item.topic = j.topic;
+      } catch (e) {
+        // A failure keeps the regex desk and says so, rather than silently filing everything
+        // under `local` again and looking like a thin morning.
+        console.error(`desk for ${item.id} failed, keeping the keyword answer — ${(e as Error).message}`);
+        day.degraded = [...(day.degraded ?? []), `desk:${item.id}`];
+      }
+    });
+  }
 
   await pool(toVoice, READ_CONCURRENCY, async (item) => {
     try {

@@ -65,6 +65,10 @@ export function Wire({ items, hour, degraded, onAdd, onOpen, onPreview, playingI
                       <span>{w.when}</span>
                       <span>{lenText}</span>
                       <span className={`${styles.flag} ${w.how === 'satellite' || w.how === 'ours' ? styles.flagOk : styles.flagHold}`}>{HOW_LABEL[w.how]}</span>
+                      {/* Local is a FLAG, not a desk — a story can be music and local at once.
+                          It sits beside the desk rather than replacing it, which is the whole
+                          point of asking the two questions separately. */}
+                      {w.local && <span className={`${styles.flag} ${styles.flagLocal}`}>local</span>}
                       {w.expires && <span>good until {expiryLabel(w.expires)}</span>}
                     </p>
                     {/* WHAT THE STORY IS ABOUT. 52 of this morning's 54 items carry a teaser and
